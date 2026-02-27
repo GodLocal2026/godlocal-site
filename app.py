@@ -25,6 +25,7 @@ _soul: dict = {}
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 COMPOSIO_KEY = os.environ.get("COMPOSIO_API_KEY", "")
 SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
+XQUIK_KEY = os.environ.get("XQUIK_API_KEY", "")
 MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192"]
 
 _HITL_READY = False
@@ -136,8 +137,12 @@ COMPOSIO_TOOLS = [
     {"type": "function", "function": {"name": "send_telegram", "description": "Send Telegram message", "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
     {"type": "function", "function": {"name": "create_github_issue", "description": "Create GitHub issue", "parameters": {"type": "object", "properties": {"title": {"type": "string"}, "body": {"type": "string"}}, "required": ["title"]}}},
 ]
+XQUIK_TOOLS = [
+    {"type": "function", "function": {"name": "get_twitter_trends", "description": "Get real-time Twitter trending topics, filtered for crypto. Use to detect what's pumping or being discussed.", "parameters": {"type": "object", "properties": {"woeid": {"type": "integer", "description": "Region WOEID. 1=Worldwide, 23424977=US. Default 1."}}, "required": []}}},
+    {"type": "function", "function": {"name": "get_account_posts", "description": "Get recent tweets from a specific Twitter/X account (e.g. WuBlockchain, lookonchain, solanafloor).", "parameters": {"type": "object", "properties": {"username": {"type": "string", "description": "X username without @"}}, "required": ["username"]}}},
+]
 
-def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else [])
+def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else [])
 
 def run_tool(name, args):
     global _kill_switch
@@ -157,6 +162,36 @@ def run_tool(name, args):
         try:
             r = requests.post("https://google.serper.dev/search", json={"q": args.get("query", ""), "num": 5}, headers={"X-API-KEY": SERPER_KEY, "Content-Type": "application/json"}, timeout=10)
             return json.dumps([{"title": x.get("title"), "snippet": x.get("snippet"), "link": x.get("link")} for x in r.json().get("organic", [])[:5]])
+        except Exception as e: return json.dumps({"error": str(e)})
+    if name == "get_twitter_trends" and XQUIK_KEY:
+        try:
+            woeid = args.get("woeid", 1)
+            r = requests.get(f"https://xquik.com/api/v1/trends?woeid={woeid}&count=30", headers={"x-api-key": XQUIK_KEY}, timeout=10)
+            trends = r.json().get("trends", [])
+            # Filter for crypto relevance
+            crypto_kw = {"btc","eth","sol","bitcoin","ethereum","solana","crypto","defi","nft","web3","token","altcoin","pump","doge","bnb","xrp","avax","sui","ton","base","blast"}
+            crypto_trends = [t for t in trends if any(k in t.get("name","").lower() for k in crypto_kw)]
+            return json.dumps({"crypto_trends": crypto_trends, "all_trends": trends[:10], "total": r.json().get("total", 0)})
+        except Exception as e: return json.dumps({"error": str(e)})
+    if name == "get_account_posts" and XQUIK_KEY:
+        try:
+            username = args.get("username", "")
+            # Start extraction job
+            r = requests.post("https://xquik.com/api/v1/extractions", json={"toolType": "post_extractor", "targetUsername": username}, headers={"x-api-key": XQUIK_KEY, "Content-Type": "application/json"}, timeout=10)
+            job = r.json()
+            job_id = job.get("id")
+            if not job_id: return json.dumps({"error": "no job id", "raw": job})
+            # Poll for result (max 10s)
+            for _ in range(5):
+                time.sleep(2)
+                pr = requests.get(f"https://xquik.com/api/v1/extractions/{job_id}", headers={"x-api-key": XQUIK_KEY}, timeout=10)
+                pdata = pr.json()
+                if pdata.get("status") == "completed":
+                    posts = pdata.get("data", [])[:10]
+                    return json.dumps({"username": username, "posts": posts, "count": len(posts)})
+                if pdata.get("status") == "failed":
+                    return json.dumps({"error": "extraction failed", "job": job_id})
+            return json.dumps({"status": "pending", "job_id": job_id, "message": "Extraction still running, try get_account_posts again"})
         except Exception as e: return json.dumps({"error": str(e)})
     if not COMPOSIO_KEY: return json.dumps({"error": "COMPOSIO_API_KEY not set"})
     headers = {"x-api-key": COMPOSIO_KEY, "Content-Type": "application/json"}
@@ -292,7 +327,7 @@ async def oasis_page():
 
 @app.get("/health")
 @app.get("/api/health")
-async def health(): return {"status": "ok", "version": "2.0.0", "models": MODELS, "composio": bool(COMPOSIO_KEY), "serper": bool(SERPER_KEY), "hitl_ready": _HITL_READY, "ts": datetime.utcnow().isoformat()}
+async def health(): return {"status": "ok", "version": "2.1.0", "models": MODELS, "composio": bool(COMPOSIO_KEY), "serper": bool(SERPER_KEY), "xquik": bool(XQUIK_KEY), "hitl_ready": _HITL_READY, "ts": datetime.utcnow().isoformat()}
 
 @app.get("/status")
 @app.get("/mobile/status")
@@ -307,6 +342,22 @@ async def kill_switch_toggle(req: Request):
 
 @app.get("/market")
 async def market_route(): return get_market()
+
+@app.get("/api/xquik/trends")
+async def xquik_trends(woeid: int = 1, count: int = 20):
+    """Real-time Twitter trends from Xquik API — crypto-filtered."""
+    if not XQUIK_KEY:
+        return JSONResponse({"error": "XQUIK_API_KEY not configured"}, status_code=503)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"https://xquik.com/api/v1/trends", params={"woeid": woeid, "count": count}, headers={"x-api-key": XQUIK_KEY})
+        data = r.json()
+        trends = data.get("trends", [])
+        crypto_kw = {"btc","eth","sol","bitcoin","ethereum","solana","crypto","defi","nft","web3","token","pump","doge","bnb","xrp","avax","sui","ton","base","blast","altcoin"}
+        crypto_trends = [t for t in trends if any(k in t.get("name","").lower() for k in crypto_kw)]
+        return {"trends": trends, "crypto_trends": crypto_trends, "woeid": woeid, "ts": datetime.utcnow().isoformat()}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.post("/think")
 async def think(req: Request):
