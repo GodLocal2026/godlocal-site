@@ -1,23 +1,7 @@
-# deps
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
+node_modules/
+.next/
 .env
-.env*.local
-.vercel
-*.tsbuildinfo
-next-env.d.ts
+.env.local
+.DS_Store
+dist/
+out/
