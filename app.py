@@ -290,10 +290,12 @@ async def oasis_page():
     if os.path.exists(path): return HTMLResponse(open(path, encoding="utf-8").read())
     return HTMLResponse("<h1>GodLocal Oasis</h1>")
 
-@app.get("/health"); @app.get("/api/health")
+@app.get("/health")
+@app.get("/api/health")
 async def health(): return {"status": "ok", "version": "2.0.0", "models": MODELS, "composio": bool(COMPOSIO_KEY), "serper": bool(SERPER_KEY), "hitl_ready": _HITL_READY, "ts": datetime.utcnow().isoformat()}
 
-@app.get("/status"); @app.get("/mobile/status")
+@app.get("/status")
+@app.get("/mobile/status")
 async def status(): return {"kill_switch": _kill_switch, "hitl_ready": _HITL_READY, "sparks": _sparks[-10:], "thoughts": _thoughts[-5:], "market": _market_cache.get("data"), "ts": datetime.utcnow().isoformat()}
 
 @app.post("/mobile/kill-switch")
