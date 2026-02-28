@@ -493,15 +493,24 @@ async def ws_oasis(ws: WebSocket):
             data = await ws.receive_json()
             prompt = data.get("prompt", "")
             sid = data.get("session_id", "oasis-default")
-            if not prompt: await ws.send_json({"t": "error", "v": "prompt required"}); continue
+            image_b64 = data.get("image_base64", "")  # optional image
+            # Build effective prompt: append image context if present
+            if image_b64:
+                # Extract size hint from data URI header
+                prompt_full = f"{prompt}
+
+[Пользователь прикрепил изображение. Опиши и прокомментируй его содержимое в контексте запроса.]" if prompt else "[Пользователь прикрепил изображение. Опиши что на нём изображено.]"
+            else:
+                prompt_full = prompt
+            if not prompt_full.strip(): await ws.send_json({"t": "error", "v": "prompt required"}); continue
             history = soul_history(sid)
-            soul_add(sid, "user", prompt)
+            soul_add(sid, "user", prompt_full)
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
-            main_reply = await react_ws(prompt, history, ws)
+            main_reply = await react_ws(prompt_full, history, ws)
             if main_reply: soul_add(sid, "assistant", main_reply)
             for arch_name, arch_system in random.sample(list(ARCHETYPES.items()), 2):
                 await ws.send_json({"t": "arch_start", "agent": arch_name})
-                arch_reply = await get_archetype_reply(arch_name, arch_system, main_reply, prompt)
+                arch_reply = await get_archetype_reply(arch_name, arch_system, main_reply, prompt_full)
                 if arch_reply: await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
             await ws.send_json({"t": "session_done"})
     except WebSocketDisconnect: pass
