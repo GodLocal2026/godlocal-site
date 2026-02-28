@@ -591,7 +591,7 @@ function wolfIntro(){
 }
 
 // ── COMMAND ROUTER ──
-function cmd(t){userBubble(t);route(t)}
+function cmd(t){userBbl(t);route(t)}
 
 async function route(t){
   const tl=t.toLowerCase().trim();
@@ -620,7 +620,7 @@ async function route(t){
 }
 
 // ── INPUT ──
-function send(){const inp=document.getElementById('inp'),t=inp.value.trim();if(!t)return;inp.value='';inp.style.height='auto';route(t)}
+function send(){const inp=document.getElementById('inp'),t=inp.value.trim();if(!t)return;inp.value='';inp.style.height='auto';userBbl(t);route(t)}
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',()=>{
