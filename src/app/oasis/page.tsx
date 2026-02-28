@@ -44,9 +44,9 @@ const SVC_FIELDS: Record<string, { label: string; placeholder: string; hint: str
 // Sub-component for account connection card (needs hooks)
 function SvcCard({ svc, onDone }: { svc: ServiceStatus & { color: string }; onDone: () => void }) {
   const stored = typeof window !== 'undefined' ? localStorage.getItem(`gl_${svc.id}`) : null
-  const [isConnected, setIsConnected] = React.useState(!!stored)
-  const [editing, setEditing] = React.useState(false)
-  const [val, setVal] = React.useState('')
+  const [isConnected, setIsConnected] = useState(!!stored)
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState('')
   const color = svc.color
 
   const disconnect = () => { localStorage.removeItem(`gl_${svc.id}`); setIsConnected(false); setEditing(false) }
