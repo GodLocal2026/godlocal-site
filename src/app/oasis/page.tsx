@@ -118,6 +118,8 @@ export default function OasisPage() {
 
   const wsRef          = useRef<WebSocket|null>(null)
   const bottomRef      = useRef<HTMLDivElement>(null)
+  const scrollRef      = useRef<HTMLDivElement|null>(null)
+  const atBottomRef    = useRef<boolean>(true)
   const inputRef       = useRef<HTMLTextAreaElement>(null)
   const fileRef        = useRef<HTMLInputElement>(null)
   const reconnTimer    = useRef<ReturnType<typeof setTimeout>|null>(null)
