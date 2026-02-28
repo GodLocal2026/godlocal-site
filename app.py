@@ -131,6 +131,9 @@ BASE_TOOLS = [
     {"type": "function", "function": {"name": "set_kill_switch", "description": "Enable/disable trading", "parameters": {"type": "object", "properties": {"active": {"type": "boolean"}, "reason": {"type": "string"}}, "required": ["active"]}}},
     {"type": "function", "function": {"name": "add_spark", "description": "Log signal to SparkNet", "parameters": {"type": "object", "properties": {"signal": {"type": "string"}, "confidence": {"type": "number"}, "action": {"type": "string"}}, "required": ["signal", "confidence", "action"]}}},
     {"type": "function", "function": {"name": "web_search", "description": "Search web via Serper", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+    {"type": "function", "function": {"name": "fetch_url", "description": "Fetch and read full content of any URL (articles, docs, pages)", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
+    {"type": "function", "function": {"name": "remember", "description": "Save something to persistent memory for this user", "parameters": {"type": "object", "properties": {"key": {"type": "string"}, "value": {"type": "string"}}, "required": ["key", "value"]}}},
+    {"type": "function", "function": {"name": "recall", "description": "Retrieve something from persistent memory", "parameters": {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}}},
 ]
 COMPOSIO_TOOLS = [
     {"type": "function", "function": {"name": "post_tweet", "description": "Post tweet @kitbtc", "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
@@ -215,6 +218,30 @@ def run_tool(name, args):
             r = requests.post(f"{base}/GITHUB_CREATE_AN_ISSUE/execute", json={"input": {"owner": "GodLocal2026", "repo": "godlocal-site", "title": args.get("title", ""), "body": args.get("body", "")}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
     except Exception as e: return json.dumps({"error": str(e)})
+    if name == "fetch_url":
+        try:
+            url = args.get("url", "")
+            resp = requests.get(url, timeout=15, headers={"User-Agent": "GodLocal/2.0"})
+            # Extract text: strip HTML tags simply
+            import re as _re
+            text = _re.sub(r"<[^>]+>", " ", resp.text)
+            text = _re.sub(r"\s+", " ", text).strip()
+            return json.dumps({"url": url, "content": text[:3000], "status": resp.status_code})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+    if name == "remember":
+        key, val = args.get("key",""), args.get("value","")
+        with _lock:
+            if "_memory" not in _soul: _soul["_memory"] = {}
+            _soul["_memory"][key] = {"value": val, "ts": datetime.utcnow().isoformat()}
+        return json.dumps({"ok": True, "stored": key})
+    if name == "recall":
+        key = args.get("key","")
+        with _lock:
+            mem = _soul.get("_memory", {})
+            if key in mem: return json.dumps({"key": key, "value": mem[key]["value"]})
+            # fuzzy: return all keys
+            return json.dumps({"keys": list(mem.keys()), "note": "key not found, showing all"})
     return json.dumps({"error": f"unknown tool: {name}"})
 
 def react(prompt, history=None):
@@ -248,10 +275,15 @@ def react(prompt, history=None):
 async def react_ws(prompt, history, ws):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     system = (
-        f"You are GodLocal — a powerful AI agent. Today: {now_str}. "
-        "You have access to web_search (Serper live search) and get_market_data tools. "
-        "ALWAYS use web_search for any question about current events, news, prices, people, facts after 2023. "
-        "Think step by step. Be concise and direct."
+        f"You are GodLocal — a powerful autonomous AI agent. Today: {now_str}. "
+        "You have powerful tools: web_search (live Google search), fetch_url (read any webpage), "
+        "get_market_data (crypto prices), post_tweet, send_telegram, create_github_issue, remember/recall (persistent memory). "
+        "RULES: "
+        "1. ALWAYS use web_search for current events, news, prices, AI releases, anything after 2023. "
+        "2. Format ALL links as markdown: [link text](https://url.com) — never paste raw URLs. "
+        "3. Use **bold** for important terms. Use `code` for technical values. "
+        "4. Be direct and helpful. Give concrete answers with sources. "
+        "5. After web_search, always include clickable source links in your reply."
     )
     msgs = [{"role": "system", "content": system}]
     if history: msgs.extend(history[-6:])

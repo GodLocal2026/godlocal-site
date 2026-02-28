@@ -40,6 +40,88 @@ const TOOL_LABELS: Record<string, string> = {
   add_spark: '⚡ SparkNet',
 }
 
+
+// ─── Markdown renderer (no deps) ──────────────────────────────────
+function MarkdownText({ text, streaming }: { text: string; streaming?: boolean }) {
+  // Process markdown into React nodes
+  const lines = text.split('\n')
+  const nodes: React.ReactNode[] = []
+
+  lines.forEach((line, li) => {
+    if (!line && li < lines.length - 1) { nodes.push(<br key={`br-${li}`} />); return }
+
+    // Parse inline: **bold**, `code`, [text](url)
+    const parts: React.ReactNode[] = []
+    let rest = line
+    let ki = 0
+
+    while (rest.length) {
+      // Bold
+      const boldM = rest.match(/^(.*?)\*\*(.*?)\*\*(.*)$/)
+      if (boldM) {
+        if (boldM[1]) parts.push(<span key={ki++}>{boldM[1]}</span>)
+        parts.push(<strong key={ki++} className="text-gray-100 font-semibold">{boldM[2]}</strong>)
+        rest = boldM[3]; continue
+      }
+      // Link [text](url)
+      const linkM = rest.match(/^(.*?)\[([^\]]+)\]\((https?:\/\/[^)]+)\)(.*)$/)
+      if (linkM) {
+        if (linkM[1]) parts.push(<span key={ki++}>{linkM[1]}</span>)
+        parts.push(
+          <a key={ki++} href={linkM[3]} target="_blank" rel="noopener noreferrer"
+            className="text-[#00FF9D] underline underline-offset-2 hover:text-white transition-colors break-all">
+            {linkM[2]} ↗
+          </a>
+        )
+        rest = linkM[4]; continue
+      }
+      // Inline code
+      const codeM = rest.match(/^(.*?)`([^`]+)`(.*)$/)
+      if (codeM) {
+        if (codeM[1]) parts.push(<span key={ki++}>{codeM[1]}</span>)
+        parts.push(<code key={ki++} className="bg-[#0f1a1a] text-[#00FF9D] px-1.5 py-0.5 rounded text-xs font-mono">{codeM[2]}</code>)
+        rest = codeM[3]; continue
+      }
+      // Plain URL (not in markdown link format)
+      const urlM = rest.match(/^(.*?)(https?:\/\/[^\s<>]+)(.*)$/)
+      if (urlM) {
+        if (urlM[1]) parts.push(<span key={ki++}>{urlM[1]}</span>)
+        const url = urlM[2]
+        const label = url.replace(/^https?:\/\//, '').slice(0, 40) + (url.length > 45 ? '...' : '')
+        parts.push(
+          <a key={ki++} href={url} target="_blank" rel="noopener noreferrer"
+            className="text-[#00FF9D] underline underline-offset-2 hover:text-white transition-colors">
+            {label} ↗
+          </a>
+        )
+        rest = urlM[3]; continue
+      }
+      parts.push(<span key={ki++}>{rest}</span>)
+      break
+    }
+
+    // Heading
+    if (line.startsWith('### ')) {
+      nodes.push(<div key={li} className="font-bold text-gray-100 mt-2 mb-0.5 text-sm">{parts}</div>)
+    } else if (line.startsWith('## ')) {
+      nodes.push(<div key={li} className="font-bold text-gray-100 mt-2 mb-0.5">{parts}</div>)
+    } else if (line.startsWith('- ') || line.startsWith('• ')) {
+      nodes.push(<div key={li} className="flex gap-2 items-start"><span className="text-gray-600 shrink-0 mt-0.5">·</span><span>{parts}</span></div>)
+    } else {
+      nodes.push(<span key={li}>{parts}</span>)
+      if (li < lines.length - 1) nodes.push(<br key={`br-${li}`} />)
+    }
+  })
+
+  return (
+    <span>
+      {nodes}
+      {streaming && <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm opacity-70 align-middle" />}
+    </span>
+  )
+}
+// ──────────────────────────────────────────────────────────────────
+
 export default function OasisPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -222,9 +304,8 @@ export default function OasisPage() {
                   <div className="text-xs mb-1 font-medium" style={{ color: agent?.color || '#00FF9D' }}>
                     {msg.agentName || 'GodLocal'}
                   </div>
-                  <div className="bg-[#080d14] border border-[#0f1820] rounded-2xl rounded-tl-md px-4 py-3 text-sm text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
-                    {msg.content}
-                    {msg.streaming && <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm opacity-70 align-middle" />}
+                  <div className="bg-[#080d14] border border-[#0f1820] rounded-2xl rounded-tl-md px-4 py-3 text-sm text-gray-300 leading-relaxed break-words">
+                    <MarkdownText text={msg.content} streaming={msg.streaming} />
                   </div>
                 </div>
               </motion.div>
