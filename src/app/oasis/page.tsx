@@ -183,7 +183,10 @@ export default function OasisPage() {
     return () => { wsRef.current?.close(); if (reconnTimer.current) clearTimeout(reconnTimer.current) }
   }, [connectWS])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }) }, [messages])
+  // Smart scroll: only auto-scroll if user is already near the bottom
+  useEffect(() => {
+    if (atBottomRef.current) bottomRef.current?.scrollIntoView({ behavior:'smooth' })
+  }, [messages])
 
   // ── Send ──
   const send = useCallback(() => {
@@ -193,7 +196,7 @@ export default function OasisPage() {
     setMessages(prev => [...prev, msg])
     setInput('')
     setAttachments([])
-    if (inputRef.current) { inputRef.current.style.height = 'auto' }
+    if (inputRef.current) { inputRef.current.style.height = 'auto'; inputRef.current.blur() }
 
     const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id }
     if (attachments.length) payload.files = attachments.map(f=>f.url)
@@ -262,13 +265,16 @@ export default function OasisPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
-          {/* Agent button */}
+          {/* Agent button + XP */}
           <button onClick={() => { setShowAgents(!showAgents); setShowServices(false) }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all"
             style={{ borderColor: activeAgent.color+'40', background: activeAgent.color+'10', color: activeAgent.color }}>
             <span className="text-sm">{activeAgent.icon}</span>
-            <span className="font-medium hidden xs:block">{activeAgent.name}</span>
-            <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="font-medium">{activeAgent.name}</span>
+            {(xpMap[activeAgent.id]||0) > 0 && (
+              <span className="opacity-60 font-mono text-xs">{xpMap[activeAgent.id]}xp</span>
+            )}
+            <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
@@ -326,7 +332,12 @@ export default function OasisPage() {
       </AnimatePresence>
 
       {/* ── Messages ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overscroll-contain" style={{WebkitOverflowScrolling:'touch'}}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain"
+        style={{WebkitOverflowScrolling:'touch'}}
+        onScroll={e => {
+          const el = e.currentTarget
+          atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+        }}>
         <div className="px-4 py-3">
           {/* Empty state */}
           {messages.length === 0 && (
@@ -405,30 +416,11 @@ export default function OasisPage() {
               )
             })}
           </AnimatePresence>
-          <div ref={bottomRef} className="h-2" />
+          <div ref={bottomRef} className="h-1" />
         </div>
       </div>
 
-      {/* ── Stats bar ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-1.5 border-t border-[#0a0f18] bg-[#030508]" style={{scrollbarWidth:'none'}}>
-        {['karma','xp','bond'].map(k => {
-          const base = AGENTS.find(a=>a.id===activeAgent.id)
-          const base_vals: Record<string,number> = {karma:base?.id?4:0, xp:(xpMap[activeAgent.id]||0), bond:18}
-          return (
-            <div key={k} className="flex items-center gap-1.5 shrink-0">
-              <span className="text-gray-700 uppercase tracking-widest" style={{fontSize:9}}>{k}</span>
-              <span className="font-mono text-xs font-bold" style={{color:activeAgent.color}}>
-                {k==='xp' ? (xpMap[activeAgent.id]||0) : k==='karma' ? 4 : 18}
-              </span>
-            </div>
-          )
-        })}
-        <div className="ml-auto flex items-center gap-1.5">
-          <div className="h-1 w-12 bg-[#0f1520] rounded-full overflow-hidden">
-            <div className="h-1 rounded-full transition-all" style={{width:`${Math.min((xpMap[activeAgent.id]||0)*8,100)}%`, background:activeAgent.color}}/>
-          </div>
-        </div>
-      </div>
+
 
       {/* ── Attachment preview strip ─────────────────────────────────────────── */}
       <AnimatePresence>
