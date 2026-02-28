@@ -549,7 +549,7 @@ const WOLF_SYSTEM=`Ты WOLF — Волк с Уолл-стрит крипто-р
 Стиль: говори как человек, не как бот. Используй разговорный рус. Можно 1-2 эмодзи.
 Если вопрос не финансовый — разворачивай к деньгам.`;
 
-async function wolfQ(question){
+async async function wolfQ(question){
   const groqKey=localStorage.getItem('gl_groq');
   if(!groqKey){
     bot(`🐺 Нужен Groq API ключ для мозга.<div class="setup"><b>Настройка (30 сек):</b><br>1. <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold)">console.groq.com/keys ↗</a> → Create API Key<br>2. Введи: <code style="color:var(--gold)">groq sk-...</code><br><br>После этого WOLF думает как стратег.</div>`);
