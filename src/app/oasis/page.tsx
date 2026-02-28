@@ -12,7 +12,7 @@ interface Message {
   id:string; role:'user'|'agent'|'tool'; agentId?:string; agentName?:string
   content:string; streaming?:boolean; ts:number; files?: AttachedFile[]
 }
-interface AttachedFile { name:string; url:string; type:string; size:number }
+interface AttachedFile { name:string; url:string; type:string; size:number; base64?:string }
 interface ServiceStatus { id:string; name:string; icon:string; connected:boolean; color:string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -201,7 +201,12 @@ export default function OasisPage() {
     if (inputRef.current) { inputRef.current.style.height = 'auto'; inputRef.current.blur() }
 
     const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id }
-    if (attachments.length) payload.files = attachments.map(f=>f.url)
+    if (attachments.length) {
+      const imgs = attachments.filter(f => f.type.startsWith('image/') && f.base64)
+      if (imgs.length) payload.image_base64 = imgs[0].base64   // first image → vision
+      const docs = attachments.filter(f => !f.type.startsWith('image/'))
+      if (docs.length) payload.files = docs.map(f => f.name)
+    }
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload))
@@ -225,7 +230,29 @@ export default function OasisPage() {
     const files = Array.from(e.target.files||[])
     files.forEach(f => {
       const url = URL.createObjectURL(f)
-      setAttachments(prev => [...prev, { name:f.name, url, type:f.type, size:f.size }])
+      if (f.type.startsWith('image/')) {
+        // Resize + base64 encode for backend
+        const reader = new FileReader()
+        reader.onload = () => {
+          const full = reader.result as string
+          // Compress: draw onto canvas at max 512px
+          const img = new Image()
+          img.onload = () => {
+            const MAX = 512
+            const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.round(img.width * scale)
+            canvas.height = Math.round(img.height * scale)
+            canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+            const b64 = canvas.toDataURL('image/jpeg', 0.75)
+            setAttachments(prev => [...prev, { name:f.name, url, type:f.type, size:f.size, base64:b64 }])
+          }
+          img.src = full
+        }
+        reader.readAsDataURL(f)
+      } else {
+        setAttachments(prev => [...prev, { name:f.name, url, type:f.type, size:f.size }])
+      }
     })
     e.target.value = ''
   }
@@ -254,29 +281,22 @@ export default function OasisPage() {
           <span className="text-[#00FF9D] font-bold tracking-[0.2em] text-sm shrink-0">OASIS</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Connection pill */}
-          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border ${
-            connected ? 'border-[#00FF9D]/20 text-[#00FF9D] bg-[#00FF9D]/08' : 'border-gray-800 text-gray-600 bg-transparent'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
-            <span>{connected ? 'live' : connecting ? '…' : 'off'}</span>
-          </div>
-          {/* Services button */}
+          {/* Status dot only — no text */}
+          <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
+          {/* Services */}
           <button onClick={() => { setShowServices(!showServices); setShowAgents(false) }}
-            className={`p-2 rounded-xl border transition-all ${showServices ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#0d131e] text-gray-600 hover:text-gray-400'}`}>
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showServices ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#0d131e] text-gray-600 active:text-gray-300'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
-          {/* Agent button + XP */}
+          {/* Agent selector — icon + name only, no XP clutter */}
           <button onClick={() => { setShowAgents(!showAgents); setShowServices(false) }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all"
-            style={{ borderColor: activeAgent.color+'40', background: activeAgent.color+'10', color: activeAgent.color }}>
-            <span className="text-sm">{activeAgent.icon}</span>
-            <span className="font-medium">{activeAgent.name}</span>
-            {(xpMap[activeAgent.id]||0) > 0 && (
-              <span className="opacity-60 font-mono text-xs">{xpMap[activeAgent.id]}xp</span>
-            )}
-            <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
+            style={{ borderColor: activeAgent.color+'50', background: showAgents ? activeAgent.color+'22' : activeAgent.color+'12', color: activeAgent.color }}>
+            <span style={{fontSize:16, lineHeight:1}}>{activeAgent.icon}</span>
+            <span className="text-xs font-semibold tracking-wide" style={{maxWidth:64, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis'}}>{activeAgent.name}</span>
+            <svg className="w-3 h-3 shrink-0 opacity-60 transition-transform" style={{transform: showAgents ? 'rotate(180deg)' : 'rotate(0deg)'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
