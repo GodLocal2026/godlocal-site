@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>GodLocal — MemeSMERCH</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#080a0f;--bg2:#0e1117;--bg3:#151b25;--border:#1c2535;
+  --g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00b4d8;
+  --txt:#c8d0e0;--txt2:#5a6888;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+/* ── Header ── */
+.hdr{display:flex;align-items:center;gap:8px;padding:10px 14px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.hdr-logo{font-size:15px;font-weight:700;color:var(--g);letter-spacing:-.3px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)}
+.dot.dead{background:var(--r);box-shadow:0 0 8px var(--r)}
+.hdr-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.kill-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--r);color:var(--r);font-size:11px;font-weight:600;background:rgba(255,75,110,.07);cursor:pointer;transition:all .2s}
+.kill-btn.on{background:var(--r);color:#fff}
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1;min-width:60px;padding:9px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--txt2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab.active{color:var(--g);border-color:var(--g)}
+/* ── Panels ── */
+.panels{flex:1;overflow:hidden;position:relative}
+.panel{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:none;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.panel.active{display:block}
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px}
+.card-row{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card-row+.card-row{margin-top:6px}
+.badge{padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700}
+.badge.buy{background:rgba(0,255,157,.12);color:var(--g);border:1px solid rgba(0,255,157,.25)}
+.badge.sell{background:rgba(255,75,110,.12);color:var(--r);border:1px solid rgba(255,75,110,.25)}
+.badge.watch{background:rgba(249,202,36,.1);color:var(--y);border:1px solid rgba(249,202,36,.2)}
+.badge.new{background:rgba(0,180,216,.1);color:var(--b);border:1px solid rgba(0,180,216,.2)}
+.ticker{font-weight:700;font-size:14px;color:#fff}
+.name-small{color:var(--txt2);font-size:11px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.price{font-weight:600;color:#fff;font-size:13px}
+.chg{font-size:12px;font-weight:600}
+.chg.pos{color:var(--g)}
+.chg.neg{color:var(--r)}
+.chg.neu{color:var(--txt2)}
+.stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+.stat{display:flex;flex-direction:column;gap:1px}
+.stat-lbl{font-size:10px;color:var(--txt2)}
+.stat-val{font-size:12px;font-weight:600;color:var(--txt)}
+/* ── Sections ── */
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.section-title{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px}
+.refresh-btn{font-size:10px;color:var(--p);cursor:pointer;padding:2px 6px;border:1px solid rgba(108,92,231,.3);border-radius:5px}
+/* ── Signal conviction bar ── */
+.conv-bar{height:3px;border-radius:2px;background:var(--border);margin-top:5px;overflow:hidden}
+.conv-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--g),var(--b))}
+/* ── Portfolio ── */
+.pnl-pos{color:var(--g);font-weight:700}
+.pnl-neg{color:var(--r);font-weight:700}
+.add-pos-form{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.add-pos-form input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:#fff;font-size:13px;margin-top:6px;outline:none}
+.add-pos-form input:focus{border-color:var(--g)}
+.btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;active:scale(.97)}
+.btn-g{background:var(--g);color:#000}
+.btn-p{background:rgba(108,92,231,.15);color:var(--p);border:1px solid rgba(108,92,231,.3)}
+.btn-r{background:rgba(255,75,110,.12);color:var(--r);border:1px solid rgba(255,75,110,.25)}
+/* ── Dive / Analyzer ── */
+.dive-input{display:flex;gap:6px;margin-bottom:10px}
+.dive-input input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:#fff;font-size:13px;outline:none}
+.dive-input input::placeholder{color:var(--txt2)}
+.dive-input input:focus{border-color:var(--g)}
+.risk-gauge{display:flex;gap:3px;margin-top:8px}
+.risk-seg{flex:1;height:5px;border-radius:3px;background:var(--border)}
+.rug-bar{background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;height:6px;margin-top:5px}
+.rug-fill{height:100%}
+/* ── Think / AI ── */
+.think-msgs{display:flex;flex-direction:column;gap:8px;padding-bottom:10px}
+.msg-ai{background:var(--bg2);border:1px solid var(--border);border-radius:10px 10px 10px 3px;padding:9px 12px;font-size:13px;line-height:1.5;color:var(--txt)}
+.msg-user{background:rgba(108,92,231,.15);border:1px solid rgba(108,92,231,.25);border-radius:10px 10px 3px 10px;padding:9px 12px;font-size:13px;align-self:flex-end;max-width:85%;color:#c5bff8}
+.think-input-row{position:sticky;bottom:0;background:var(--bg);padding:8px 0 2px;display:flex;gap:6px}
+.think-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:#fff;font-size:13px;outline:none;resize:none;font-family:inherit;max-height:100px}
+.think-input:focus{border-color:var(--p)}
+.think-send{background:var(--p);color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:16px}
+/* ── Status panel ── */
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.stat-card-lbl{font-size:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.stat-card-val{font-size:18px;font-weight:700}
+.stat-card-sub{font-size:11px;color:var(--txt2);margin-top:2px}
+.online{color:var(--g)}
+.offline{color:var(--r)}
+/* ── Alerts ── */
+.alert-item{display:flex;align-items:center;gap:8px}
+.alert-del{color:var(--r);cursor:pointer;font-size:16px;padding:0 4px}
+/* ── Empty state ── */
+.empty{text-align:center;color:var(--txt2);font-size:13px;padding:30px 0}
+.empty span{display:block;font-size:24px;margin-bottom:8px}
+/* ── Spinner ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--g);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
+/* ── Pulse ── */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-pulse{animation:pulse 2s ease-in-out infinite}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <div class="dot live-pulse" id="mainDot"></div>
+  <span class="hdr-logo">GodLocal ⚡</span>
+  <span style="font-size:10px;color:var(--txt2)" id="scanStatus">scanning…</span>
+  <div class="hdr-right">
+    <button class="kill-btn" id="killBtn" onclick="toggleKill()">KILL ☠</button>
+  </div>
+</div>
+
+<!-- ── TABS ── -->
+<div class="tabs" id="tabs">
+  <div class="tab active" onclick="switchTab('scan')">🌪️ SCAN</div>
+  <div class="tab" onclick="switchTab('signals')">⚡ SIGNALS</div>
+  <div class="tab" onclick="switchTab('bag')">💼 BAG</div>
+  <div class="tab" onclick="switchTab('dive')">🔍 DIVE</div>
+  <div class="tab" onclick="switchTab('alerts')">🚨 ALERTS</div>
+  <div class="tab" onclick="switchTab('think')">🧠 AI</div>
+</div>
+
+<!-- ── PANELS ── -->
+<div class="panels">
+
+<!-- SCAN -->
+<div class="panel active" id="panel-scan">
+  <div class="section-hdr">
+    <span class="section-title">Горячие токены Solana</span>
+    <span class="refresh-btn" onclick="loadScan()">↻ обновить</span>
+  </div>
+  <div id="scan-list"><div class="empty"><span>🌪️</span>Загружаю рынок…</div></div>
+</div>
+
+<!-- SIGNALS -->
+<div class="panel" id="panel-signals">
+  <div class="section-hdr">
+    <span class="section-title">Активные сигналы</span>
+    <span class="refresh-btn" onclick="genSignals()">↻</span>
+  </div>
+  <div id="signals-list"><div class="empty"><span>⚡</span>Анализирую…</div></div>
+</div>
+
+<!-- BAG (Portfolio) -->
+<div class="panel" id="panel-bag">
+  <div class="section-hdr">
+    <span class="section-title">Мой портфель</span>
+    <span id="total-pnl" style="font-size:12px;font-weight:700"></span>
+  </div>
+  <div class="add-pos-form" id="addForm">
+    <div style="font-size:11px;color:var(--g);font-weight:600;margin-bottom:4px">+ Добавить позицию</div>
+    <input id="pos-addr" placeholder="Адрес токена (mint address)">
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <input id="pos-entry" placeholder="Вход $ (цена)" type="number" style="flex:1">
+      <input id="pos-sol" placeholder="SOL вошёл" type="number" style="flex:1">
+    </div>
+    <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="addPosition()">Войти в позицию</button>
+  </div>
+  <div id="bag-list"><div class="empty"><span>💼</span>Портфель пуст</div></div>
+</div>
+
+<!-- DIVE -->
+<div class="panel" id="panel-dive">
+  <div class="dive-input">
+    <input id="dive-addr" placeholder="Вставь адрес токена…" onkeydown="if(event.key==='Enter')diveAnalyze()">
+    <button class="btn btn-p" onclick="diveAnalyze()">АНАЛИЗ</button>
+  </div>
+  <div id="dive-result"><div class="empty"><span>🔍</span>Вставь контракт токена для глубокого анализа</div></div>
+</div>
+
+<!-- ALERTS -->
+<div class="panel" id="panel-alerts">
+  <div class="section-hdr">
+    <span class="section-title">Мои алерты</span>
+  </div>
+  <div class="add-pos-form" style="margin-bottom:10px">
+    <div style="font-size:11px;color:var(--y);font-weight:600;margin-bottom:4px">+ Новый алерт</div>
+    <input id="alert-ticker" placeholder="Тикер / адрес">
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <select id="alert-type" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;color:#fff;font-size:12px;outline:none">
+        <option value="above">Цена выше $</option>
+        <option value="below">Цена ниже $</option>
+        <option value="vol">Объём x раз</option>
+      </select>
+      <input id="alert-val" placeholder="значение" type="number" style="flex:1">
+    </div>
+    <button class="btn btn-p" style="width:100%;margin-top:8px" onclick="addAlert()">Добавить алерт</button>
+  </div>
+  <div id="alerts-list"></div>
+  <div style="margin-top:12px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px">
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:6px">📬 Telegram уведомления</div>
+    <input id="tg-token" placeholder="Bot token (или из Accounts)" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:#fff;font-size:12px;margin-bottom:6px;outline:none">
+    <input id="tg-chat" placeholder="Chat ID / @username" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:#fff;font-size:12px;outline:none">
+    <button class="btn btn-g" style="width:100%;margin-top:8px;font-size:11px" onclick="saveTg()">Сохранить</button>
+  </div>
+</div>
+
+<!-- THINK (AI Chat) -->
+<div class="panel" id="panel-think">
+  <div class="think-msgs" id="think-msgs">
+    <div class="msg-ai">👋 Привет! Я твой AI крипто-стратег. Спроси про любой токен, расскажи про свои позиции — помогу флипнуть.<br><br>Примеры:<br>• <em>"Проанализируй BONK"</em><br>• <em>"Стоит ли входить при mcap $400K?"</em><br>• <em>"Когда фиксировать прибыль на мемкойне?"</em></div>
+  </div>
+  <div class="think-input-row">
+    <textarea class="think-input" id="think-input" placeholder="Спроси AI стратега…" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendThink()}"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    <button class="think-send" onclick="sendThink()">↑</button>
+  </div>
+</div>
+
+</div><!-- /panels -->
+
+<script>
+'use strict';
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const API = 'https://godlocal-api.onrender.com';
+const DEX = 'https://api.dexscreener.com';
+let killed = false;
+let scanData = [];
+let signals  = [];
+let alerts   = JSON.parse(localStorage.getItem('gl_alerts') || '[]');
+let portfolio= JSON.parse(localStorage.getItem('gl_portfolio') || '[]');
+let scanTimer = null;
+
+// ── UTILS ───────────────────────────────────────────────────────────────────
+function fmt$(n){
+  if(n===undefined||n===null||isNaN(n)) return '–';
+  if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K';
+  if(n>=1)   return '$'+n.toFixed(2);
+  return '$'+n.toFixed(6);
+}
+function fmtAge(ms){
+  const m=Math.floor(ms/60000);
+  if(m<60) return m+'m';
+  const h=Math.floor(m/60);
+  if(h<24) return h+'h';
+  return Math.floor(h/24)+'d';
+}
+function clr(v){return v>0?'pos':v<0?'neg':'neu'}
+function chgStr(v){return v>0?'+'+v.toFixed(1)+'%':v.toFixed(1)+'%'}
+function rugColor(score){
+  if(score>=70) return 'var(--r)';
+  if(score>=40) return 'var(--y)';
+  return 'var(--g)';
+}
+function rugLabel(score){
+  if(score>=70) return '⛔ ВЫСОКИЙ';
+  if(score>=40) return '⚠️ СРЕДНИЙ';
+  return '✅ НИЗКИЙ';
+}
+
+// ── TAB SWITCH ──────────────────────────────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const ids=['scan','signals','bag','dive','alerts','think'];
+    t.classList.toggle('active', ids[i]===id);
+  });
+  document.querySelectorAll('.panel').forEach(p=>{
+    p.classList.toggle('active', p.id==='panel-'+id);
+  });
+  if(id==='bag')   renderBag();
+  if(id==='alerts') renderAlerts();
+}
+
+// ── KILL SWITCH ─────────────────────────────────────────────────────────────
+function toggleKill(){
+  killed=!killed;
+  const btn=document.getElementById('killBtn');
+  const dot=document.getElementById('mainDot');
+  btn.classList.toggle('on',killed);
+  btn.textContent=killed?'☠ KILLED':'KILL ☠';
+  dot.classList.toggle('dead',killed);
+  if(killed){clearInterval(scanTimer);document.getElementById('scanStatus').textContent='⛔ СТОП';}
+  else{startAutoScan();}
+}
+
+// ── SCAN ─────────────────────────────────────────────────────────────────────
+async function loadScan(){
+  if(killed) return;
+  document.getElementById('scanStatus').textContent='🔄 обновляю…';
+  const el=document.getElementById('scan-list');
+  try{
+    // DexScreener: token boosts (promoted/trending on Solana)
+    const [boostRes, profileRes] = await Promise.all([
+      fetch(DEX+'/token-boosts/latest/v1').then(r=>r.json()),
+      fetch(DEX+'/token-profiles/latest/v1').then(r=>r.json()),
+    ]);
+    // Also grab trending searches
+    const searchRes = await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6&order=desc').then(r=>r.json()).catch(()=>({pairs:[]}));
+
+    // Merge: boosts have tokenAddress, let's fetch top ones
+    const boosts = (Array.isArray(boostRes)?boostRes:[]).filter(b=>b.chainId==='solana').slice(0,10);
+    const profiles = (Array.isArray(profileRes)?profileRes:[]).filter(b=>b.chainId==='solana').slice(0,6);
+
+    // Collect addresses
+    const addrs = [...new Set([
+      ...boosts.map(b=>b.tokenAddress),
+      ...profiles.map(p=>p.tokenAddress),
+    ])].slice(0,15);
+
+    // Fetch pair data
+    let pairs = [];
+    if(addrs.length){
+      const pRes = await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(r=>r.json());
+      pairs = (pRes.pairs||[]).filter(p=>p.chainId==='solana');
+    }
+    // Also add search results
+    const searchPairs = (searchRes.pairs||[]).filter(p=>p.chainId==='solana').slice(0,8);
+
+    // Deduplicate by baseToken.address
+    const seen = new Set();
+    const all = [...pairs, ...searchPairs].filter(p=>{
+      const a = p.baseToken?.address;
+      if(!a||seen.has(a)) return false;
+      seen.add(a); return true;
+    });
+
+    // Sort by volume 24h desc
+    all.sort((a,b)=>(b.volume?.h24||0)-(a.volume?.h24||0));
+    scanData = all;
+    genSignals();
+
+    if(!all.length){el.innerHTML='<div class="empty"><span>🌪️</span>Нет данных DexScreener</div>';return;}
+    el.innerHTML = all.map(p=>renderScanCard(p)).join('');
+    document.getElementById('scanStatus').textContent='✓ '+all.length+' токенов · '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    checkAlerts(all);
+  }catch(e){
+    el.innerHTML='<div class="empty"><span>⚠️</span>Ошибка: '+e.message+'</div>';
+    document.getElementById('scanStatus').textContent='⚠️ ошибка';
+  }
+}
+
+function renderScanCard(p){
+  const sym  = p.baseToken?.symbol||'?';
+  const name = p.baseToken?.name||'';
+  const price= parseFloat(p.priceUsd||0);
+  const c5   = parseFloat(p.priceChange?.m5||0);
+  const c1h  = parseFloat(p.priceChange?.h1||0);
+  const c24  = parseFloat(p.priceChange?.h24||0);
+  const vol  = p.volume?.h24||0;
+  const mcap = p.fdv||p.marketCap||0;
+  const liq  = p.liquidity?.usd||0;
+  const tx24 = (p.txns?.h24?.buys||0)+(p.txns?.h24?.sells||0);
+  const age  = p.pairCreatedAt ? Date.now()-p.pairCreatedAt : null;
+  const isNew = age && age < 4*3600000;
+  const sig  = genSignalForPair(p);
+  const url  = p.url||('https://dexscreener.com/solana/'+p.pairAddress);
+  return `<div class="card" onclick="prefillDive('${p.baseToken?.address||''}')">
+    <div class="card-row">
+      <div>
+        <div class="ticker">${sym} <span class="badge ${sig.type}">${sig.label}</span>${isNew?'<span class="badge new" style="margin-left:4px">NEW</span>':''}</div>
+        <div class="name-small">${name}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="price">${price<0.000001?price.toExponential(2):fmt$(price).replace('$','')}</div>
+        <div class="chg ${clr(c1h)}">${chgStr(c1h)} 1h</div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-lbl">Объём 24h</div><div class="stat-val">${fmt$(vol)}</div></div>
+      <div class="stat"><div class="stat-lbl">MCap</div><div class="stat-val">${fmt$(mcap)}</div></div>
+      <div class="stat"><div class="stat-lbl">Ликвидность</div><div class="stat-val">${fmt$(liq)}</div></div>
+      <div class="stat"><div class="stat-lbl">TX 24h</div><div class="stat-val">${tx24.toLocaleString()}</div></div>
+      ${age?`<div class="stat"><div class="stat-lbl">Возраст</div><div class="stat-val">${fmtAge(age)}</div></div>`:''}
+    </div>
+    <div class="conv-bar"><div class="conv-fill" style="width:${sig.conv}%"></div></div>
+  </div>`;
+}
+
+// ── SIGNAL ENGINE ────────────────────────────────────────────────────────────
+function genSignalForPair(p){
+  const c1h  = parseFloat(p.priceChange?.h1||0);
+  const c24  = parseFloat(p.priceChange?.h24||0);
+  const c5   = parseFloat(p.priceChange?.m5||0);
+  const vol  = p.volume?.h24||0;
+  const mcap = p.fdv||p.marketCap||0;
+  const liq  = p.liquidity?.usd||0;
+  const age  = p.pairCreatedAt ? Date.now()-p.pairCreatedAt : null;
+  const buys = p.txns?.h24?.buys||0;
+  const sells= p.txns?.h24?.sells||0;
+
+  let score=50;
+  // Momentum
+  if(c5>5)  score+=15;
+  if(c5<-5) score-=20;
+  if(c1h>20) score+=20;
+  if(c1h<-20) score-=25;
+  // Volume/mcap ratio
+  if(mcap>0){const ratio=vol/mcap; if(ratio>0.5) score+=15; if(ratio<0.05) score-=10;}
+  // Liquidity
+  if(liq<5000) score-=25;
+  if(liq>50000) score+=10;
+  // Age (new = risky but opportunity)
+  if(age && age<2*3600000 && c5>0) score+=10;
+  // Buy pressure
+  if(buys>sells*1.5) score+=10;
+  if(sells>buys*2)   score-=15;
+  // Mcap sweet spot for flip
+  if(mcap>0&&mcap<500000) score+=15;
+  if(mcap>5000000) score-=10;
+
+  score=Math.max(0,Math.min(100,score));
+
+  if(score>=70) return {type:'buy', label:'🟢 BUY', conv:score};
+  if(score<=30) return {type:'sell',label:'🔴 EXIT',conv:100-score};
+  return {type:'watch',label:'🟡 WATCH',conv:score};
+}
+
+function genSignals(){
+  const el=document.getElementById('signals-list');
+  const buys  = scanData.filter(p=>genSignalForPair(p).type==='buy').slice(0,5);
+  const sells = scanData.filter(p=>genSignalForPair(p).type==='sell').slice(0,3);
+  signals = [...buys,...sells];
+  if(!signals.length){el.innerHTML='<div class="empty"><span>⚡</span>Нет активных сигналов — жду данных SCAN</div>';return;}
+  el.innerHTML = `
+    ${buys.length?`<div class="section-hdr"><span class="section-title" style="color:var(--g)">🟢 ПОКУПАЙ ПРЯМО СЕЙЧАС</span></div>`:''}
+    ${buys.map(p=>renderSignalCard(p,'buy')).join('')}
+    ${sells.length?`<div class="section-hdr" style="margin-top:10px"><span class="section-title" style="color:var(--r)">🔴 ФИКСИРУЙ / ВЫХОДИ</span></div>`:''}
+    ${sells.map(p=>renderSignalCard(p,'sell')).join('')}
+  `;
+}
+
+function renderSignalCard(p, type){
+  const sig = genSignalForPair(p);
+  const sym = p.baseToken?.symbol||'?';
+  const c1h = parseFloat(p.priceChange?.h1||0);
+  const mcap= p.fdv||p.marketCap||0;
+  const liq = p.liquidity?.usd||0;
+  const reason = type==='buy'
+    ? `Объём/MCap=${((p.volume?.h24||0)/(mcap||1)).toFixed(2)}× · Ликв. ${fmt$(liq)} · ${chgStr(c1h)} 1h`
+    : `Отрицательный импульс · Продажи превышают покупки`;
+  return `<div class="card" style="border-color:${type==='buy'?'rgba(0,255,157,.2)':'rgba(255,75,110,.2)'}">
+    <div class="card-row">
+      <div><span class="ticker">${sym}</span> <span class="badge ${type}">${sig.label}</span></div>
+      <div style="text-align:right"><span class="stat-lbl">Уверенность</span><br><b style="color:${type==='buy'?'var(--g)':'var(--r)'}">${sig.conv}%</b></div>
+    </div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:5px">${reason}</div>
+    <div class="conv-bar" style="margin-top:6px">
+      <div class="conv-fill" style="width:${sig.conv}%;background:${type==='buy'?'var(--g)':'var(--r)'}"></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="btn btn-g" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();addPositionFromSignal('${p.baseToken?.address||''}','${sym}')">+Войти</button>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();prefillDive('${p.baseToken?.address||''}');switchTab('dive')">Анализ</button>
+    </div>
+  </div>`;
+}
+
+// ── PORTFOLIO ────────────────────────────────────────────────────────────────
+async function addPosition(){
+  const addr  = document.getElementById('pos-addr').value.trim();
+  const entry = parseFloat(document.getElementById('pos-entry').value)||0;
+  const sol   = parseFloat(document.getElementById('pos-sol').value)||0;
+  if(!addr){alert('Вставь адрес токена'); return;}
+  const pos = {id:Date.now(), addr, entry, sol, ts:Date.now(), sym:'', name:''};
+  // Try to get symbol
+  try{
+    const r = await fetch(DEX+'/latest/dex/tokens/'+addr).then(x=>x.json());
+    const pair = (r.pairs||[])[0];
+    if(pair){pos.sym=pair.baseToken?.symbol||addr.slice(0,6);pos.name=pair.baseToken?.name||'';}
+  }catch(e){}
+  if(!pos.sym) pos.sym=addr.slice(0,8)+'…';
+  portfolio.push(pos);
+  savePortfolio();
+  document.getElementById('pos-addr').value='';
+  document.getElementById('pos-entry').value='';
+  document.getElementById('pos-sol').value='';
+  renderBag();
+}
+
+function addPositionFromSignal(addr, sym){
+  document.getElementById('pos-addr').value=addr;
+  switchTab('bag');
+}
+
+async function renderBag(){
+  const el=document.getElementById('bag-list');
+  if(!portfolio.length){el.innerHTML='<div class="empty"><span>💼</span>Портфель пуст</div>';document.getElementById('total-pnl').textContent='';return;}
+  el.innerHTML='<div class="empty"><div class="spin"></div>Загружаю цены…</div>';
+  // Fetch current prices
+  const addrs = [...new Set(portfolio.map(p=>p.addr))];
+  let priceMap={};
+  try{
+    const r = await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(x=>x.json());
+    for(const pair of (r.pairs||[])){
+      const a=pair.baseToken?.address;
+      if(a&&!priceMap[a]) priceMap[a]={price:parseFloat(pair.priceUsd||0),sym:pair.baseToken?.symbol||a.slice(0,6)};
+    }
+  }catch(e){}
+  let totalPnlPct = 0;
+  el.innerHTML = portfolio.map((pos,i)=>{
+    const cur = priceMap[pos.addr]?.price||0;
+    const sym = priceMap[pos.addr]?.sym||pos.sym;
+    const pnlPct = pos.entry>0 ? (cur-pos.entry)/pos.entry*100 : 0;
+    const pnlSol = pos.sol>0 ? pos.sol*pnlPct/100 : 0;
+    totalPnlPct += pnlPct;
+    const age = fmtAge(Date.now()-pos.ts);
+    return `<div class="card">
+      <div class="card-row">
+        <div><span class="ticker">${sym}</span><div class="name-small">Вошёл ${age} назад · ${pos.sol} SOL</div></div>
+        <div style="text-align:right">
+          <div class="${pnlPct>=0?'pnl-pos':'pnl-neg'}">${pnlPct>=0?'+':''}${pnlPct.toFixed(1)}%</div>
+          <div class="stat-lbl">${pnlSol>=0?'+':''}${pnlSol.toFixed(3)} SOL</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-lbl">Вход</div><div class="stat-val">${pos.entry>0?fmt$(pos.entry):'–'}</div></div>
+        <div class="stat"><div class="stat-lbl">Сейчас</div><div class="stat-val">${cur>0?fmt$(cur):'–'}</div></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn btn-r" style="font-size:11px;padding:5px 10px" onclick="removePos(${i})">Закрыть</button>
+        <button class="btn btn-p" style="font-size:11px;padding:5px 10px" onclick="prefillDive('${pos.addr}');switchTab('dive')">Анализ</button>
+      </div>
+    </div>`;
+  }).join('');
+  const avg = portfolio.length ? totalPnlPct/portfolio.length : 0;
+  document.getElementById('total-pnl').innerHTML=`<span class="${avg>=0?'pnl-pos':'pnl-neg'}">${avg>=0?'+':''}${avg.toFixed(1)}% avg</span>`;
+}
+
+function removePos(i){
+  portfolio.splice(i,1);
+  savePortfolio();
+  renderBag();
+}
+function savePortfolio(){localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));}
+
+// ── DIVE ANALYZER ────────────────────────────────────────────────────────────
+function prefillDive(addr){
+  if(addr){document.getElementById('dive-addr').value=addr; switchTab('dive'); diveAnalyze();}
+}
+
+async function diveAnalyze(){
+  const addr = document.getElementById('dive-addr').value.trim();
+  const el   = document.getElementById('dive-result');
+  if(!addr){alert('Вставь адрес токена'); return;}
+  el.innerHTML='<div class="empty"><div class="spin"></div>Анализирую токен…</div>';
+  try{
+    const r = await fetch(DEX+'/latest/dex/tokens/'+addr).then(x=>x.json());
+    const pairs = (r.pairs||[]).filter(p=>p.chainId==='solana');
+    if(!pairs.length){el.innerHTML='<div class="empty"><span>🔍</span>Токен не найден в DexScreener</div>';return;}
+    const p = pairs[0];
+    const sym  = p.baseToken?.symbol||'?';
+    const name = p.baseToken?.name||'';
+    const price= parseFloat(p.priceUsd||0);
+    const mcap = p.fdv||p.marketCap||0;
+    const liq  = p.liquidity?.usd||0;
+    const vol24= p.volume?.h24||0;
+    const c5   = parseFloat(p.priceChange?.m5||0);
+    const c1h  = parseFloat(p.priceChange?.h1||0);
+    const c6h  = parseFloat(p.priceChange?.h6||0);
+    const c24  = parseFloat(p.priceChange?.h24||0);
+    const buys = p.txns?.h24?.buys||0;
+    const sells= p.txns?.h24?.sells||0;
+    const age  = p.pairCreatedAt ? Date.now()-p.pairCreatedAt : null;
+    const dexUrl = p.url||'https://dexscreener.com/solana/'+p.pairAddress;
+    const hasTg = !!p.info?.socials?.find(s=>s.type==='telegram');
+    const hasTw = !!p.info?.socials?.find(s=>s.type==='twitter');
+    const hasSite= !!p.info?.websites?.length;
+
+    // Rug risk score
+    let rug=0;
+    if(liq<5000)   rug+=30;
+    else if(liq<20000) rug+=15;
+    if(!hasTg&&!hasTw&&!hasSite) rug+=25;
+    if(age&&age<1800000) rug+=15;
+    if(buys<10)    rug+=15;
+    if(sells>buys*3) rug+=15;
+    rug=Math.min(100,rug);
+
+    const buyPressure = buys+sells>0?(buys/(buys+sells)*100).toFixed(0):50;
+    const sig = genSignalForPair(p);
+
+    el.innerHTML=`
+      <div class="card" style="border-color:${sig.type==='buy'?'rgba(0,255,157,.2)':sig.type==='sell'?'rgba(255,75,110,.2)':'var(--border)'}">
+        <div class="card-row">
+          <div><span class="ticker">${sym}</span> <span class="badge ${sig.type}">${sig.label}</span></div>
+          <a href="${dexUrl}" target="_blank" style="color:var(--p);font-size:11px;text-decoration:none">DEX ↗</a>
+        </div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px">${name}</div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:8px">💰 Цена и объём</div>
+        <div class="stat-row">
+          <div class="stat"><div class="stat-lbl">Цена</div><div class="stat-val">${fmt$(price)}</div></div>
+          <div class="stat"><div class="stat-lbl">MCap</div><div class="stat-val">${fmt$(mcap)}</div></div>
+          <div class="stat"><div class="stat-lbl">Ликвидность</div><div class="stat-val">${fmt$(liq)}</div></div>
+          <div class="stat"><div class="stat-lbl">Объём 24h</div><div class="stat-val">${fmt$(vol24)}</div></div>
+        </div>
+        <div class="stat-row" style="margin-top:10px">
+          <div class="stat"><div class="stat-lbl">5m</div><div class="stat-val chg ${clr(c5)}">${chgStr(c5)}</div></div>
+          <div class="stat"><div class="stat-lbl">1h</div><div class="stat-val chg ${clr(c1h)}">${chgStr(c1h)}</div></div>
+          <div class="stat"><div class="stat-lbl">6h</div><div class="stat-val chg ${clr(c6h)}">${chgStr(c6h)}</div></div>
+          <div class="stat"><div class="stat-lbl">24h</div><div class="stat-val chg ${clr(c24)}">${chgStr(c24)}</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:8px">🔬 Активность</div>
+        <div class="stat-row">
+          <div class="stat"><div class="stat-lbl">Покупки 24h</div><div class="stat-val" style="color:var(--g)">${buys}</div></div>
+          <div class="stat"><div class="stat-lbl">Продажи 24h</div><div class="stat-val" style="color:var(--r)">${sells}</div></div>
+          <div class="stat"><div class="stat-lbl">Давление покуп.</div><div class="stat-val" style="color:${buyPressure>55?'var(--g)':'var(--r)'}">${buyPressure}%</div></div>
+          ${age?`<div class="stat"><div class="stat-lbl">Возраст</div><div class="stat-val">${fmtAge(age)}</div></div>`:''}
+        </div>
+        <div style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt2);margin-bottom:3px"><span>🔴 Продажи</span><span>Покупки 🟢</span></div>
+          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+            <div style="width:${buyPressure}%;height:100%;background:linear-gradient(90deg,var(--r),var(--g));border-radius:4px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:8px">🛡️ Оценка риска</div>
+        <div class="card-row">
+          <span>Rug Risk Score</span>
+          <span style="font-weight:700;color:${rugColor(rug)}">${rug}/100 — ${rugLabel(rug)}</span>
+        </div>
+        <div class="rug-bar" style="margin-top:6px"><div class="rug-fill" style="width:${rug}%;background:${rugColor(rug)}"></div></div>
+        <div class="stat-row" style="margin-top:8px">
+          <div class="stat"><div class="stat-lbl">Telegram</div><div class="stat-val">${hasTg?'✅':'❌'}</div></div>
+          <div class="stat"><div class="stat-lbl">Twitter</div><div class="stat-val">${hasTw?'✅':'❌'}</div></div>
+          <div class="stat"><div class="stat-lbl">Сайт</div><div class="stat-val">${hasSite?'✅':'❌'}</div></div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--txt2)">
+          ${rug>=70?'⛔ Высокий риск rug pull. Не входи без проверки контракта.':rug>=40?'⚠️ Средний риск. Малая позиция, жёсткий стоп-лосс.':'✅ Относительно безопасно для флипа.'}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:2px">
+        <button class="btn btn-g" style="flex:1" onclick="addPositionFromSignal('${addr}','${sym}');switchTab('bag')">💼 Войти в позицию</button>
+        <button class="btn btn-p" style="flex:1" onclick="askAIAbout('${sym}','${fmt$(mcap)}','${fmt$(liq)}','${c1h}')">🧠 AI анализ</button>
+      </div>
+    `;
+  }catch(e){
+    el.innerHTML='<div class="empty"><span>⚠️</span>Ошибка: '+e.message+'</div>';
+  }
+}
+
+// ── ALERTS ────────────────────────────────────────────────────────────────────
+function addAlert(){
+  const ticker = document.getElementById('alert-ticker').value.trim();
+  const type   = document.getElementById('alert-type').value;
+  const val    = parseFloat(document.getElementById('alert-val').value)||0;
+  if(!ticker||!val){alert('Заполни все поля'); return;}
+  alerts.push({id:Date.now(), ticker, type, val, triggered:false});
+  localStorage.setItem('gl_alerts',JSON.stringify(alerts));
+  document.getElementById('alert-ticker').value='';
+  document.getElementById('alert-val').value='';
+  renderAlerts();
+}
+
+function renderAlerts(){
+  const el=document.getElementById('alerts-list');
+  if(!alerts.length){el.innerHTML='<div class="empty"><span>🚨</span>Нет алертов</div>';return;}
+  el.innerHTML=alerts.map((a,i)=>`
+    <div class="card">
+      <div class="alert-item">
+        <span class="badge ${a.triggered?'buy':'watch'}">${a.triggered?'✓ СРАБОТАЛ':'🔔 АКТИВЕН'}</span>
+        <span style="flex:1;font-weight:600">${a.ticker}</span>
+        <span style="color:var(--txt2);font-size:12px">${a.type==='above'?'↑ выше':a.type==='below'?'↓ ниже':'× объём'} ${a.val}</span>
+        <span class="alert-del" onclick="removeAlert(${i})">×</span>
+      </div>
+    </div>`).join('');
+}
+
+function removeAlert(i){alerts.splice(i,1);localStorage.setItem('gl_alerts',JSON.stringify(alerts));renderAlerts();}
+
+function saveTg(){
+  const tok=document.getElementById('tg-token').value.trim();
+  const chat=document.getElementById('tg-chat').value.trim();
+  if(tok) localStorage.setItem('gl_telegram',tok);
+  if(chat) localStorage.setItem('gl_tg_chat',chat);
+  alert('Сохранено ✅');
+}
+
+function checkAlerts(pairs){
+  let changed=false;
+  for(const a of alerts){
+    if(a.triggered) continue;
+    const pair = pairs.find(p=>p.baseToken?.symbol?.toLowerCase()===a.ticker.toLowerCase()||p.baseToken?.address===a.ticker);
+    if(!pair) continue;
+    const price=parseFloat(pair.priceUsd||0);
+    const vol=pair.volume?.h24||0;
+    let hit=false;
+    if(a.type==='above'&&price>=a.val) hit=true;
+    if(a.type==='below'&&price<=a.val) hit=true;
+    if(a.type==='vol'&&vol>=a.val)     hit=true;
+    if(hit){a.triggered=true;changed=true;sendTgAlert(a.ticker,a.type,a.val,price);}
+  }
+  if(changed){localStorage.setItem('gl_alerts',JSON.stringify(alerts));}
+}
+
+async function sendTgAlert(ticker,type,val,price){
+  const tok  = localStorage.getItem('gl_telegram');
+  const chat = localStorage.getItem('gl_tg_chat');
+  if(!tok||!chat) return;
+  const txt=`🚨 GodLocal Alert\n${ticker}: ${type==='above'?'↑':type==='below'?'↓':'×'} ${val}\nТекущая цена: $${price.toFixed(8)}`;
+  try{await fetch(`https://api.telegram.org/bot${tok}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:txt})});}
+  catch(e){}
+}
+
+// ── THINK (AI Chat) ───────────────────────────────────────────────────────────
+function askAIAbout(sym, mcap, liq, c1h){
+  document.getElementById('think-input').value=`Проанализируй ${sym}: mcap=${mcap}, ликвидность=${liq}, изменение за 1ч=${c1h}%. Стоит ли флипать?`;
+  switchTab('think');
+  sendThink();
+}
+
+async function sendThink(){
+  const input = document.getElementById('think-input');
+  const msgs  = document.getElementById('think-msgs');
+  const text  = input.value.trim();
+  if(!text) return;
+  input.value=''; input.style.height='auto';
+
+  msgs.innerHTML += `<div class="msg-user">${text.replace(/</g,'&lt;')}</div>`;
+  const loading = document.createElement('div');
+  loading.className='msg-ai'; loading.innerHTML='<div class="spin"></div> думаю…';
+  msgs.appendChild(loading);
+  msgs.scrollTop=msgs.scrollHeight;
+
+  // Add portfolio context
+  const portCtx = portfolio.length
+    ? `\nМой портфель (${portfolio.length} позиций): ${portfolio.map(p=>p.sym||p.addr.slice(0,6)).join(', ')}`
+    : '';
+  const fullPrompt = `Ты AI крипто-стратег для флиппинга мемкойнов на Solana. Отвечай кратко, по делу, на русском.${portCtx}\n\nВопрос: ${text}`;
+
+  try{
+    let reply='';
+    // Try streaming WebSocket
+    const wsUrl='wss://godlocal-api.onrender.com/ws/search';
+    await new Promise((resolve)=>{
+      const ws=new WebSocket(wsUrl);
+      const timer=setTimeout(()=>{ws.close();resolve();},25000);
+      ws.onopen=()=>ws.send(JSON.stringify({query:fullPrompt,agent:'GodLocal'}));
+      ws.onmessage=(e)=>{
+        try{
+          const d=JSON.parse(e.data);
+          if(d.type==='token'||d.type==='text') reply+=d.data||d.token||'';
+          if(d.type==='done'||d.done){clearTimeout(timer);ws.close();resolve();}
+          loading.innerHTML=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')||'<div class="spin"></div>';
+        }catch(ex){reply+=e.data;}
+      };
+      ws.onerror=ws.onclose=()=>{clearTimeout(timer);resolve();};
+    });
+    loading.innerHTML=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')||'Нет ответа от сервера.';
+  }catch(e){
+    loading.innerHTML='⚠️ Ошибка соединения: '+e.message;
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── AUTO SCAN LOOP ────────────────────────────────────────────────────────────
+function startAutoScan(){
+  loadScan();
+  clearInterval(scanTimer);
+  scanTimer=setInterval(()=>{if(!killed) loadScan();}, 30000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(function init(){
+  // Load saved TG credentials
+  const savedTok=localStorage.getItem('gl_telegram');
+  const savedChat=localStorage.getItem('gl_tg_chat');
+  if(savedTok) document.getElementById('tg-token').value=savedTok;
+  if(savedChat) document.getElementById('tg-chat').value=savedChat;
+  startAutoScan();
+})();
+</script>
+</body>
+</html>
