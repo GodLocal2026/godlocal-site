@@ -117,56 +117,90 @@ const TOOL_LABEL: Record<string, string> = {
 
 // ─── MarkdownText (no deps) ────────────────────────────────────────────────────
 function MarkdownText({ text, streaming }: { text:string; streaming?:boolean }) {
-  const lines = text.split('\n')
-  const nodes: React.ReactNode[] = []
+  type Seg = {kind:'code';lang:string;body:string}|{kind:'normal';body:string}
+  const segments: Seg[] = []
+  const codeRe = /```([\w]*)?\n?([\s\S]*?)```/g
+  let last = 0; let m: RegExpExecArray|null
+  while ((m = codeRe.exec(text))) {
+    if (m.index > last) segments.push({kind:'normal', body:text.slice(last, m.index)})
+    segments.push({kind:'code', lang:m[1]||'', body:m[2]})
+    last = m.index + m[0].length
+  }
+  if (last < text.length) segments.push({kind:'normal', body:text.slice(last)})
 
-  lines.forEach((line, li) => {
-    if (!line && li < lines.length - 1) { nodes.push(<br key={`b${li}`} />); return }
-    const parts: React.ReactNode[] = []
-    let rest = line, ki = 0
-
+  function renderInline(raw: string) {
+    const parts: React.ReactNode[] = []; let rest = raw; let ki = 0
     while (rest.length) {
       const lk = rest.match(/^(.*?)\[([^\]]+)\]\((https?:\/\/[^)]+)\)(.*)$/)
-      if (lk) {
-        if (lk[1]) parts.push(<span key={ki++}>{lk[1]}</span>)
-        parts.push(<a key={ki++} href={lk[3]} target="_blank" rel="noopener noreferrer"
-          className="text-[#00FF9D] underline underline-offset-2 hover:text-white transition-colors break-all">
-          {lk[2]} ↗</a>)
-        rest = lk[4]; continue
-      }
+      if (lk) { if(lk[1]) parts.push(<span key={ki++}>{lk[1]}</span>); parts.push(<a key={ki++} href={lk[3]} target="_blank" rel="noopener noreferrer" className="text-[#00FF9D] underline underline-offset-2 hover:text-white transition-colors break-all">{lk[2]} ↗</a>); rest=lk[4]; continue }
       const lb = rest.match(/^(.*?)\*\*(.*?)\*\*(.*)$/)
-      if (lb) {
-        if (lb[1]) parts.push(<span key={ki++}>{lb[1]}</span>)
-        parts.push(<strong key={ki++} className="text-gray-100 font-semibold">{lb[2]}</strong>)
-        rest = lb[3]; continue
-      }
+      if (lb) { if(lb[1]) parts.push(<span key={ki++}>{lb[1]}</span>); parts.push(<strong key={ki++} className="text-gray-100 font-semibold">{lb[2]}</strong>); rest=lb[3]; continue }
       const lc = rest.match(/^(.*?)`([^`]+)`(.*)$/)
-      if (lc) {
-        if (lc[1]) parts.push(<span key={ki++}>{lc[1]}</span>)
-        parts.push(<code key={ki++} className="bg-[#0f1a1a] text-[#00FF9D] px-1.5 py-0.5 rounded text-xs font-mono">{lc[2]}</code>)
-        rest = lc[3]; continue
-      }
+      if (lc) { if(lc[1]) parts.push(<span key={ki++}>{lc[1]}</span>); parts.push(<code key={ki++} className="bg-[#0f1a1a] text-[#00FF9D] px-1.5 py-0.5 rounded text-xs font-mono">{lc[2]}</code>); rest=lc[3]; continue }
       const lu = rest.match(/^(.*?)(https?:\/\/[^\s<>]+)(.*)$/)
-      if (lu) {
-        if (lu[1]) parts.push(<span key={ki++}>{lu[1]}</span>)
-        const label = lu[2].replace(/^https?:\/\//, '').slice(0, 36) + (lu[2].length > 40 ? '…' : '')
-        parts.push(<a key={ki++} href={lu[2]} target="_blank" rel="noopener noreferrer"
-          className="text-[#00FF9D] underline underline-offset-2 hover:text-white break-all">{label} ↗</a>)
-        rest = lu[3]; continue
-      }
+      if (lu) { if(lu[1]) parts.push(<span key={ki++}>{lu[1]}</span>); const label=lu[2].replace(/^https?:\/\//,'').slice(0,36)+(lu[2].length>40?'…':''); parts.push(<a key={ki++} href={lu[2]} target="_blank" rel="noopener noreferrer" className="text-[#00FF9D] underline underline-offset-2 hover:text-white break-all">{label} ↗</a>); rest=lu[3]; continue }
       parts.push(<span key={ki++}>{rest}</span>); break
     }
+    return parts
+  }
 
-    if (line.startsWith('### ')) nodes.push(<p key={li} className="font-semibold text-gray-100 mt-2 mb-0.5 text-sm">{parts}</p>)
-    else if (line.startsWith('## ')) nodes.push(<p key={li} className="font-bold text-gray-100 mt-2 mb-1">{parts}</p>)
-    else if (line.startsWith('- ') || line.startsWith('• '))
-      nodes.push(<div key={li} className="flex gap-2 items-start my-0.5"><span className="text-gray-600 shrink-0 mt-0.5 text-xs">●</span><span className="flex-1">{parts}</span></div>)
-    else { nodes.push(<span key={li}>{parts}</span>); if (li < lines.length - 1) nodes.push(<br key={`br${li}`} />) }
-  })
+  function renderNormal(body: string, si: number) {
+    const rawLines = body.split('\n')
+    const nodes: React.ReactNode[] = []
+    let i = 0
+    while (i < rawLines.length) {
+      const line = rawLines[i]
+      if (line.trim().startsWith('|')) {
+        const tbl: string[] = []
+        while (i < rawLines.length && rawLines[i].trim().startsWith('|')) { tbl.push(rawLines[i]); i++ }
+        const rows = tbl.filter(r => !/^\s*\|[-\s:|]+\|\s*$/.test(r))
+        const header = rows[0]?.split('|').slice(1,-1).map(c=>c.trim()) ?? []
+        const brows = rows.slice(1)
+        nodes.push(
+          <div key={`tbl${si}_${i}`} className="overflow-x-auto my-2 rounded-lg border border-[#1a2535]">
+            <table className="text-xs w-full border-collapse">
+              <thead><tr>{header.map((h,hi)=><th key={hi} className="border-b border-[#1a2535] px-3 py-1.5 text-left text-[#00FF9D] font-semibold bg-[#0a1220]">{h}</th>)}</tr></thead>
+              <tbody>{brows.map((r,ri)=>{ const cells=r.split('|').slice(1,-1).map(c=>c.trim()); return <tr key={ri} className={ri%2===0?'bg-[#060b10]':'bg-[#06090f]'}>{cells.map((c,ci)=><td key={ci} className="border-t border-[#0f1820] px-3 py-1.5 text-gray-400">{c}</td>)}</tr> })}</tbody>
+            </table>
+          </div>
+        )
+        continue
+      }
+      if (!line && i < rawLines.length-1) { nodes.push(<br key={`br${si}_${i}`}/>); i++; continue }
+      const stripped = line.replace(/^#{1,3} /,'')
+      const inl = renderInline(stripped)
+      if (line.startsWith('### ')) { nodes.push(<p key={`s${si}l${i}`} className="font-semibold text-gray-100 mt-2 mb-0.5 text-sm">{inl}</p>); i++; continue }
+      if (line.startsWith('## ')) { nodes.push(<p key={`s${si}l${i}`} className="font-bold text-gray-100 mt-2 mb-1">{inl}</p>); i++; continue }
+      if (line.startsWith('- ') || line.startsWith('• ')) {
+        const p2 = renderInline(line.replace(/^[•\-] /,''))
+        nodes.push(<div key={`s${si}l${i}`} className="flex gap-2 items-start my-0.5"><span className="text-gray-600 shrink-0 mt-0.5 text-xs">●</span><span className="flex-1">{p2}</span></div>); i++; continue
+      }
+      const nm = line.match(/^(\d+)\. (.*)$/)
+      if (nm) {
+        const p3 = renderInline(nm[2])
+        nodes.push(<div key={`s${si}l${i}`} className="flex gap-2 items-start my-0.5"><span className="text-gray-500 shrink-0 text-xs font-mono w-4 text-right mt-0.5">{nm[1]}.</span><span className="flex-1">{p3}</span></div>); i++; continue
+      }
+      const rp = renderInline(line)
+      nodes.push(<span key={`s${si}l${i}`}>{rp}</span>)
+      if (i < rawLines.length-1) nodes.push(<br key={`s${si}br${i}`}/>)
+      i++
+    }
+    return nodes
+  }
 
-  return <span>{nodes}{streaming && <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm opacity-70 align-middle" />}</span>
+  return (
+    <span>
+      {segments.map((seg,si) => seg.kind==='code'
+        ? <div key={si} className="my-2 rounded-lg overflow-hidden border border-[#1a2535]">
+            {seg.lang && <div className="px-3 py-1 bg-[#0a1220] text-gray-500 text-xs font-mono border-b border-[#1a2535]">{seg.lang}</div>}
+            <pre className="overflow-x-auto p-3 bg-[#060b10] text-[#00FF9D] text-xs font-mono leading-relaxed whitespace-pre">{seg.body.trimEnd()}</pre>
+          </div>
+        : <span key={si}>{renderNormal(seg.body, si)}</span>
+      )}
+      {streaming && <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm opacity-70 align-middle"/>}
+    </span>
+  )
 }
-
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function OasisPage() {
   const [messages, setMessages]       = useState<Message[]>([])
@@ -176,6 +210,25 @@ export default function OasisPage() {
   const [connecting, setConnecting]   = useState(false)
   const [showAgents, setShowAgents]   = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
+  const [feedback, setFeedback] = useState<Record<string,'up'|'down'>>(() => {
+    try { return JSON.parse(localStorage.getItem('gl_feedback')||'{}') } catch { return {} }
+  })
+
+  const handleFeedback = useCallback((id: string, vote: 'up'|'down') => {
+    setFeedback(prev => {
+      const next = {...prev}
+      if (prev[id] === vote) delete next[id]; else next[id] = vote
+      try { localStorage.setItem('gl_feedback', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
+
+  function extractQuestions(text: string): string[] {
+    const qs = (text.match(/[^.!?\n]*\?/g) || [])
+      .map(s => s.replace(/[\n\r]+/g,' ').trim())
+      .filter(s => s.length > 10 && s.length < 90)
+    return [...new Set(qs)].slice(0,3)
+  }
   const [vvHeight,     setVvHeight]     = useState<number|null>(null)
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
   const [xpMap, setXpMap]             = useState<Record<string,number>>(Object.fromEntries(AGENTS.map(a=>[a.id,0])))
@@ -516,6 +569,32 @@ export default function OasisPage() {
                     <div className="bg-[#080d14] border border-[#0f1820] rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-300 leading-relaxed">
                       <MarkdownText text={msg.content} streaming={msg.streaming} />
                     </div>
+                    {!msg.streaming && (
+                      <div className="flex items-center gap-3 mt-1 px-1">
+                        <button title="Copy" onClick={() => navigator.clipboard.writeText(msg.content)}
+                          className="text-gray-700 hover:text-gray-400 transition-colors text-xs active:scale-95">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        </button>
+                        <button onClick={() => handleFeedback(msg.id,'up')}
+                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='up' ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}>👍</button>
+                        <button onClick={() => handleFeedback(msg.id,'down')}
+                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='down' ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}>👎</button>
+                      </div>
+                    )}
+                    {!msg.streaming && (() => {
+                      const qs = extractQuestions(msg.content)
+                      if (!qs.length) return null
+                      return (
+                        <div className="flex flex-wrap gap-1.5 mt-2 px-1">
+                          {qs.map((q,qi) => (
+                            <button key={qi} onClick={() => setInput(q)}
+                              className="text-xs px-2.5 py-1 rounded-full border border-[#1a2535] text-gray-500 hover:border-[#6C5CE7]/50 hover:text-gray-300 transition-all bg-[#06080f] active:scale-95 text-left">
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </motion.div>
               )
