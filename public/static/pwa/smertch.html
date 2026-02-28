@@ -1,640 +1,728 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>WOLF — Весь рынок</title>
+<title>SMERTCH — X100</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{
-  --bg:#06080c;--bg2:#0b0e16;--bg3:#10151f;--border:#1a2235;
-  --g:#00FF9D;--r:#FF4466;--y:#F9CA24;--b:#00b4d8;--p:#7C6EE8;
-  --gold:#FFD700;--o:#FF9000;
-  --txt:#c5cee0;--dim:#4a5568;
-}
+:root{--bg:#07090e;--bg2:#0d1118;--bg3:#131a24;--border:#1b2433;--g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00b4d8;--o:#FF8C00;--txt:#c5cee0;--dim:#4a5568}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 
-/* TOP */
-.top{display:flex;align-items:center;gap:8px;padding:8px 14px 6px;border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{font-size:17px;font-weight:900;letter-spacing:1.5px;background:linear-gradient(90deg,#FFD700 0%,#fff 50%,#FFD700 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-size:200% auto}
-.logo-sub{font-size:9px;color:rgba(255,215,0,.55);letter-spacing:.6px;font-weight:700;line-height:1}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 9px var(--g);flex-shrink:0;animation:pulse 2.2s infinite}
-.dot.dead{background:var(--r);box-shadow:0 0 9px var(--r);animation:none}
-.strip{flex:1;font-size:10px;color:var(--dim);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 6px;cursor:pointer}
-.k{padding:2px 8px;border-radius:6px;border:1px solid rgba(255,68,102,.35);color:var(--r);font-size:10px;font-weight:700;background:transparent;cursor:pointer;flex-shrink:0}
-.k.on{background:var(--r);color:#fff;border-color:var(--r)}
+/* ── TOP BAR ── */
+.top{display:flex;align-items:center;gap:8px;padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-size:14px;font-weight:800;color:var(--g);letter-spacing:-.3px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.dot{animation:pulse 2.2s ease-in-out infinite}
+.dot.dead{background:var(--r);box-shadow:0 0 8px var(--r);animation:none}
+.ticker{font-size:10px;color:var(--dim);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 6px}
+.kill{padding:3px 8px;border-radius:6px;border:1px solid rgba(255,75,110,.4);color:var(--r);font-size:10px;font-weight:700;background:transparent;cursor:pointer}
+.kill.on{background:var(--r);color:#fff}
+.tg-status{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0;cursor:pointer}
+.tg-status.on{background:var(--g);box-shadow:0 0 6px var(--g)}
 
-/* CHIPS */
-.chips{display:flex;gap:5px;padding:7px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);flex-shrink:0}
+/* ── CHIPS ── */
+.chips{display:flex;gap:5px;padding:7px 12px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;border-bottom:1px solid var(--border)}
 .chips::-webkit-scrollbar{display:none}
-.ch{white-space:nowrap;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:var(--bg2);transition:all .15s;flex-shrink:0;position:relative}
-.ch:active{transform:scale(.93)}
-.ch.sol{border-color:rgba(0,255,157,.3);color:var(--g)}
-.ch.pump{border-color:rgba(255,144,0,.3);color:var(--o)}
-.ch.crypt{border-color:rgba(255,215,0,.3);color:var(--gold)}
-.ch.stk{border-color:rgba(0,180,216,.3);color:var(--b)}
-.ch.fx{border-color:rgba(124,110,232,.3);color:var(--p)}
-.ch.fg{border-color:rgba(255,68,102,.3);color:var(--r)}
-.ch.bag{border-color:rgba(0,255,157,.25);color:var(--g)}
-.ch.wolf{border-color:rgba(255,215,0,.4);color:var(--gold);font-weight:800;background:rgba(255,215,0,.04)}
-.ch.flt{border-color:rgba(249,202,36,.28);color:var(--y)}
+.chip{white-space:nowrap;padding:5px 10px;border-radius:18px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:var(--bg2);transition:all .15s;flex-shrink:0;position:relative}
+.chip:active{transform:scale(.94)}
+.chip.scan{border-color:rgba(0,255,157,.3);color:var(--g)}
+.chip.pump{border-color:rgba(255,140,0,.3);color:var(--o)}
+.chip.sig{border-color:rgba(108,92,231,.3);color:var(--p)}
+.chip.bag{border-color:rgba(0,180,216,.3);color:var(--b)}
+.chip.tg-chip{border-color:rgba(0,180,216,.2);color:var(--b)}
+.chip.flt{border-color:rgba(249,202,36,.3);color:var(--y)}
+.chip.flt.active-flt::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--y)}
 
-/* FILTERS */
-.fp{display:none;padding:9px 13px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
-.fp.open{display:block}
-.fr{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:7px}
-.fr:last-child{margin:0}
-.fl{font-size:10px;color:var(--dim);min-width:60px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.fb{padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:transparent}
-.fb.on{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.07)}
+/* ── FILTER PANEL ── */
+.flt-panel{display:none;flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 12px}
+.flt-panel.open{display:block}
+.flt-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.flt-label{font-size:10px;color:var(--dim);min-width:60px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.flt-btn{padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:var(--bg)}
+.flt-btn.on{border-color:var(--y);color:var(--y);background:rgba(249,202,36,.08)}
+.flt-reset{font-size:10px;color:var(--r);cursor:pointer;padding:2px 6px;border:1px solid rgba(255,75,110,.25);border-radius:6px;margin-left:auto}
 
-/* CHAT */
-.chat{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px 8px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+/* ── CHAT ── */
+.chat{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px 6px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 
-/* BUBBLES */
-.msg{display:flex;flex-direction:column;gap:3px}
-.msg.u{align-items:flex-end}
-.bb{padding:9px 13px;border-radius:16px;font-size:13px;line-height:1.55;word-break:break-word;max-width:95%}
-.bb.ai{background:var(--bg2);border:1px solid var(--border);border-radius:16px 16px 16px 4px}
-.bb.u{background:rgba(124,110,232,.14);border:1px solid rgba(124,110,232,.25);border-radius:16px 16px 4px 16px;color:#c5bff8}
-.bb.wolf{border-left:3px solid var(--gold);background:rgba(255,215,0,.04)}
+/* ── BUBBLES ── */
+.msg{display:flex;flex-direction:column;gap:4px;max-width:100%}
+.msg.user{align-items:flex-end}
+.bbl{padding:9px 12px;border-radius:16px;font-size:13px;line-height:1.5;word-break:break-word}
+.bbl.ai{background:var(--bg2);border:1px solid var(--border);border-radius:16px 16px 16px 4px}
+.bbl.user{background:rgba(108,92,231,.18);border:1px solid rgba(108,92,231,.28);border-radius:16px 16px 4px 16px;color:#c5bff8}
 @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
-.dots span{animation:blink 1.4s infinite both;font-size:18px;line-height:.8}
+.dots span{animation:blink 1.4s infinite both}
 .dots span:nth-child(2){animation-delay:.2s}
 .dots span:nth-child(3){animation-delay:.4s}
 
-/* CARD */
-.card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-top:6px}
-.card+.card{margin-top:5px}
-.card.buy{border-color:rgba(0,255,157,.2)}
-.card.sell{border-color:rgba(255,68,102,.2)}
-.card.pmp{border-color:rgba(255,144,0,.22)}
-.card-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
-.csym{font-weight:800;font-size:14px;color:#fff}
-.cname{font-size:10px;color:var(--dim);margin-top:1px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cpr{text-align:right}
-.price{font-size:13px;font-weight:700;color:#fff}
+/* ── TOKEN CARD ── */
+.tc{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-top:6px}
+.tc+.tc{margin-top:5px}
+.tc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+.sym{font-weight:800;font-size:14px;color:#fff}
+.tk-name{font-size:10px;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.price-a{text-align:right}
+.price{font-size:12px;font-weight:600;color:#fff}
 .chg{font-size:11px;font-weight:700}
-.pos{color:var(--g)}.neg{color:var(--r)}.neu{color:var(--dim)}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.chg.pos{color:var(--g)}.chg.neg{color:var(--r)}.chg.neu{color:var(--dim)}
+.stats{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
 .s{display:flex;flex-direction:column}
 .sl{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.3px}
 .sv{font-size:11px;font-weight:600;color:var(--txt)}
-.bg{display:inline-block;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:700;margin-left:4px}
-.bg-buy{background:rgba(0,255,157,.12);color:var(--g);border:1px solid rgba(0,255,157,.25)}
-.bg-sell{background:rgba(255,68,102,.1);color:var(--r);border:1px solid rgba(255,68,102,.22)}
-.bg-hold{background:rgba(249,202,36,.08);color:var(--y);border:1px solid rgba(249,202,36,.2)}
-.bg-new{background:rgba(0,180,216,.08);color:var(--b);border:1px solid rgba(0,180,216,.2)}
-.bg-pmp{background:rgba(255,144,0,.1);color:var(--o);border:1px solid rgba(255,144,0,.2)}
-.prog{height:3px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
-.prog-f{height:100%;border-radius:3px}
-.cbs{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.bdg{display:inline-block;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:700;margin-left:4px}
+.b-buy{background:rgba(0,255,157,.12);color:var(--g);border:1px solid rgba(0,255,157,.25)}
+.b-sell{background:rgba(255,75,110,.12);color:var(--r);border:1px solid rgba(255,75,110,.25)}
+.b-watch{background:rgba(249,202,36,.08);color:var(--y);border:1px solid rgba(249,202,36,.2)}
+.b-new{background:rgba(0,180,216,.08);color:var(--b);border:1px solid rgba(0,180,216,.2)}
+.b-pump{background:rgba(255,140,0,.1);color:var(--o);border:1px solid rgba(255,140,0,.25)}
+.conv{height:2px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
+.conv-f{height:100%;border-radius:2px}
+.cbs{display:flex;gap:5px;margin-top:7px}
 .cb{padding:4px 9px;border-radius:7px;font-size:10px;font-weight:600;cursor:pointer;border:none}
-.cb-g{background:rgba(0,255,157,.12);color:var(--g);border:1px solid rgba(0,255,157,.22)}
-.cb-p{background:rgba(124,110,232,.12);color:var(--p);border:1px solid rgba(124,110,232,.2)}
-.cb-r{background:rgba(255,68,102,.1);color:var(--r);border:1px solid rgba(255,68,102,.2)}
-.cb-o{background:rgba(255,144,0,.1);color:var(--o);border:1px solid rgba(255,144,0,.2)}
-.cb-gold{background:rgba(255,215,0,.1);color:var(--gold);border:1px solid rgba(255,215,0,.22)}
+.cb-g{background:rgba(0,255,157,.13);color:var(--g);border:1px solid rgba(0,255,157,.22)}
+.cb-p{background:rgba(108,92,231,.13);color:var(--p);border:1px solid rgba(108,92,231,.22)}
+.cb-r{background:rgba(255,75,110,.1);color:var(--r);border:1px solid rgba(255,75,110,.18)}
+.cb-o{background:rgba(255,140,0,.1);color:var(--o);border:1px solid rgba(255,140,0,.2)}
 
-/* WOLF QUOTE */
-.wq{border-left:3px solid var(--gold);background:rgba(255,215,0,.04);border-radius:0 8px 8px 0;padding:8px 12px;margin:8px 0 2px;font-style:italic;font-size:12px;color:rgba(255,215,0,.85);line-height:1.5}
+/* bonding curve bar */
+.bond-bar{height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
+.bond-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--o),var(--y))}
 
-/* HOLDERS */
-.hrow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)}
-.hrow:last-child{border:none}
+/* ── HOLDERS ── */
+.holder-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)}
+.holder-row:last-child{border:none}
+.holder-addr{font-size:10px;color:var(--dim);font-family:monospace}
+.holder-pct{font-size:11px;font-weight:700}
+.dev-flag{font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(255,75,110,.15);color:var(--r);border:1px solid rgba(255,75,110,.25);margin-left:4px}
 
-/* FNG RING */
-.fng-ring{width:76px;height:76px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;border-width:4px;border-style:solid}
-.fng-n{font-size:22px;font-weight:900;line-height:1}
-.fng-l{font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+/* ── PORTFOLIO ── */
+.prow{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 11px;margin-top:5px;display:flex;justify-content:space-between;align-items:center}
+.pnl-p{color:var(--g);font-weight:700}
+.pnl-n{color:var(--r);font-weight:700}
 
-/* SECTION TITLE */
-.sec{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-
-/* RUG BAR */
-.rug-b{height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+/* rug */
+.rug-bar{height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
 .rug-f{height:100%;border-radius:3px}
 
-/* PORTFOLIO ROW */
-.prow{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 11px;margin-top:5px;display:flex;justify-content:space-between;align-items:center}
-
-/* MARKET TABLE */
-.mt{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-top:6px}
-.mr{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
-.mr:last-child{border:none}
-.mn{font-size:12px;font-weight:700;color:#fff}
-.ms{font-size:10px;color:var(--dim)}
-.mp{text-align:right}
-.mv{font-size:13px;font-weight:700;color:#fff}
-
-/* SETUP BANNER */
-.setup{background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px;padding:10px 12px;margin-top:6px;font-size:12px}
-
-/* INPUT */
-.iw{padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--bg);flex-shrink:0}
-.ir{display:flex;gap:7px;align-items:flex-end}
+/* ── INPUT ── */
+.input-wrap{padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--bg);flex-shrink:0}
+.input-row{display:flex;gap:7px;align-items:flex-end}
 .inp{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:9px 13px;color:#fff;font-size:14px;outline:none;resize:none;font-family:inherit;line-height:1.4;max-height:110px}
-.inp:focus{border-color:rgba(255,215,0,.5)}
+.inp:focus{border-color:var(--p)}
 .inp::placeholder{color:var(--dim)}
-.snd{background:linear-gradient(135deg,var(--gold) 0%,var(--o) 100%);color:#000;border:none;border-radius:11px;padding:9px 15px;font-size:17px;cursor:pointer;flex-shrink:0;font-weight:900}
-.snd:active{opacity:.75}
+.send{background:var(--p);color:#fff;border:none;border-radius:11px;padding:9px 15px;font-size:17px;cursor:pointer;flex-shrink:0}
+.send:active{opacity:.7}
 
+/* misc */
 @keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--g);border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:4px}
+.sec-lbl{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 </style>
 </head>
 <body>
 
+<!-- TOP BAR -->
 <div class="top">
   <div class="dot" id="dot"></div>
-  <div><div class="logo">🐺 WOLF</div><div class="logo-sub">ВЕСЬ РЫНОК · 24/7</div></div>
-  <div class="strip" id="strip" onclick="cmd('крипто')">…</div>
-  <button class="k" id="kb" onclick="toggleKill()">☠</button>
+  <span class="logo">SMERTCH ⚡</span>
+  <span class="ticker" id="tkr"></span>
+  <div class="tg-status" id="tgDot" title="Telegram push" onclick="cmd('tg setup')"></div>
+  <button class="kill" id="killBtn" onclick="toggleKill()">☠</button>
 </div>
 
+<!-- CHIPS -->
 <div class="chips">
-  <div class="ch sol" onclick="cmd('скан')">🌪️ Solana</div>
-  <div class="ch pump" onclick="cmd('pump')">🔥 Pump</div>
-  <div class="ch crypt" onclick="cmd('крипто')">₿ Крипто</div>
-  <div class="ch stk" onclick="cmd('акции')">📊 Акции</div>
-  <div class="ch fx" onclick="cmd('форекс')">💱 Форекс</div>
-  <div class="ch fg" onclick="cmd('фнг')">😱 F&G</div>
-  <div class="ch bag" onclick="cmd('баг')">💼 Портфель</div>
-  <div class="ch flt" id="fch" onclick="toggleFlt()">⚙️ Фильтры</div>
-  <div class="ch wolf" onclick="cmd('wolf')">🐺 WOLF</div>
+  <div class="chip scan" onclick="cmd('скан')">🌪️ Скан</div>
+  <div class="chip pump" onclick="cmd('pump')">🔥 PUMP.FUN</div>
+  <div class="chip sig"  onclick="cmd('сигналы')">⚡ Сигналы</div>
+  <div class="chip bag"  onclick="cmd('баг')">💼 Баг</div>
+  <div class="chip tg-chip" onclick="cmd('горячие')">🔥 Горячие</div>
+  <div class="chip flt" id="fltChip" onclick="toggleFilters()">⚙️ Фильтры</div>
+  <div class="chip" onclick="cmd('стратегия')">🧠 AI</div>
 </div>
 
-<div class="fp" id="fp">
-  <div class="fr">
-    <span class="fl">MCap</span>
-    <div class="fb on" onclick="sf('mc',0,this)">Любой</div>
-    <div class="fb" onclick="sf('mc',50000,this)">&lt;50K</div>
-    <div class="fb" onclick="sf('mc',200000,this)">&lt;200K</div>
-    <div class="fb" onclick="sf('mc',1000000,this)">&lt;1M</div>
+<!-- FILTER PANEL -->
+<div class="flt-panel" id="fltPanel">
+  <div class="flt-row">
+    <span class="flt-label">MCap</span>
+    <div class="flt-btn on" onclick="setF('mcap',0,this)">Любой</div>
+    <div class="flt-btn" onclick="setF('mcap',50000,this)">&lt;50K</div>
+    <div class="flt-btn" onclick="setF('mcap',200000,this)">&lt;200K</div>
+    <div class="flt-btn" onclick="setF('mcap',500000,this)">&lt;500K</div>
+    <div class="flt-btn" onclick="setF('mcap',1000000,this)">&lt;1M</div>
+    <div class="flt-reset" onclick="resetFilters()">Сброс</div>
   </div>
-  <div class="fr">
-    <span class="fl">Ликв.</span>
-    <div class="fb on" onclick="sf('lq',0,this)">Любая</div>
-    <div class="fb" onclick="sf('lq',5000,this)">&gt;$5K</div>
-    <div class="fb" onclick="sf('lq',20000,this)">&gt;$20K</div>
-    <div class="fb" onclick="sf('lq',50000,this)">&gt;$50K</div>
+  <div class="flt-row">
+    <span class="flt-label">Ликв.</span>
+    <div class="flt-btn on" onclick="setF('liq',0,this)">Любая</div>
+    <div class="flt-btn" onclick="setF('liq',5000,this)">&gt;5K</div>
+    <div class="flt-btn" onclick="setF('liq',20000,this)">&gt;20K</div>
+    <div class="flt-btn" onclick="setF('liq',50000,this)">&gt;50K</div>
   </div>
-  <div class="fr">
-    <span class="fl">Возраст</span>
-    <div class="fb on" onclick="sf('ag',0,this)">Любой</div>
-    <div class="fb" onclick="sf('ag',30,this)">&lt;30m</div>
-    <div class="fb" onclick="sf('ag',120,this)">&lt;2h</div>
-    <div class="fb" onclick="sf('ag',360,this)">&lt;6h</div>
-    <div class="fb" onclick="sf('sig','buy',this)">🟢 BUY only</div>
+  <div class="flt-row">
+    <span class="flt-label">Возраст</span>
+    <div class="flt-btn on" onclick="setF('age',0,this)">Любой</div>
+    <div class="flt-btn" onclick="setF('age',30,this)">&lt;30m</div>
+    <div class="flt-btn" onclick="setF('age',120,this)">&lt;2h</div>
+    <div class="flt-btn" onclick="setF('age',360,this)">&lt;6h</div>
+    <div class="flt-btn" onclick="setF('sig','buy',this)">🟢 BUY only</div>
   </div>
 </div>
 
+<!-- CHAT -->
 <div class="chat" id="chat"></div>
 
-<div class="iw">
-  <div class="ir">
-    <textarea class="inp" id="inp" rows="1"
-      placeholder="BTC куда? NVDA продавать? Лучший мем сегодня?"
+<!-- INPUT -->
+<div class="input-wrap">
+  <div class="input-row">
+    <textarea class="inp" id="inp" rows="1" placeholder="Токен / адрес / вопрос…"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
-    <button class="snd" onclick="send()">↑</button>
+    <button class="send" onclick="send()">↑</button>
   </div>
 </div>
 
 <script>
 'use strict';
-const DEX='https://api.dexscreener.com';
-const SOL_RPC='https://api.mainnet-beta.solana.com';
-const CG='https://api.coingecko.com/api/v3';
-const FNG_URL='https://api.alternative.me/fng/?limit=7';
-const FX_URL='https://api.frankfurter.app/latest';
-const GROQ_URL='https://api.groq.com/openai/v1/chat/completions';
+const DEX = 'https://api.dexscreener.com';
+const PUMP = 'https://frontend-api.pump.fun';
+const SOL_RPC = 'https://api.mainnet-beta.solana.com';
+let killed=false, scanCache=[], pumpCache=[], pushed=new Set(JSON.parse(localStorage.getItem('gl_pushed')||'[]'));
+let portfolio=JSON.parse(localStorage.getItem('gl_portfolio')||'[]');
+let tgPushTimer=null;
+let flt={mcap:0, liq:0, age:0, sig:'all'};
 
-let killed=false, portfolio=JSON.parse(localStorage.getItem('gl_portfolio')||'[]');
-let pushed=new Set(JSON.parse(localStorage.getItem('gl_pushed')||'[]'));
-let flt={mc:0,lq:0,ag:0,sig:'all'};
-let mktCtx={btc:0,eth:0,sol:0,fng:50,fngLbl:'Neutral',mkt24h:0};
-let tgBot=localStorage.getItem('gl_telegram')||'';
-let tgChat=localStorage.getItem('gl_tg_chat')||'';
-let autoTimer=null;
+// ── UTILS ───────────────────────────────────────────────────────────────────
+const f$=v=>{if(!v||isNaN(v))return'–';if(v>=1e9)return'$'+(v/1e9).toFixed(2)+'B';if(v>=1e6)return'$'+(v/1e6).toFixed(2)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(1)+'K';return v>=0.01?'$'+v.toFixed(4):'$'+v.toExponential(2)};
+const fAge=ms=>{const m=Math.floor(ms/60000);return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d'};
+const clr=v=>v>0?'pos':v<0?'neg':'neu';
+const cs=v=>v>0?'+'+v.toFixed(1)+'%':v.toFixed(1)+'%';
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const scroll=()=>{const c=document.getElementById('chat');requestAnimationFrame(()=>c.scrollTop=c.scrollHeight)};
 
-// ── UTILS ──
-const f$=v=>{if(!v||isNaN(v))return'–';if(v>=1e12)return'$'+(v/1e12).toFixed(2)+'T';if(v>=1e9)return'$'+(v/1e9).toFixed(2)+'B';if(v>=1e6)return'$'+(v/1e6).toFixed(2)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(1)+'K';return v>=0.01?'$'+v.toFixed(4):'$'+v.toExponential(2)};
-const fa=ms=>{const m=Math.floor(ms/60000);return m<60?m+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d'};
-const cl=v=>v>0?'pos':v<0?'neg':'neu';
-const cs=v=>v===undefined||isNaN(v)?'–%':(v>0?'+':'')+v.toFixed(1)+'%';
-const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const $chat=()=>document.getElementById('chat');
-const scroll=()=>requestAnimationFrame(()=>{const c=$chat();c.scrollTop=c.scrollHeight});
+// ── FILTERS ─────────────────────────────────────────────────────────────────
+function toggleFilters(){
+  const p=document.getElementById('fltPanel'), c=document.getElementById('fltChip');
+  const open=p.classList.toggle('open');
+  c.classList.toggle('on',open);
+}
+function setF(key,val,el){
+  flt[key]=val;
+  el.closest('.flt-row').querySelectorAll('.flt-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  const active=flt.mcap||flt.liq||flt.age||flt.sig!=='all';
+  document.getElementById('fltChip').classList.toggle('active-flt',active);
+}
+function resetFilters(){
+  flt={mcap:0,liq:0,age:0,sig:'all'};
+  document.querySelectorAll('.flt-row .flt-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.flt-row .flt-btn:first-of-type').forEach(b=>b.classList.add('on'));
+  document.getElementById('fltChip').classList.remove('active-flt');
+}
+function applyFilters(pairs){
+  return pairs.filter(p=>{
+    const mcap=p.fdv||p.marketCap||0;
+    const liq=p.liquidity?.usd||0;
+    const age=p.pairCreatedAt?Math.floor((Date.now()-p.pairCreatedAt)/60000):9999;
+    const sig=sigType(score(p));
+    if(flt.mcap>0 && mcap>flt.mcap) return false;
+    if(flt.liq>0 && liq<flt.liq) return false;
+    if(flt.age>0 && age>flt.age) return false;
+    if(flt.sig==='buy' && sig!=='buy') return false;
+    return true;
+  });
+}
 
-// ── FILTERS ──
-function toggleFlt(){document.getElementById('fp').classList.toggle('open')}
-function sf(k,v,el){flt[k]=v;el.closest('.fr').querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));el.classList.add('on')}
-function applyF(pairs){return pairs.filter(p=>{const mc=p.fdv||p.marketCap||0,lq=p.liquidity?.usd||0,ag=p.pairCreatedAt?Math.floor((Date.now()-p.pairCreatedAt)/60000):9999;if(flt.mc&&mc>flt.mc)return false;if(flt.lq&&lq<flt.lq)return false;if(flt.ag&&ag>flt.ag)return false;if(flt.sig==='buy'&&sigT(score(p))!=='buy')return false;return true})}
+// ── KILL ─────────────────────────────────────────────────────────────────────
+function toggleKill(){
+  killed=!killed;
+  const b=document.getElementById('killBtn'),d=document.getElementById('dot');
+  b.classList.toggle('on',killed); b.textContent=killed?'☠ KILLED':'☠';
+  d.classList.toggle('dead',killed);
+  if(killed){clearInterval(tgPushTimer);botMsg('☠️ Kill Switch — всё остановлено.');}
+  else{startAutoLoops();botMsg('✅ Возобновляю.');}
+}
 
-// ── KILL ──
-function toggleKill(){killed=!killed;document.getElementById('kb').classList.toggle('on',killed);document.getElementById('dot').classList.toggle('dead',killed);if(killed){clearInterval(autoTimer);bot('☠️ Убит. Деньги не двигаются.')}else{startAuto();bot('🐺 Снова в деле.')}}
+// ── SIGNAL ENGINE ─────────────────────────────────────────────────────────────
+function score(p){
+  const c5=parseFloat(p.priceChange?.m5||0),c1=parseFloat(p.priceChange?.h1||0);
+  const vol=p.volume?.h24||0,mcap=p.fdv||p.marketCap||0,liq=p.liquidity?.usd||0;
+  const age=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null;
+  const buys=p.txns?.h24?.buys||0,sells=p.txns?.h24?.sells||0;
+  let s=50;
+  if(c5>5)s+=12;if(c5<-5)s-=18;if(c1>20)s+=18;if(c1<-20)s-=22;
+  if(mcap>0){const r=vol/mcap;if(r>0.5)s+=14;if(r<0.05)s-=10;}
+  if(liq<5000)s-=24;else if(liq>50000)s+=8;
+  if(age&&age<2*3600000&&c5>0)s+=12;
+  if(buys>sells*1.5)s+=10;if(sells>buys*2)s-=15;
+  if(mcap>0&&mcap<500000)s+=12;if(mcap>5000000)s-=8;
+  return Math.max(0,Math.min(100,Math.round(s)));
+}
+function sigType(s){return s>=68?'buy':s<=32?'sell':'watch';}
 
-// ── SCORE ──
-function score(p){const c5=+p.priceChange?.m5||0,c1=+p.priceChange?.h1||0,vol=p.volume?.h24||0,mc=p.fdv||p.marketCap||0,lq=p.liquidity?.usd||0,ag=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null,b=p.txns?.h24?.buys||0,s=p.txns?.h24?.sells||0;let sc=50;if(c5>5)sc+=12;if(c5<-5)sc-=18;if(c1>20)sc+=18;if(c1<-20)sc-=22;if(mc>0){const r=vol/mc;if(r>.5)sc+=14;if(r<.05)sc-=10}if(lq<5000)sc-=25;else if(lq>50000)sc+=8;if(ag&&ag<2*3600000&&c5>0)sc+=12;if(b>s*1.5)sc+=10;if(s>b*2)sc-=15;if(mc<500000&&mc>0)sc+=12;if(mc>5000000)sc-=8;return Math.max(0,Math.min(100,Math.round(sc)))}
-function sigT(s){return s>=68?'buy':s<=32?'sell':'hold'}
+// ── CHAT HELPERS ─────────────────────────────────────────────────────────────
+function botMsg(html){
+  const chat=document.getElementById('chat');
+  const d=document.createElement('div');d.className='msg';
+  d.innerHTML=`<div class="bbl ai">${html}</div>`;
+  chat.appendChild(d);scroll();return d;
+}
+function userBubble(txt){
+  const chat=document.getElementById('chat');
+  const d=document.createElement('div');d.className='msg user';
+  d.innerHTML=`<div class="bbl user">${esc(txt)}</div>`;
+  chat.appendChild(d);scroll();
+}
+function typing(){
+  const chat=document.getElementById('chat');
+  const d=document.createElement('div');d.className='msg';d.id='typing';
+  d.innerHTML=`<div class="bbl ai"><div class="dots"><span>●</span><span>●</span><span>●</span></div></div>`;
+  chat.appendChild(d);scroll();return d;
+}
+function rmTyping(){const t=document.getElementById('typing');if(t)t.remove();}
 
-// ── CHAT ──
-function bot(html,wolfClass=false){const d=document.createElement('div');d.className='msg';d.innerHTML=`<div class="bb ai${wolfClass?' wolf':''}">${html}</div>`;$chat().appendChild(d);scroll();return d}
-function userBbl(t){const d=document.createElement('div');d.className='msg u';d.innerHTML=`<div class="bb u">${esc(t)}</div>`;$chat().appendChild(d);scroll()}
-function typing(){const d=document.createElement('div');d.className='msg';d.id='tp';d.innerHTML='<div class="bb ai"><div class="dots"><span>●</span><span>●</span><span>●</span></div></div>';$chat().appendChild(d);scroll()}
-function rmTp(){const t=document.getElementById('tp');if(t)t.remove()}
-
-// ── TOKEN CARD ──
-function tokenCard(p,extra=''){
-  const sym=p.baseToken?.symbol||'?',nm=p.baseToken?.name||'';
-  const pr=+p.priceUsd||0,c5=+p.priceChange?.m5||0,c1=+p.priceChange?.h1||0;
-  const v1=p.volume?.h1||0,mc=p.fdv||p.marketCap||0,lq=p.liquidity?.usd||0;
-  const b=p.txns?.h24?.buys||0,s=p.txns?.h24?.sells||0;
-  const ag=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null;
-  const sc=score(p),st=sigT(sc),sc_=st==='buy'?'var(--g)':st==='sell'?'var(--r)':'var(--y)';
-  const bp=b+s>0?Math.round(b/(b+s)*100):50;
-  const addr=p.baseToken?.address||'',url=p.url||'https://dexscreener.com/solana/'+(p.pairAddress||'');
-  return `<div class="card ${st}">
-    <div class="card-h">
-      <div><div class="csym">${esc(sym)}<span class="bg bg-${st}">${st==='buy'?'🟢 BUY':st==='sell'?'🔴 SELL':'🟡 HOLD'}</span>${ag&&ag<4*36e5?'<span class="bg bg-new">NEW</span>':''}</div>
-      <div class="cname">${esc(nm)}${ag?' · ⏱ '+fa(ag):''}</div></div>
-      <div class="cpr"><div class="price">${f$(pr)}</div><div class="chg ${cl(c1)}">${cs(c1)} 1h</div></div>
+// ── TOKEN CARD ────────────────────────────────────────────────────────────────
+function tokenCard(p,opts={}){
+  const sym=p.baseToken?.symbol||'?',name=p.baseToken?.name||'';
+  const price=parseFloat(p.priceUsd||0);
+  const c5=parseFloat(p.priceChange?.m5||0),c1=parseFloat(p.priceChange?.h1||0),c6=parseFloat(p.priceChange?.h6||0);
+  const vol1=p.volume?.h1||0,vol24=p.volume?.h24||0,mcap=p.fdv||p.marketCap||0,liq=p.liquidity?.usd||0;
+  const buys=p.txns?.h24?.buys||0,sells=p.txns?.h24?.sells||0;
+  const age=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null;
+  const conv=score(p),st=sigType(conv);
+  const isNew=age&&age<4*3600000;
+  const addr=p.baseToken?.address||'';
+  const dexUrl=p.url||'https://dexscreener.com/solana/'+(p.pairAddress||'');
+  const bp=buys+sells>0?Math.round(buys/(buys+sells)*100):50;
+  const sigClr=st==='buy'?'var(--g)':st==='sell'?'var(--r)':'var(--y)';
+  return `<div class="tc">
+    <div class="tc-head">
+      <div><div class="sym">${esc(sym)} <span class="bdg b-${st}">${st==='buy'?'🟢 BUY':st==='sell'?'🔴 EXIT':'🟡 WATCH'}</span>${isNew?'<span class="bdg b-new">NEW</span>':''}</div>
+      <div class="tk-name">${esc(name)}</div></div>
+      <div class="price-a"><div class="price">${f$(price)}</div><div class="chg ${clr(c1)}">${cs(c1)} 1h</div></div>
     </div>
     <div class="stats">
-      <div class="s"><div class="sl">MCap</div><div class="sv">${f$(mc)}</div></div>
-      <div class="s"><div class="sl">Vol 1h</div><div class="sv">${f$(v1)}</div></div>
-      <div class="s"><div class="sl">Ликв.</div><div class="sv" style="${lq<3000?'color:var(--r)':''}">${f$(lq)}</div></div>
-      <div class="s"><div class="sl">B/S</div><div class="sv" style="color:${bp>55?'var(--g)':'var(--r)'}">${b}/${s}</div></div>
-      <div class="s"><div class="sl">5m</div><div class="sv chg ${cl(c5)}">${cs(c5)}</div></div>
+      <div class="s"><div class="sl">MCap</div><div class="sv">${f$(mcap)}</div></div>
+      <div class="s"><div class="sl">Vol 1h</div><div class="sv">${f$(vol1)}</div></div>
+      <div class="s"><div class="sl">Ликв.</div><div class="sv">${f$(liq)}</div></div>
+      <div class="s"><div class="sl">B/S</div><div class="sv" style="color:${bp>55?'var(--g)':'var(--r)'}">${buys}/${sells}</div></div>
+      ${age?`<div class="s"><div class="sl">Возраст</div><div class="sv">${fAge(age)}</div></div>`:''}
+      <div class="s"><div class="sl">5m</div><div class="sv chg ${clr(c5)}">${cs(c5)}</div></div>
     </div>
-    <div class="prog"><div class="prog-f" style="width:${sc}%;background:${sc_}"></div></div>
+    <div class="conv"><div class="conv-f" style="width:${conv}%;background:${sigClr}"></div></div>
     <div class="cbs">
-      <button class="cb cb-g" onclick="addBag('${esc(addr)}','${esc(sym)}',${pr})">+Войти</button>
-      <button class="cb cb-p" onclick="cmd('анализ ${esc(addr)}')">On-Chain</button>
-      ${tgBot&&tgChat?`<button class="cb cb-o" onclick="pushTg('${esc(sym)}','${esc(addr)}',${c1},${v1},${lq},${b},${s},${ag||0})">📤 TG</button>`:''}
-      <a href="${url}" target="_blank" style="text-decoration:none"><button class="cb cb-p">DEX ↗</button></a>
-      ${extra}
+      <button class="cb cb-g" onclick="quickEnter('${esc(addr)}','${esc(sym)}')">+Войти</button>
+      <button class="cb cb-p" onclick="cmd('анализ ${esc(addr)}')">Анализ</button>
+      ${opts.pushTg?`<button class="cb cb-o" onclick="pushOneTg('${esc(sym)}','${esc(addr)}',${c1},${vol1},${liq},${buys},${sells},${age||0})">📤 TG</button>`:''}
+      <a href="${dexUrl}" target="_blank" style="text-decoration:none"><button class="cb cb-p">DEX ↗</button></a>
+      ${opts.closeBtn!==undefined?`<button class="cb cb-r" onclick="closePos(${opts.closeBtn})">Закрыть</button>`:''}
     </div>
   </div>`;
 }
 
-// ── SCAN ──
+// ── PUMP.FUN CARD ─────────────────────────────────────────────────────────────
+function pumpCard(coin){
+  const sym=esc(coin.symbol||'?'), name=esc(coin.name||'');
+  const mcap=coin.usd_market_cap||0;
+  const addr=coin.mint||'';
+  const ageMs=Date.now()-coin.created_timestamp;
+  const progress=Math.min(100,Math.round((mcap/69000)*100)); // ~$69K graduation
+  const url='https://pump.fun/'+addr;
+  return `<div class="tc" style="border-color:rgba(255,140,0,.2)">
+    <div class="tc-head">
+      <div><div class="sym">${sym} <span class="bdg b-pump">🔥 PUMP</span></div>
+      <div class="tk-name">${name}</div></div>
+      <div class="price-a"><div style="font-size:11px;color:var(--o)">${f$(mcap)}</div><div style="font-size:10px;color:var(--dim)">${fAge(ageMs)} назад</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:3px">Bonding curve: ${progress}% до листинга</div>
+    <div class="bond-bar"><div class="bond-fill" style="width:${progress}%"></div></div>
+    <div class="cbs">
+      <button class="cb cb-g" onclick="quickEnter('${addr}','${sym}')">+Войти</button>
+      <button class="cb cb-p" onclick="cmd('анализ ${addr}')">Анализ</button>
+      <a href="${url}" target="_blank" style="text-decoration:none"><button class="cb cb-o">pump.fun ↗</button></a>
+    </div>
+  </div>`;
+}
+
+// ── SCAN ─────────────────────────────────────────────────────────────────────
 async function runScan(){
-  if(killed)return;typing();
+  if(killed) return;
+  const t=typing();
   try{
-    const [boosts,srch]=await Promise.all([
+    const [boost,prof]=await Promise.all([
       fetch(DEX+'/token-boosts/latest/v1').then(r=>r.json()).catch(()=>[]),
-      fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6&order=desc').then(r=>r.json()).catch(()=>({pairs:[]}))
+      fetch(DEX+'/token-profiles/latest/v1').then(r=>r.json()).catch(()=>[]),
     ]);
-    const addrs=(Array.isArray(boosts)?boosts:[]).filter(x=>x.chainId==='solana').slice(0,14).map(x=>x.tokenAddress);
+    const search=await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6&order=desc').then(r=>r.json()).catch(()=>({pairs:[]}));
+    const boosts=(Array.isArray(boost)?boost:[]).filter(b=>b.chainId==='solana').slice(0,10);
+    const profiles=(Array.isArray(prof)?prof:[]).filter(b=>b.chainId==='solana').slice(0,8);
+    const addrs=[...new Set([...boosts.map(b=>b.tokenAddress),...profiles.map(p=>p.tokenAddress)])].slice(0,14);
     let pairs=[];
-    if(addrs.length){const r=await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(x=>x.json());pairs=(r.pairs||[]).filter(p=>p.chainId==='solana')}
-    const sp=(srch.pairs||[]).filter(p=>p.chainId==='solana').slice(0,8);
+    if(addrs.length){const r=await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(x=>x.json());pairs=(r.pairs||[]).filter(p=>p.chainId==='solana');}
+    const sp=(search.pairs||[]).filter(p=>p.chainId==='solana').slice(0,8);
     const seen=new Set();
-    let all=[...pairs,...sp].filter(p=>{const a=p.baseToken?.address;if(!a||seen.has(a))return false;seen.add(a);return true}).sort((a,b)=>score(b)-score(a));
-    rmTp();
-    const filt=applyF(all);
-    document.getElementById('strip').textContent=all.slice(0,5).map(p=>`${p.baseToken?.symbol} ${(+p.priceChange?.h1||0)>0?'▲':'▼'}${Math.abs(+p.priceChange?.h1||0).toFixed(0)}%`).join(' · ');
-    const top=filt.slice(0,5);
-    if(!top.length){bot(`🌪️ Скан: ${all.length} токенов — все отрезаны фильтром.`);return}
+    let all=[...pairs,...sp].filter(p=>{const a=p.baseToken?.address;if(!a||seen.has(a))return false;seen.add(a);return true;});
+    all.sort((a,b)=>score(b)-score(a));
+    scanCache=all;
+    const filtered=applyFilters(all);
+    rmTyping();
+    if(!filtered.length){botMsg(`🌪️ Скан: <b>${all.length}</b> токенов, но фильтры скрывают все результаты. Сброс фильтров?`);return;}
+    document.getElementById('tkr').textContent=all.slice(0,5).map(p=>`${p.baseToken?.symbol} ${parseFloat(p.priceChange?.h1||0)>0?'▲':'▼'}${Math.abs(parseFloat(p.priceChange?.h1||0)).toFixed(0)}%`).join(' · ');
     const d=document.createElement('div');d.className='msg';
-    const buySc=filt.filter(p=>sigT(score(p))==='buy').length;
-    d.innerHTML=`<div class="bb ai">🌪️ <b>Solana скан</b> · ${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})} · ${filt.length}/${all.length} токенов · 🟢 ${buySc} BUY${top.map(p=>tokenCard(p)).join('')}</div>`;
-    $chat().appendChild(d);scroll();
-    const newBuys=filt.filter(p=>sigT(score(p))==='buy'&&!pushed.has(p.baseToken?.address||'')).slice(0,3);
-    if(newBuys.length)autoTgPush(newBuys);
-  }catch(e){rmTp();bot('⚠️ Скан: '+esc(e.message))}
+    const top=filtered.slice(0,5);
+    d.innerHTML=`<div class="bbl ai">🌪️ <b>Скан ${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</b> — ${filtered.length}/${all.length} токенов${flt.mcap||flt.liq||flt.age||flt.sig!=='all'?' <span style="color:var(--y);font-size:11px">⚙ фильтр активен</span>':''}<br>${top.map(p=>tokenCard(p,{pushTg:true})).join('')}</div>`;
+    document.getElementById('chat').appendChild(d);scroll();
+    // Auto-push BUY signals to TG
+    const buySigs=filtered.filter(p=>sigType(score(p))==='buy'&&!pushed.has(p.baseToken?.address||''));
+    if(buySigs.length) autoTgPush(buySigs);
+  }catch(e){rmTyping();botMsg('⚠️ Ошибка скана: '+esc(e.message));}
 }
 
-// ── PUMP ──
+// ── PUMP.FUN ─────────────────────────────────────────────────────────────────
 async function runPump(){
-  typing();
+  if(killed) return;
+  const t=typing();
   try{
-    const r=await fetch('https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false').then(x=>x.json());
-    rmTp();
-    if(!Array.isArray(r)){bot('🔥 pump.fun CORS ограничен.<br>Открой <a href="https://pump.fun" target="_blank" style="color:var(--o)">pump.fun ↗</a> или добавь прокси на бэкенд.');return}
     const now=Date.now();
-    const fr=r.filter(c=>c.created_timestamp&&now-c.created_timestamp*1000<600000&&!c.complete).slice(0,6);
-    if(!fr.length){bot('🔥 pump.fun: нет токенов < 10 мин. Жди.');return}
+    const r=await fetch(PUMP+'/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false').then(x=>x.json());
+    rmTyping();
+    if(!r||!Array.isArray(r)){botMsg('⚠️ pump.fun API не ответил. Попробуй через VPN или используй DEX скан.');return;}
+    const fresh=r.filter(c=>c.created_timestamp&&(now-c.created_timestamp)<10*60000&&!c.complete);
+    pumpCache=fresh;
+    if(!fresh.length){botMsg('🔥 <b>pump.fun</b>: нет новых токенов за последние 10 минут.');return;}
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML='<div class="bb ai">🔥 <b>pump.fun · живые &lt;10 мин</b>'+fr.map(c=>{
-      const ag=now-c.created_timestamp*1000,pr=Math.min(100,Math.round((c.usd_market_cap||0)/69000*100)),addr=c.mint||'';
-      return `<div class="card pmp"><div class="card-h"><div><div class="csym">${esc(c.symbol||'?')}<span class="bg bg-pmp">🔥 PUMP</span></div><div class="cname">${esc(c.name||'')} · ⏱ ${fa(ag)}</div></div><div class="cpr"><div class="sv">${f$(c.usd_market_cap||0)}</div><div class="sl">mcap</div></div></div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Bonding curve ${pr}% → $69K листинг</div><div class="prog"><div class="prog-f" style="width:${pr}%;background:linear-gradient(90deg,var(--o),var(--gold))"></div></div><div class="cbs"><button class="cb cb-g" onclick="addBag('${addr}','${esc(c.symbol||'?')}',0)">+Войти</button><a href="https://pump.fun/${addr}" target="_blank" style="text-decoration:none"><button class="cb cb-o">pump.fun ↗</button></a></div></div>`;
-    }).join('')+'</div>';
-    $chat().appendChild(d);scroll();
-  }catch(e){rmTp();bot('⚠️ pump.fun: '+esc(e.message))}
+    d.innerHTML=`<div class="bbl ai">🔥 <b>pump.fun — новые запуски &lt;10 мин</b> (${fresh.length} токенов)${fresh.slice(0,6).map(c=>pumpCard(c)).join('')}</div>`;
+    document.getElementById('chat').appendChild(d);scroll();
+  }catch(e){
+    rmTyping();
+    botMsg('⚠️ pump.fun: CORS или API недоступен. <br><span style="font-size:11px;color:var(--dim)">Попробуй через <a href="https://pump.fun" target="_blank" style="color:var(--o)">pump.fun ↗</a> напрямую</span>');
+  }
 }
 
-// ── CRYPTO ──
-async function runCrypto(){
-  typing();
+// ── SIGNALS ─────────────────────────────────────────────────────────────────
+async function runSignals(){
+  if(!scanCache.length){await runScan();return;}
+  const filtered=applyFilters(scanCache);
+  const buys=filtered.filter(p=>sigType(score(p))==='buy').slice(0,4);
+  const sells=filtered.filter(p=>sigType(score(p))==='sell').slice(0,2);
+  if(!buys.length&&!sells.length){botMsg('Нет чётких сигналов. Нажми 🌪️ Скан для обновления.');return;}
+  const d=document.createElement('div');d.className='msg';
+  let html='';
+  if(buys.length) html+=`<div class="sec-lbl" style="color:var(--g)">🟢 ПОКУПАЙ СЕЙЧАС</div>${buys.map(p=>tokenCard(p,{pushTg:true})).join('')}`;
+  if(sells.length) html+=`<div class="sec-lbl" style="color:var(--r);margin-top:8px">🔴 ФИКСИРУЙ</div>${sells.map(p=>tokenCard(p)).join('')}`;
+  d.innerHTML=`<div class="bbl ai">⚡ <b>Сигналы</b>${html}</div>`;
+  document.getElementById('chat').appendChild(d);scroll();
+}
+
+// ── HOT ─────────────────────────────────────────────────────────────────────
+async function runHot(){
+  const t=typing();
   try{
-    const [coins,glob,fng]=await Promise.all([
-      fetch(CG+'/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana,binancecoin,ripple&order=market_cap_desc&price_change_percentage=1h,24h,7d').then(r=>r.json()),
-      fetch(CG+'/global').then(r=>r.json()).catch(()=>null),
-      fetch(FNG_URL).then(r=>r.json()).catch(()=>null)
-    ]);
-    rmTp();
-    const fv=parseInt(fng?.data?.[0]?.value||50);
-    const fl=fng?.data?.[0]?.value_classification||'Neutral';
-    const fc=fv>=70?'var(--g)':fv>=50?'var(--y)':fv>=30?'var(--o)':'var(--r)';
-    // update context
-    const btc=coins.find(c=>c.id==='bitcoin'),sol=coins.find(c=>c.id==='solana'),eth=coins.find(c=>c.id==='ethereum');
-    if(btc)mktCtx.btc=btc.current_price;if(eth)mktCtx.eth=eth.current_price;
-    if(sol){mktCtx.sol=sol.current_price;mktCtx.solTrend=sol.price_change_percentage_24h}
-    mktCtx.fng=fv;mktCtx.fngLbl=fl;
-    if(glob?.data) mktCtx.mkt24h=glob.data.market_cap_change_percentage_24h_usd||0;
-    const dom=(glob?.data?.market_cap_percentage?.btc||0).toFixed(1);
-    const cards=coins.map(c=>{
-      const c1=c.price_change_percentage_1h_in_currency||0,c24=c.price_change_percentage_24h||0,c7=c.price_change_percentage_7d_in_currency||0;
-      const st=c24>3?'buy':c24<-3?'sell':'hold';
-      return `<div class="card ${st}"><div class="card-h"><div><div class="csym">${esc(c.symbol?.toUpperCase())}<span class="bg bg-${st}">${st==='buy'?'🟢 UP':st==='sell'?'🔴 DOWN':'🟡 FLAT'}</span></div><div class="cname">${esc(c.name)} · #${c.market_cap_rank}</div></div><div class="cpr"><div class="price">$${c.current_price?.toLocaleString('en')}</div><div class="chg ${cl(c24)}">${cs(c24)} 24h</div></div></div><div class="stats"><div class="s"><div class="sl">1h</div><div class="sv chg ${cl(c1)}">${cs(c1)}</div></div><div class="s"><div class="sl">7d</div><div class="sv chg ${cl(c7)}">${cs(c7)}</div></div><div class="s"><div class="sl">MCap</div><div class="sv">${f$(c.market_cap)}</div></div><div class="s"><div class="sl">Vol24h</div><div class="sv">${f$(c.total_volume)}</div></div></div><div class="cbs"><button class="cb cb-gold" onclick="wolfQ('${esc(c.symbol?.toUpperCase())} сейчас $${c.current_price?.toLocaleString('en')}, за 24h ${cs(c24)}. Кратко: купить, продать или ждать?')">🐺 Волк</button></div></div>`;
-    }).join('');
+    const r=await fetch(DEX+'/token-boosts/latest/v1').then(x=>x.json());
+    const boosts=(Array.isArray(r)?r:[]).filter(b=>b.chainId==='solana').slice(0,8);
+    const addrs=boosts.map(b=>b.tokenAddress).join(',');
+    const r2=await fetch(DEX+'/latest/dex/tokens/'+addrs).then(x=>x.json());
+    const pairs=(r2.pairs||[]).filter(p=>p.chainId==='solana');
+    rmTyping();
+    if(!pairs.length){botMsg('Нет горячих токенов');return;}
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML=`<div class="bb ai">₿ <b>Крипто</b> · F&G <span style="color:${fc};font-weight:700">${fv} ${fl}</span> · BTC dom ${dom}% · рынок <span class="chg ${cl(mktCtx.mkt24h)}">${cs(mktCtx.mkt24h)} 24h</span>${cards}</div>`;
-    $chat().appendChild(d);scroll();
-    // auto strip update
-    document.getElementById('strip').textContent=`BTC $${(mktCtx.btc||0).toLocaleString('en')} · ETH $${(mktCtx.eth||0).toLocaleString('en')} · SOL $${(mktCtx.sol||0).toFixed(1)} · F&G ${fv}`;
-  }catch(e){rmTp();bot('⚠️ CoinGecko: '+esc(e.message))}
+    d.innerHTML=`<div class="bbl ai">🔥 <b>Горячие</b> (буст + тренд)${pairs.slice(0,5).map(p=>tokenCard(p,{pushTg:true})).join('')}</div>`;
+    document.getElementById('chat').appendChild(d);scroll();
+  }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
-// ── STOCKS ──
-async function runStocks(){
-  typing();
-  const tickers=['NVDA','TSLA','AAPL','META','AMZN','MSFT'];
-  try{
-    const res=await Promise.allSettled(tickers.map(t=>fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=2d&corsDomain=finance.yahoo.com`).then(r=>r.json())));
-    rmTp();
-    const valid=res.filter(r=>r.status==='fulfilled'&&r.value?.chart?.result?.[0]).map(r=>{
-      const m=r.value.chart.result[0].meta||{};
-      const cur=m.regularMarketPrice||0,prev=m.previousClose||cur;
-      const chg=prev?(cur-prev)/prev*100:0;
-      return{sym:m.symbol,cur,chg,mc:m.marketCap,lo52:m.fiftyTwoWeekLow,hi52:m.fiftyTwoWeekHigh,nm:m.shortName||m.symbol};
-    });
-    if(!valid.length){
-      const d=document.createElement('div');d.className='msg';
-      d.innerHTML=`<div class="bb ai">📊 <b>Акции</b><br><br>Yahoo Finance CORS ограничен в браузере.
-        <div class="wq">Спроси меня напрямую: "что думаешь по NVDA" — отвечу с анализом.</div>
-        <div class="cbs"><a href="https://finance.yahoo.com" target="_blank" style="text-decoration:none"><button class="cb cb-p">Yahoo Finance ↗</button></a><a href="https://finviz.com" target="_blank" style="text-decoration:none"><button class="cb cb-gold">Finviz ↗</button></a><button class="cb cb-gold" onclick="wolfQ('Быстрый анализ NVDA, TSLA, META, AAPL на этой неделе. Где риск, где возможность?')">🐺 Волк по акциям</button></div></div>`;
-      $chat().appendChild(d);scroll();return;
-    }
-    const cards=valid.map(s=>{
-      const st=s.chg>1?'buy':s.chg<-1?'sell':'hold';
-      return `<div class="card ${st}"><div class="card-h"><div><div class="csym">${esc(s.sym)}<span class="bg bg-${st}">${st==='buy'?'🟢 UP':st==='sell'?'🔴 DOWN':'🟡 FLAT'}</span></div><div class="cname">${esc(s.nm)}</div></div><div class="cpr"><div class="price">$${s.cur.toFixed(2)}</div><div class="chg ${cl(s.chg)}">${cs(s.chg)} 1d</div></div></div><div class="stats"><div class="s"><div class="sl">MCap</div><div class="sv">${f$(s.mc)}</div></div><div class="s"><div class="sl">52W ⬆</div><div class="sv">$${s.hi52?.toFixed(0)||'–'}</div></div><div class="s"><div class="sl">52W ⬇</div><div class="sv">$${s.lo52?.toFixed(0)||'–'}</div></div></div><div class="cbs"><button class="cb cb-gold" onclick="wolfQ('${esc(s.sym)}: $${s.cur.toFixed(2)}, изменение ${cs(s.chg)}, mcap ${f$(s.mc)}. Флипп или пропустить?')">🐺 Волк</button><a href="https://finance.yahoo.com/quote/${esc(s.sym)}" target="_blank" style="text-decoration:none"><button class="cb cb-p">Yahoo ↗</button></a></div></div>`;
-    }).join('');
-    const d=document.createElement('div');d.className='msg';
-    d.innerHTML=`<div class="bb ai">📊 <b>Акции</b>${cards}</div>`;
-    $chat().appendChild(d);scroll();
-  }catch(e){rmTp();bot('⚠️ Акции: '+esc(e.message))}
-}
-
-// ── FOREX ──
-async function runForex(){
-  typing();
-  try{
-    const r=await fetch(FX_URL+'?from=USD&to=EUR,GBP,JPY,CHF,CAD,RUB,UAH').then(x=>x.json());
-    rmTp();
-    const rt=r.rates||{};
-    const pairs=[
-      ['EUR/USD',(1/rt.EUR).toFixed(4)],['GBP/USD',(1/rt.GBP).toFixed(4)],
-      ['USD/JPY',rt.JPY?.toFixed(2)],['USD/CHF',rt.CHF?.toFixed(4)],
-      ['USD/CAD',rt.CAD?.toFixed(4)]
-    ];
-    if(rt.RUB) pairs.push(['USD/RUB',rt.RUB?.toFixed(2)]);
-    if(rt.UAH) pairs.push(['USD/UAH',rt.UAH?.toFixed(2)]);
-    const rows=pairs.map(([p,v])=>`<div class="mr"><div class="mn">${p}</div><div class="mp"><div class="mv">${v||'–'}</div></div></div>`).join('');
-    const d=document.createElement('div');d.className='msg';
-    d.innerHTML=`<div class="bb ai">💱 <b>Форекс</b> — live к USD<div class="mt">${rows}</div><div class="cbs" style="margin-top:8px"><button class="cb cb-gold" onclick="wolfQ('Форекс: EUR/USD ${(1/rt.EUR).toFixed(4)}, GBP/USD ${(1/rt.GBP).toFixed(4)}, USD/JPY ${rt.JPY?.toFixed(2)}. Куда доллар сегодня и какую пару взять на флипп?')">🐺 Прогноз Волка</button></div></div>`;
-    $chat().appendChild(d);scroll();
-  }catch(e){rmTp();bot('⚠️ Форекс: '+esc(e.message))}
-}
-
-// ── FEAR & GREED ──
-async function runFng(){
-  typing();
-  try{
-    const [fng,glob]=await Promise.all([
-      fetch(FNG_URL).then(r=>r.json()),
-      fetch(CG+'/global').then(r=>r.json()).catch(()=>null)
-    ]);
-    rmTp();
-    const data=fng.data||[];
-    const cur=data[0];const v=parseInt(cur?.value||50);const lb=cur?.value_classification||'Neutral';
-    const fc=v>=70?'var(--g)':v>=55?'#8aff72':v>=45?'var(--y)':v>=30?'var(--o)':'var(--r)';
-    mktCtx.fng=v;mktCtx.fngLbl=lb;
-    const wop=v>=75?'"Все жадные. Умный тихо выходит, пока толпа кричит buy."':v>=55?'"Рынок тёплый. Держи что есть, новое не открывай без триггера."':v>=45?'"Нейтрально. Готовь список на закупку. Жди дна."':v>=30?'"Кровь на улицах. Страх — твой лучший союзник. Покупай."':'"Паника. Дна не видно. Только стальные нервы выживут."';
-    const hist=data.slice(1,7).map(d=>{const dv=parseInt(d.value);return`<div class="hrow"><span style="font-size:10px;color:var(--dim)">${new Date(d.timestamp*1000).toLocaleDateString('ru',{month:'short',day:'numeric'})}</span><span style="font-size:11px;font-weight:700;color:${dv>=50?'var(--g)':'var(--r)'}">${dv} — ${d.value_classification}</span></div>`}).join('');
-    const dom=(glob?.data?.market_cap_percentage?.btc||0).toFixed(1);
-    const d=document.createElement('div');d.className='msg';
-    d.innerHTML=`<div class="bb ai">😱 <b>Fear & Greed Index</b>
-      <div style="display:flex;gap:14px;align-items:center;margin:10px 0 8px">
-        <div class="fng-ring" style="border-color:${fc}"><div class="fng-n" style="color:${fc}">${v}</div><div class="fng-l" style="color:${fc}">${lb}</div></div>
-        <div style="flex:1">${hist}</div>
-      </div>
-      ${glob?`<div class="stats"><div class="s"><div class="sl">BTC dom</div><div class="sv">${dom}%</div></div><div class="s"><div class="sl">Рынок 24h</div><div class="sv chg ${cl(mktCtx.mkt24h)}">${cs(mktCtx.mkt24h)}</div></div></div>`:''}
-      <div class="wq">${wop}</div></div>`;
-    $chat().appendChild(d);scroll();
-  }catch(e){rmTp();bot('⚠️ F&G: '+esc(e.message))}
-}
-
-// ── ON-CHAIN ANALYZE ──
-async function runAnalyze(addr){
-  addr=addr.trim();typing();
-  try{
-    const [dex,hd]=await Promise.all([
-      fetch(DEX+'/latest/dex/tokens/'+addr).then(x=>x.json()),
-      getHolders(addr)
-    ]);
-    const pairs=(dex.pairs||[]).filter(p=>p.chainId==='solana');
-    rmTp();
-    if(!pairs.length){bot('🔍 Токен не найден на Solana DEX.');return}
-    const p=pairs[0];
-    const sym=p.baseToken?.symbol||'?',mc=p.fdv||p.marketCap||0,lq=p.liquidity?.usd||0;
-    const b=p.txns?.h24?.buys||0,s=p.txns?.h24?.sells||0;
-    const hasTg=!!p.info?.socials?.find(x=>x.type==='telegram');
-    const hasTw=!!p.info?.socials?.find(x=>x.type==='twitter');
-    const hasSite=!!p.info?.websites?.length;
-    let rug=0;
-    if(lq<5000)rug+=30;else if(lq<20000)rug+=12;
-    if(!hasTg&&!hasTw&&!hasSite)rug+=22;
-    if(b<10)rug+=15;if(s>b*3)rug+=15;
-    if(hd.topPct>20)rug+=20;
-    rug=Math.min(100,rug);
-    const rc=rug>=70?'var(--r)':rug>=40?'var(--y)':'var(--g)';
-    const bp=b+s>0?Math.round(b/(b+s)*100):50;
-    const holdHtml=hd.list.length?`<div class="card" style="margin-top:5px;padding:8px 11px"><div class="sec" style="margin-bottom:5px">🔗 On-chain · топ держатели</div>${hd.list.map(h=>`<div class="hrow"><div><span style="font-size:10px;color:var(--dim);font-family:monospace">${h.a.slice(0,8)}…${h.a.slice(-4)}</span>${h.dev?'<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:rgba(255,68,102,.15);color:var(--r);margin-left:4px">⚠️ DEV?</span>':''}</div><div class="sv" style="color:${h.p>20?'var(--r)':h.p>10?'var(--y)':'var(--g)'}">${h.p.toFixed(1)}%</div></div>`).join('')}${hd.topPct>25?`<div style="font-size:11px;color:var(--r);margin-top:5px">⚠️ Топ держатель ${hd.topPct.toFixed(0)}% — rug риск</div>`:''}</div>`:'';
-    const dexUrl=p.url||'https://dexscreener.com/solana/'+(p.pairAddress||'');
-    const c1=+p.priceChange?.h1||0,age=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null;
-    const d=document.createElement('div');d.className='msg';
-    d.innerHTML=`<div class="bb ai">🔍 <b>${esc(sym)}</b> — анализ${tokenCard(p)}<div class="card" style="margin-top:5px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--dim)">🛡 Rug Risk</span><b style="color:${rc}">${rug}/100 ${rug>=70?'⛔ ВЫСОКИЙ':rug>=40?'⚠️ СРЕДНИЙ':'✅ НИЗКИЙ'}</b></div><div class="rug-b"><div class="rug-f" style="width:${rug}%;background:${rc}"></div></div><div style="display:flex;gap:12px;margin-top:6px;font-size:11px"><span>TG ${hasTg?'✅':'❌'}</span><span>TW ${hasTw?'✅':'❌'}</span><span>Сайт ${hasSite?'✅':'❌'}</span><span>Buy% <b style="color:${bp>55?'var(--g)':'var(--r)'}">${bp}%</b></span></div></div>${holdHtml}<div class="cbs" style="margin-top:8px"><button class="cb cb-g" onclick="addBag('${esc(addr)}','${esc(sym)}',${+p.priceUsd||0})">+Войти</button><button class="cb cb-gold" onclick="wolfQ('${esc(sym)}: mcap=${f$(mc)}, ликв=${f$(lq)}, rug=${rug}/100, buy%=${bp}%, топ держатель=${hd.topPct.toFixed(0)}%, возраст=${age?fa(age):&apos;?&apos;}. Флипп или нет? 3 предложения.')">🐺 Решение Волка</button><a href="${dexUrl}" target="_blank" style="text-decoration:none"><button class="cb cb-p">DEX ↗</button></a></div></div>`;
-    $chat().appendChild(d);scroll();
-  }catch(e){rmTp();bot('⚠️ Анализ: '+esc(e.message))}
-}
-
-async function getHolders(mint){
-  try{
-    const [la,sup]=await Promise.all([
-      fetch(SOL_RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTokenLargestAccounts',params:[mint]})}).then(x=>x.json()),
-      fetch(SOL_RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'getTokenSupply',params:[mint]})}).then(x=>x.json())
-    ]);
-    const total=parseFloat(sup.result?.value?.uiAmount||0);
-    if(!total)return{list:[],topPct:0};
-    const list=(la.result?.value||[]).slice(0,5).map((a,i)=>{const p=parseFloat(a.uiAmount||0)/total*100;return{a:a.address,p,dev:i===0&&p>15}});
-    return{list,topPct:list[0]?.p||0};
-  }catch{return{list:[],topPct:0}}
-}
-
-// ── PORTFOLIO ──
+// ── PORTFOLIO ────────────────────────────────────────────────────────────────
 async function runBag(){
-  if(!portfolio.length){bot('💼 Портфель пустой. Нажми <b>+Войти</b> на любом токене.');return}
-  typing();
+  if(!portfolio.length){botMsg('💼 Портфель пуст. Нажми <b>+Войти</b> на токене.');return;}
+  const t=typing();
   try{
     const addrs=[...new Set(portfolio.map(p=>p.addr))].filter(Boolean);
-    const pm={};
-    if(addrs.length){const r=await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(x=>x.json());for(const p of(r.pairs||[])){if(p.baseToken?.address)pm[p.baseToken.address]={price:+p.priceUsd||0,sym:p.baseToken.symbol}}}
-    rmTp();
-    let tot=0;
+    let pm={};
+    if(addrs.length){const r=await fetch(DEX+'/latest/dex/tokens/'+addrs.join(',')).then(x=>x.json());for(const p of (r.pairs||[])){const a=p.baseToken?.address;if(a)pm[a]={price:parseFloat(p.priceUsd||0),sym:p.baseToken?.symbol||'?'};}}
+    rmTyping();
+    let tot=0,cnt=0;
     const rows=portfolio.map((pos,i)=>{
-      const cur=pm[pos.addr]?.price||0,sym=pm[pos.addr]?.sym||pos.sym||'?';
+      const cur=pm[pos.addr]?.price||0;
+      const sym=pm[pos.addr]?.sym||pos.sym||pos.addr?.slice(0,6)||'?';
       const pnl=pos.entry>0?(cur-pos.entry)/pos.entry*100:0;
-      tot+=pnl;
-      return `<div class="prow"><div><b>${esc(sym)}</b><br><span style="font-size:10px;color:var(--dim)">${pos.entry?f$(pos.entry):'?'} · ${pos.sol||0} SOL · ${fa(Date.now()-pos.ts)}</span></div><div style="text-align:right"><div style="font-weight:700;color:${pnl>=0?'var(--g)':'var(--r)'}">${pnl>=0?'+':''}${pnl.toFixed(1)}%</div><div style="font-size:10px;color:var(--dim)">${cur?f$(cur):'–'}</div><button class="cb cb-r" style="margin-top:3px;font-size:9px" onclick="closePos(${i})">✗ закрыть</button></div></div>`;
+      tot+=pnl;cnt++;
+      return `<div class="prow"><div><b>${esc(sym)}</b><br><span style="font-size:10px;color:var(--dim)">Вход: ${pos.entry>0?f$(pos.entry):'?'} · ${pos.sol||0} SOL · ${fAge(Date.now()-pos.ts)}</span></div>
+      <div style="text-align:right"><div class="${pnl>=0?'pnl-p':'pnl-n'}">${pnl>=0?'+':''}${pnl.toFixed(1)}%</div>
+      <div style="font-size:10px;color:var(--dim)">${cur>0?f$(cur):'–'}</div>
+      <button class="cb cb-r" style="font-size:9px;margin-top:3px" onclick="closePos(${i})">Закрыть</button></div></div>`;
     }).join('');
-    const avg=portfolio.length?tot/portfolio.length:0;
-    bot(`💼 <b>Портфель</b> · avg <span style="color:${avg>=0?'var(--g)':'var(--r)'};font-weight:700">${avg>=0?'+':''}${avg.toFixed(1)}%</span>${rows}`);
-  }catch(e){rmTp();bot('⚠️ '+esc(e.message))}
+    const avg=cnt?tot/cnt:0;
+    const d=document.createElement('div');d.className='msg';
+    d.innerHTML=`<div class="bbl ai">💼 <b>Портфель</b> · avg <span class="${avg>=0?'pnl-p':'pnl-n'}">${avg>=0?'+':''}${avg.toFixed(1)}%</span>${rows}</div>`;
+    document.getElementById('chat').appendChild(d);scroll();
+  }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
-function addBag(addr,sym,price){
-  portfolio.push({id:Date.now(),addr,sym,entry:price,sol:0,ts:Date.now()});
+
+function quickEnter(addr,sym){
+  portfolio.push({id:Date.now(),addr,sym,entry:0,sol:0,ts:Date.now()});
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
-  bot(`✅ <b>${esc(sym)}</b> добавлен. Задай размер: <i>вход ${esc(sym)} РАЗМЕР_SOL</i>`);
+  botMsg(`✅ <b>${esc(sym)}</b> в портфеле. Введи: <i>вход ${esc(sym)} 0.000001 0.5</i> — для цены входа и размера`);
 }
-function closePos(i){const s=portfolio[i]?.sym||'?';portfolio.splice(i,1);localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));bot(`❌ <b>${esc(s)}</b> закрыт`)}
-
-// ── TG PUSH ──
-async function pushTg(sym,addr,c1,vol1,lq,b,s,age){
-  if(!tgBot||!tgChat){bot('📤 TG не настроен. Введи: <code>tg token BOT_TOKEN</code> и <code>tg chat @USERNAME</code>');return}
-  const txt=`🔥 ${sym} · Solana\n⏱ ${fa(age)} · 📈 +${c1.toFixed(1)}%\nVol 1ч: $${(vol1/1000).toFixed(1)}K · Liq: $${(lq/1000).toFixed(1)}K\nB/S: ${b}B / ${s}S\n🔗 dexscreener.com/solana/${addr}`;
-  try{await fetch(`https://api.telegram.org/bot${tgBot}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:tgChat,text:txt})});bot(`📤 ${esc(sym)} отправлен в ${esc(tgChat)}`)}
-  catch(e){bot('⚠️ TG: '+esc(e.message))}
-}
-async function autoTgPush(tokens){
-  if(!tgBot||!tgChat)return;
-  for(const p of tokens){const addr=p.baseToken?.address||'';if(pushed.has(addr))continue;pushed.add(addr);const sym=p.baseToken?.symbol||'?',c1=+p.priceChange?.h1||0,v1=p.volume?.h1||0,lq=p.liquidity?.usd||0,b=p.txns?.h24?.buys||0,s=p.txns?.h24?.sells||0,age=p.pairCreatedAt?Date.now()-p.pairCreatedAt:0;await pushTg(sym,addr,c1,v1,lq,b,s,age)}
-  localStorage.setItem('gl_pushed',JSON.stringify([...pushed]));
+function closePos(i){
+  const sym=portfolio[i]?.sym||'токен';
+  portfolio.splice(i,1);
+  localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
+  botMsg(`❌ Позиция <b>${esc(sym)}</b> закрыта`);
 }
 
-function startAuto(){
-  clearInterval(autoTimer);
-  autoTimer=setInterval(()=>{if(!killed)runScan()},120000);
+// ── DIVE ANALYZER ─────────────────────────────────────────────────────────────
+async function runAnalyze(addr){
+  addr=addr.trim();
+  const t=typing();
+  try{
+    // Fetch DEX + Holders in parallel
+    const [dexRes, holdersRes] = await Promise.all([
+      fetch(DEX+'/latest/dex/tokens/'+addr).then(x=>x.json()),
+      getSolanaHolders(addr)
+    ]);
+    const pairs=(dexRes.pairs||[]).filter(p=>p.chainId==='solana');
+    rmTyping();
+    if(!pairs.length){botMsg('🔍 Токен не найден на Solana. Проверь адрес.');return;}
+    const p=pairs[0];
+    const sym=p.baseToken?.symbol||'?';
+    const mcap=p.fdv||p.marketCap||0,liq=p.liquidity?.usd||0;
+    const buys=p.txns?.h24?.buys||0,sells=p.txns?.h24?.sells||0;
+    const age=p.pairCreatedAt?Date.now()-p.pairCreatedAt:null;
+    const hasTg=!!p.info?.socials?.find(s=>s.type==='telegram');
+    const hasTw=!!p.info?.socials?.find(s=>s.type==='twitter');
+    const hasSite=!!p.info?.websites?.length;
+    // Rug score
+    let rug=0;
+    if(liq<5000)rug+=30;else if(liq<20000)rug+=12;
+    if(!hasTg&&!hasTw&&!hasSite)rug+=22;
+    if(age&&age<1800000)rug+=12;
+    if(buys<10)rug+=15;if(sells>buys*3)rug+=15;
+    if(holdersRes.topHolderPct>20)rug+=20;
+    rug=Math.min(100,rug);
+    const rugClr=rug>=70?'var(--r)':rug>=40?'var(--y)':'var(--g)';
+    const bp=buys+sells>0?Math.round(buys/(buys+sells)*100):50;
+    const conv=score(p),st=sigType(conv);
+    // Holders HTML
+    const holdersHtml=holdersRes.holders.length?`
+      <div class="tc" style="margin-top:5px">
+        <div class="sec-lbl" style="margin-bottom:6px">🔗 Топ держатели (on-chain)</div>
+        ${holdersRes.holders.map((h,i)=>`
+          <div class="holder-row">
+            <div><span class="holder-addr">${h.addr.slice(0,8)}…${h.addr.slice(-4)}</span>
+            ${h.isTop?`<span class="dev-flag">⚠️ DEV?</span>`:''}</div>
+            <div class="holder-pct" style="color:${h.pct>20?'var(--r)':h.pct>10?'var(--y)':'var(--g)'}">${h.pct.toFixed(1)}%</div>
+          </div>`).join('')}
+        ${holdersRes.topHolderPct>20?`<div style="font-size:11px;color:var(--r);margin-top:5px">⚠️ Топ держатель ${holdersRes.topHolderPct.toFixed(0)}% — высокий риск dump</div>`:''}
+      </div>`:
+      `<div style="font-size:11px;color:var(--dim);margin-top:5px">Данные о держателях недоступны (RPC timeout)</div>`;
+    const d=document.createElement('div');d.className='msg';
+    d.innerHTML=`<div class="bbl ai">🔍 <b>Анализ ${esc(sym)}</b>
+      ${tokenCard(p)}
+      <div class="tc" style="margin-top:5px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:11px;color:var(--dim)">🛡 Rug Risk</span>
+          <b style="color:${rugClr}">${rug}/100 ${rug>=70?'⛔ ВЫСОКИЙ':rug>=40?'⚠️ СРЕДНИЙ':'✅ НИЗКИЙ'}</b>
+        </div>
+        <div class="rug-bar"><div class="rug-f" style="width:${rug}%;background:${rugClr}"></div></div>
+        <div style="display:flex;gap:12px;margin-top:7px">
+          <span style="font-size:11px">TG ${hasTg?'✅':'❌'}</span>
+          <span style="font-size:11px">TW ${hasTw?'✅':'❌'}</span>
+          <span style="font-size:11px">Сайт ${hasSite?'✅':'❌'}</span>
+          <span style="font-size:11px">Buy% <b style="color:${bp>55?'var(--g)':'var(--r)'}">${bp}%</b></span>
+        </div>
+      </div>
+      ${holdersHtml}
+    </div>`;
+    document.getElementById('chat').appendChild(d);scroll();
+    setTimeout(()=>askAI(`Дай краткое мнение по ${sym}: mcap=${f$(mcap)}, ликвидность=${f$(liq)}, rug=${rug}/100, buy pressure=${bp}%, топ держатель=${holdersRes.topHolderPct.toFixed(0)}%. Стоит флипать?`),200);
+  }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
-// ── WOLF AI (THE BRAIN) ──
-const WOLF_SYSTEM=`Ты WOLF — Волк с Уолл-стрит крипто-рынка. Гений финансовых сигналов и стратегий.
+// ── SOLANA ON-CHAIN HOLDERS ────────────────────────────────────────────────────
+async function getSolanaHolders(mintAddr){
+  try{
+    const resp=await fetch(SOL_RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTokenLargestAccounts',params:[mintAddr]})});
+    const data=await resp.json();
+    const accounts=(data.result?.value||[]);
+    if(!accounts.length) return {holders:[],topHolderPct:0};
+    // Total supply from first endpoint
+    const supplyResp=await fetch(SOL_RPC,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({jsonrpc:'2.0',id:2,method:'getTokenSupply',params:[mintAddr]})});
+    const supplyData=await supplyResp.json();
+    const totalSupply=parseFloat(supplyData.result?.value?.uiAmount||0);
+    if(!totalSupply) return {holders:[],topHolderPct:0};
+    const top5=accounts.slice(0,5).map((a,i)=>{
+      const bal=parseFloat(a.uiAmount||0);
+      const pct=totalSupply>0?(bal/totalSupply*100):0;
+      return {addr:a.address,bal,pct,isTop:i===0&&pct>15};
+    });
+    return {holders:top5,topHolderPct:top5[0]?.pct||0};
+  }catch(e){return {holders:[],topHolderPct:0};}
+}
 
-Покрываешь: крипто (мемы Solana, BTC, ETH, альты), акции (S&P500, NASDAQ, отдельные тикеры), форекс, деривативы, commodities.
+// ── TELEGRAM PUSH ─────────────────────────────────────────────────────────────
+function getTg(){
+  const tok=localStorage.getItem('gl_telegram');
+  const chat=localStorage.getItem('gl_tg_chat');
+  return {tok,chat,ok:!!tok&&!!chat};
+}
 
-Личность: острый, уверенный, жёсткий. Джордан Белфорт × Ray Dalio. Ноль воды, ноль "может быть". Только: сигнал → действие → уровень → риск.
+function fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
+  const dir=c1h>=0?'📈':'📉';
+  const tg=c1h>=0?'+':'';
+  const dexUrl='https://dexscreener.com/solana/'+addr;
+  return `🔥 <b>${sym}</b> · Solana\n⏱ ${fAge(ageMs)} · ${dir} <b>${tg}${c1h.toFixed(1)}%</b>\nVol 1ч: <b>${f$(vol1h)}</b> · Liq: <b>${f$(liq)}</b>\nB/S: <b>${buys}B / ${sells}S</b>\n🔗 ${dexUrl}`;
+}
 
-Формат ответа — кратко (3-6 предложений):
-1. Сигнал: BUY / SELL / HOLD / ПРОПУСТИТЬ
-2. Причина (1-2 предложения, конкретная)
-3. Уровень входа/выхода или стоп-лосс (если применимо)
-4. Риск (1-10)
+async function sendTg(text){
+  const {tok,chat,ok}=getTg();
+  if(!ok)return false;
+  try{
+    await fetch(`https://api.telegram.org/bot${tok}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text,parse_mode:'HTML',disable_web_page_preview:true})});
+    return true;
+  }catch(e){return false;}
+}
 
-Стиль: говори как человек, не как бот. Используй разговорный рус. Можно 1-2 эмодзи.
-Если вопрос не финансовый — разворачивай к деньгам.`;
+async function pushOneTg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
+  const {ok}=getTg();
+  if(!ok){botMsg('📤 Настрой Telegram: введи <b>tg setup</b>');return;}
+  const msg=fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs);
+  const sent=await sendTg(msg);
+  botMsg(sent?`✅ Отправлено в TG: <b>${esc(sym)}</b>`:`⚠️ Ошибка отправки в TG`);
+}
 
-async async function wolfQ(question){
-  const groqKey=localStorage.getItem('gl_groq');
-  if(!groqKey){
-    bot(`🐺 Нужен Groq API ключ для мозга.<div class="setup"><b>Настройка (30 сек):</b><br>1. <a href="https://console.groq.com/keys" target="_blank" style="color:var(--gold)">console.groq.com/keys ↗</a> → Create API Key<br>2. Введи: <code style="color:var(--gold)">groq sk-...</code><br><br>После этого WOLF думает как стратег.</div>`);
+async function autoTgPush(pairs){
+  const {ok}=getTg();
+  if(!ok||!pairs.length)return;
+  for(const p of pairs.slice(0,3)){
+    const addr=p.baseToken?.address||'';
+    if(pushed.has(addr))continue;
+    const c1=parseFloat(p.priceChange?.h1||0);
+    const vol1=p.volume?.h1||0, liq=p.liquidity?.usd||0;
+    const buys=p.txns?.h24?.buys||0, sells=p.txns?.h24?.sells||0;
+    const ageMs=p.pairCreatedAt?Date.now()-p.pairCreatedAt:0;
+    const msg=fmtTgMsg(p.baseToken?.symbol||'?',addr,c1,vol1,liq,buys,sells,ageMs);
+    await sendTg(msg);
+    pushed.add(addr);
+    localStorage.setItem('gl_pushed',JSON.stringify([...pushed].slice(-200)));
+  }
+}
+
+async function setupTg(){
+  botMsg(`📬 <b>Настройка Telegram пуша</b><br><br>
+1. Создай бота: <a href="https://t.me/BotFather" target="_blank" style="color:var(--b)">@BotFather</a> → /newbot<br>
+2. Добавь бота в канал <b>X100Agent</b> как администратора<br>
+3. Введи: <i>tg token YOUR_BOT_TOKEN</i><br>
+4. Введи: <i>tg chat @X100Agent</i> (или ID чата)<br><br>
+Текущий статус: ${getTg().ok?'✅ Настроен':'❌ Не настроен'}`);
+}
+
+// ── AI CHAT ───────────────────────────────────────────────────────────────────
+async async function askAI(question){
+  const portCtx=portfolio.length?`\nПортфель: ${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.`:'';
+  const prompt=`Ты AI крипто-стратег для флиппинга мемкойнов на Solana. Отвечай кратко на русском. Используй эмодзи умеренно.${portCtx}\n\n${question}`;
+  const t=typing();
+  try{
+    let reply='';
+    await new Promise((resolve)=>{
+      const ws=new WebSocket('wss://godlocal-api.onrender.com/ws/search');
+      const timer=setTimeout(()=>{ws.close();resolve();},22000);
+      ws.onopen=()=>ws.send(JSON.stringify({query:prompt,agent:'GodLocal'}));
+      ws.onmessage=(e)=>{
+        try{
+          const d=JSON.parse(e.data);
+          reply+=(d.data||d.token||'');
+          if(d.type==='done'||d.done){clearTimeout(timer);ws.close();resolve();}
+          const tb=t.querySelector('.bbl');
+          if(tb) tb.innerHTML=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')||'<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
+        }catch(ex){reply+=e.data||'';}
+      };
+      ws.onerror=ws.onclose=()=>{clearTimeout(timer);resolve();};
+    });
+    rmTyping();
+    if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>'));
+    else botMsg('Нет ответа от сервера.');
+  }catch(e){rmTyping();botMsg('⚠️ AI: '+esc(e.message));}
+}
+
+// ── COMMAND ROUTER ────────────────────────────────────────────────────────────
+const SOL_RE=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+async async function cmd(text){
+  text=text.trim();
+  const tl=text.toLowerCase();
+  if(SOL_RE.test(text)){await runAnalyze(text);return;}
+  const am=text.match(/^анализ\s+([1-9A-HJ-NP-Za-km-z]{32,44})/i);
+  if(am){await runAnalyze(am[1]);return;}
+  // entry: "вход SYM price sol"
+  const em=tl.match(/^вход\s+(\S+)\s+([\d.]+)\s*([\d.]*)/);
+  if(em){
+    const sym=em[1].toUpperCase(),entry=parseFloat(em[2]),sol=parseFloat(em[3])||0;
+    const pos=portfolio.find(p=>p.sym?.toUpperCase()===sym);
+    if(pos){pos.entry=entry;if(sol)pos.sol=sol;localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(`✅ ${esc(sym)} обновлён: вход ${f$(entry)}${sol?' · '+sol+' SOL':''}`);}
+    else{portfolio.push({id:Date.now(),addr:'',sym,entry,sol,ts:Date.now()});localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(`✅ ${esc(sym)}: вход ${f$(entry)} · ${sol} SOL`);}
     return;
   }
-  const ctx=`\n[Контекст рынка: BTC $${mktCtx.btc?.toLocaleString('en')||'?'}, ETH $${mktCtx.eth?.toLocaleString('en')||'?'}, SOL $${mktCtx.sol?.toFixed(2)||'?'}, F&G: ${mktCtx.fng} (${mktCtx.fngLbl}), рынок 24h: ${cs(mktCtx.mkt24h)}]`;
-  const t=document.createElement('div');t.className='msg';t.id='tp';t.innerHTML='<div class="bb ai wolf"><div class="dots"><span>●</span><span>●</span><span>●</span></div></div>';$chat().appendChild(t);scroll();
-  try{
-    const resp=await fetch(GROQ_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:WOLF_SYSTEM},{role:'user',content:question+ctx}],max_tokens:512,stream:true,temperature:0.7})
-    });
-    if(!resp.ok){rmTp();bot('⚠️ Groq: '+resp.status+'. Проверь ключ командой: groq [ключ]');return}
-    const reader=resp.body.getReader();const dec=new TextDecoder();
-    let reply='',bbl=null;
-    while(true){
-      const{done,value}=await reader.read();if(done)break;
-      const chunk=dec.decode(value);
-      for(const line of chunk.split('\n')){
-        if(!line.startsWith('data:'))continue;
-        const d=line.slice(5).trim();if(d==='[DONE]')break;
-        try{const j=JSON.parse(d);const delta=j.choices?.[0]?.delta?.content||'';
-          if(delta){reply+=delta;if(!bbl){const el=document.getElementById('tp');if(el)el.innerHTML='<div class="bb ai wolf"></div>';bbl=document.querySelector('#tp .bb')}
-          if(bbl)bbl.innerHTML='🐺 '+reply.replace(/\n/g,'<br>').replace(/</g,'&lt;').replace(/&lt;br>/g,'<br>');scroll()}
-        }catch{}
-      }
-    }
-    const final=document.getElementById('tp');if(final){final.removeAttribute('id')}
-    if(!reply){rmTp();bot('🐺 Нет ответа. Попробуй снова.')}
-  }catch(e){rmTp();bot('⚠️ WOLF: '+esc(e.message))}
+  // TG commands
+  if(tl==='tg setup'||tl==='телеграм'){await setupTg();return;}
+  const tgTok=tl.match(/^tg token\s+(\S+)/);
+  if(tgTok){localStorage.setItem('gl_telegram',tgTok[1]);document.getElementById('tgDot').className='tg-status on';botMsg('✅ Bot token сохранён');return;}
+  const tgChat=tl.match(/^tg chat\s+(\S+)/);
+  if(tgChat){localStorage.setItem('gl_tg_chat',tgChat[1]);botMsg('✅ Chat ID сохранён. Теперь BUY сигналы пойдут в TG автоматически.');return;}
+  // Commands
+  if(tl==='скан'||tl==='scan'){await runScan();return;}
+  if(tl==='pump'||tl==='pump.fun'){await runPump();return;}
+  if(tl==='сигналы'||tl==='signals'){await runSignals();return;}
+  if(tl==='баг'||tl==='bag'){await runBag();return;}
+  if(tl==='горячие'||tl==='hot'){await runHot();return;}
+  if(tl==='помощь'||tl==='help'){
+    botMsg(`📖 <b>Команды</b><br><br>
+🌪️ <b>скан</b> — топ токены Solana (с фильтрами)<br>
+🔥 <b>pump</b> — pump.fun запуски &lt;10 мин<br>
+⚡ <b>сигналы</b> — BUY/SELL<br>
+💼 <b>баг</b> — портфель + PnL<br>
+🔗 <b>[адрес]</b> — анализ + on-chain holders<br>
+➕ <b>вход SYM 0.0001 0.5</b> — добавить позицию<br>
+📤 <b>tg setup</b> — настроить Telegram пуш<br>
+⚙️ <b>Фильтры</b> — по mcap / ликвидности / возрасту / BUY only<br>
+🧠 <b>любой вопрос</b> — AI стратег`);
+    return;
+  }
+  if(tl==='стратегия'){await askAI('Дай топ-5 правил флиппинга мемкойнов на Solana в 2026. Кратко и по делу.');return;}
+  await askAI(text);
 }
 
-// ── WOLF INTRO ──
-function wolfIntro(){
-  const d=document.createElement('div');d.className='msg';
-  d.innerHTML=`<div class="bb ai wolf">🐺 <b>Я WOLF.</b> Гений финансовых рынков. Торгую мемы, BTC, акции, форекс — везде где есть движение.<div class="wq">"Деньги не спят. А ты?"</div>Что хочешь знать — крипто, акции, форекс или конкретный токен?<br><br><b>Команды:</b><br>• Тапни чипы вверху → данные рынка<br>• <code>анализ [адрес]</code> → on-chain токен<br>• <code>groq [ключ]</code> → подключить мозг (Groq API)<br>• <code>tg token [BOT_TOKEN]</code> → TG бот<br>• <code>tg chat [@канал]</code> → канал для пуша</div>`;
-  $chat().appendChild(d);scroll();
+function send(){
+  const inp=document.getElementById('inp');
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='auto';
+  userBubble(text);
+  cmd(text);
 }
 
-// ── COMMAND ROUTER ──
-function cmd(t){userBbl(t);route(t)}
-
-async function route(t){
-  const tl=t.toLowerCase().trim();
-  if(tl==='скан'||tl==='scan'||tl==='solana'){await runScan();return}
-  if(tl==='pump'||tl==='pump.fun'){await runPump();return}
-  if(tl==='крипто'||tl==='crypto'||tl==='биток'||tl==='btc'){await runCrypto();return}
-  if(tl==='акции'||tl==='stocks'||tl==='sp500'){await runStocks();return}
-  if(tl==='форекс'||tl==='forex'){await runForex();return}
-  if(tl==='фнг'||tl==='f&g'||tl==='fg'||tl==='fear'){await runFng();return}
-  if(tl==='баг'||tl==='bag'||tl==='портфель'||tl==='portfolio'){await runBag();return}
-  if(tl==='wolf'||tl==='волк'||tl==='help'||tl==='помощь'){wolfIntro();return}
-  // groq key setup
-  if(tl.startsWith('groq ')){const k=t.slice(5).trim();if(k){localStorage.setItem('gl_groq',k);bot('✅ Groq ключ сохранён. Мозг Волка подключён. 🐺');return}}
-  // tg setup
-  if(tl.startsWith('tg token ')){const v=t.slice(9).trim();if(v){tgBot=v;localStorage.setItem('gl_telegram',v);bot('✅ TG Bot Token сохранён.');return}}
-  if(tl.startsWith('tg chat ')){const v=t.slice(8).trim();if(v){tgChat=v;localStorage.setItem('gl_tg_chat',v);bot('✅ TG Chat сохранён: '+esc(v));return}}
-  // analyze by address
-  const addrMatch=t.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-  if(addrMatch){await runAnalyze(addrMatch[0]);return}
-  if(tl.includes('анализ ')){const a=t.replace(/анализ\s*/i,'').trim();if(a)await runAnalyze(a);return}
-  // portfolio entry
-  const vhMatch=t.match(/вход\s+(\S+)\s+([\d.]+)\s*(sol)?/i);
-  if(vhMatch){const sym=vhMatch[1].toUpperCase(),sol=parseFloat(vhMatch[2]);const pos=portfolio.find(p=>p.sym?.toUpperCase()===sym);if(pos){pos.sol=sol;localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));bot(`✅ ${esc(sym)}: ${sol} SOL`);return}else{bot(`❌ ${esc(sym)} не найден в портфеле. Сначала нажми +Войти`);return}}
-  // everything else → WOLF AI
-  wolfQ(t);
+// ── AUTO LOOPS ────────────────────────────────────────────────────────────────
+function startAutoLoops(){
+  clearInterval(tgPushTimer);
+  tgPushTimer=setInterval(()=>{if(!killed)runScan();},120000);
 }
 
-// ── INPUT ──
-function send(){const inp=document.getElementById('inp'),t=inp.value.trim();if(!t)return;inp.value='';inp.style.height='auto';userBbl(t);route(t)}
-
-// ── INIT ──
-document.addEventListener('DOMContentLoaded',()=>{
-  wolfIntro();
-  // Load market context silently
-  fetch(CG+'/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana&order=market_cap_desc').then(r=>r.json()).then(coins=>{
-    const btc=coins.find(c=>c.id==='bitcoin'),eth=coins.find(c=>c.id==='ethereum'),sol=coins.find(c=>c.id==='solana');
-    if(btc)mktCtx.btc=btc.current_price;if(eth)mktCtx.eth=eth.current_price;
-    if(sol){mktCtx.sol=sol.current_price;mktCtx.solTrend=sol.price_change_percentage_24h}
-    document.getElementById('strip').textContent=`BTC $${(mktCtx.btc||0).toLocaleString('en')} · ETH $${(mktCtx.eth||0).toLocaleString('en')} · SOL $${(mktCtx.sol||0).toFixed(1)}`;
-  }).catch(()=>{});
-  fetch(FNG_URL).then(r=>r.json()).then(f=>{const v=parseInt(f.data?.[0]?.value||50);mktCtx.fng=v;mktCtx.fngLbl=f.data?.[0]?.value_classification||'Neutral'}).catch(()=>{});
-  startAuto();
-});
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(function init(){
+  if(getTg().ok) document.getElementById('tgDot').className='tg-status on';
+  botMsg(`👋 <b>SMERTCH v3</b> — X100 мемкойн флиппер<br>
+<span style="font-size:12px;color:var(--dim)">pump.fun · on-chain holders · авто TG пуш · фильтры</span><br><br>
+${getTg().ok?'📤 TG пуш: <span style="color:var(--g)">активен</span>':'📤 TG пуш: <span style="color:var(--dim)">настрой → tg setup</span>'}`);
+  setTimeout(()=>runScan(),700);
+  startAutoLoops();
+})();
 </script>
 </body>
 </html>
