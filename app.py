@@ -367,7 +367,8 @@ async def think(req: Request):
     response, steps, model = await asyncio.to_thread(react, prompt, data.get("history", []))
     return {"response": response, "steps": steps, "model": model}
 
-@app.get("/agent/tick"); @app.post("/agent/tick")
+@app.get("/agent/tick")
+@app.post("/agent/tick")
 async def tick():
     prompt = f"Market tick {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}. Check crypto."
     response, steps, model = await asyncio.to_thread(react, prompt)
