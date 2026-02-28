@@ -27,11 +27,75 @@ const AGENTS: Agent[] = [
 ]
 
 const SERVICES: ServiceStatus[] = [
-  { id:'twitter',  name:'X / Twitter', icon:'𝕏',  connected:true,  color:'#1DA1F2' },
-  { id:'telegram', name:'Telegram',    icon:'✈️', connected:true,  color:'#0088cc' },
+  { id:'twitter',  name:'X / Twitter', icon:'𝕏',  connected:false, color:'#1DA1F2' },
+  { id:'telegram', name:'Telegram',    icon:'✈️', connected:false, color:'#0088cc' },
   { id:'gmail',    name:'Gmail',       icon:'✉️', connected:false, color:'#EA4335' },
-  { id:'github',   name:'GitHub',      icon:'⌥',  connected:true,  color:'#9ca3af' },
+  { id:'github',   name:'GitHub',      icon:'🐙', connected:false, color:'#6e40c9' },
 ]
+
+const SVC_FIELDS: Record<string, { label: string; placeholder: string; hint: string }> = {
+  twitter:  { label:'Bearer Token',          placeholder:'AAAA...', hint:'twitter.com/settings → Developer → Bearer token' },
+  telegram: { label:'Bot Token',             placeholder:'1234567890:ABC...', hint:'Создай бота через @BotFather' },
+  gmail:    { label:'App Password',          placeholder:'xxxx xxxx xxxx xxxx', hint:'Google Account → Security → App passwords' },
+  github:   { label:'Personal Access Token', placeholder:'ghp_...', hint:'github.com/settings/tokens → Generate new token' },
+}
+
+
+// Sub-component for account connection card (needs hooks)
+function SvcCard({ svc, onDone }: { svc: ServiceStatus & { color: string }; onDone: () => void }) {
+  const stored = typeof window !== 'undefined' ? localStorage.getItem(`gl_${svc.id}`) : null
+  const [isConnected, setIsConnected] = useState(!!stored)
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState('')
+  const color = svc.color
+
+  const disconnect = () => { localStorage.removeItem(`gl_${svc.id}`); setIsConnected(false); setEditing(false) }
+  const connect = () => {
+    if (!val.trim()) return
+    localStorage.setItem(`gl_${svc.id}`, val.trim())
+    setIsConnected(true); setVal(''); setEditing(false)
+  }
+
+  return (
+    <div className="rounded-2xl border bg-[#080d14] overflow-hidden" style={{borderColor: isConnected ? color+'30' : '#0f1820'}}>
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+          style={{background: color+'18', border:`1px solid ${color}30`}}>
+          {svc.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-gray-200">{svc.name}</div>
+          <div className="text-xs mt-0.5" style={{color: isConnected ? color : '#4b5563'}}>
+            {isConnected ? '● подключён' : '○ не подключён'}
+          </div>
+        </div>
+        <button onClick={() => { if (isConnected) disconnect(); else setEditing(e => !e) }}
+          className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
+          style={isConnected
+            ? {background:'#1a0a0a', color:'#ef4444', border:'1px solid #ef444430'}
+            : {background: color+'18', color, border:`1px solid ${color}40`}}>
+          {isConnected ? 'Отключить' : editing ? 'Отмена' : 'Подключить'}
+        </button>
+      </div>
+      {editing && !isConnected && (
+        <div className="px-4 pb-3 space-y-2">
+          <div className="text-xs text-gray-600">{SVC_FIELDS[svc.id]?.hint}</div>
+          <div className="flex gap-2">
+            <input value={val} onChange={e => setVal(e.target.value)}
+              placeholder={SVC_FIELDS[svc.id]?.placeholder}
+              className="flex-1 bg-[#0d1520] border border-[#1a2535] rounded-xl px-3 py-2 text-xs text-gray-200 placeholder-gray-700 outline-none focus:border-[#2a3a55]"
+            />
+            <button onClick={connect}
+              className="px-4 py-2 rounded-xl text-xs font-bold active:scale-95"
+              style={{background: color, color:'#000'}}>
+              ОК
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const QUICK = [
   'Что происходит с Bitcoin сейчас?',
@@ -112,6 +176,8 @@ export default function OasisPage() {
   const [connecting, setConnecting]   = useState(false)
   const [showAgents, setShowAgents]   = useState(false)
   const [showServices, setShowServices] = useState(false)
+  const [showAccounts, setShowAccounts] = useState(false)
+  const [vvHeight,     setVvHeight]     = useState<number|null>(null)
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
   const [xpMap, setXpMap]             = useState<Record<string,number>>(Object.fromEntries(AGENTS.map(a=>[a.id,0])))
   const [sessionId]                   = useState(() => Math.random().toString(36).slice(2,10))
@@ -190,6 +256,17 @@ export default function OasisPage() {
     if (atBottomRef.current) bottomRef.current?.scrollIntoView({ behavior:'smooth' })
   }, [messages])
 
+  // Static input: track visual viewport (keyboard-aware on iOS/Android)
+  useEffect(() => {
+    const vv = (window as any).visualViewport
+    if (!vv) return
+    const fn = () => setVvHeight(vv.height)
+    vv.addEventListener('resize', fn)
+    vv.addEventListener('scroll', fn)
+    fn()
+    return () => { vv.removeEventListener('resize', fn); vv.removeEventListener('scroll', fn) }
+  }, [])
+
   // ── Send ──
   const send = useCallback(() => {
     const text = input.trim()
@@ -266,8 +343,8 @@ export default function OasisPage() {
   }
 
   return (
-    <div className="flex flex-col bg-[#030508] text-gray-200 overflow-hidden"
-      style={{ height:'100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
+    <div className="relative flex flex-col bg-[#030508] text-gray-200 overflow-hidden"
+      style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 border-b border-[#0d131e] bg-[#030508]"
@@ -284,14 +361,14 @@ export default function OasisPage() {
           {/* Status dot only — no text */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
           {/* Services */}
-          <button onClick={() => { setShowServices(!showServices); setShowAgents(false) }}
+          <button onClick={() => { setShowServices(!showServices); setShowAccounts(!showAccounts); setShowAgents(false) }}
             className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showServices ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#0d131e] text-gray-600 active:text-gray-300'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
           {/* Agent selector — icon + name only, no XP clutter */}
-          <button onClick={() => { setShowAgents(!showAgents); setShowServices(false) }}
+          <button onClick={() => { setShowAgents(!showAgents); setShowServices(false); setShowAccounts(false) }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
             style={{ borderColor: activeAgent.color+'50', background: showAgents ? activeAgent.color+'22' : activeAgent.color+'12', color: activeAgent.color }}>
             <span style={{fontSize:16, lineHeight:1}}>{activeAgent.icon}</span>
@@ -327,27 +404,34 @@ export default function OasisPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Services panel ──────────────────────────────────────────────────── */}
+      {/* ── Accounts Connection Sheet ──────────────────────────────────────── */}
       <AnimatePresence>
-        {showServices && (
-          <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
-            className="shrink-0 overflow-hidden border-b border-[#0d131e] bg-[#040609]">
-            <div className="px-4 py-3">
-              <div className="text-xs text-gray-600 uppercase tracking-widest mb-2.5">Сервисы</div>
-              <div className="grid grid-cols-2 gap-2">
-                {SERVICES.map(svc => (
-                  <div key={svc.id} className="flex items-center gap-2.5 px-3 py-2 bg-[#080d14] rounded-xl border border-[#0f1820]">
-                    <span className="text-base">{svc.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-gray-300 truncate">{svc.name}</div>
-                      <div className={`text-xs ${svc.connected ? 'text-[#00FF9D]' : 'text-gray-600'}`}>
-                        {svc.connected ? '● подключён' : '○ не подключён'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        {(showServices || showAccounts) && (
+          <motion.div
+            initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
+            transition={{type:'spring', stiffness:320, damping:30}}
+            className="absolute inset-x-0 bottom-0 z-50 bg-[#060a12] border-t border-[#0f1820] rounded-t-2xl shadow-2xl"
+            style={{maxHeight:'80%', overflowY:'auto'}}>
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-[#1a2535]"/>
+            </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#0f1820]">
+              <div>
+                <div className="text-sm font-bold text-gray-100">Подключение аккаунтов</div>
+                <div className="text-xs text-gray-600 mt-0.5">Агенты используют эти сервисы при ответе</div>
               </div>
-              <p className="text-gray-700 text-xs mt-2">Агенты используют эти сервисы при ответе</p>
+              <button onClick={() => { setShowServices(false); setShowAccounts(false) }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#0f1820] text-gray-500 active:bg-[#1a2535]">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            {/* Service cards */}
+            <div className="px-4 py-3 space-y-2.5">
+              {SERVICES.map(svc => <SvcCard key={svc.id} svc={svc} onDone={() => {}} />)}
             </div>
           </motion.div>
         )}
