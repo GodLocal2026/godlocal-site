@@ -247,12 +247,21 @@ def react(prompt, history=None):
 
 async def react_ws(prompt, history, ws):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    msgs = [{"role": "system", "content": f"You are GodLocal AI agent. Date: {now_str}. ReAct max 6 steps."}]
-    if history: msgs.extend(history[-4:])
+    system = (
+        f"You are GodLocal — a powerful AI agent. Today: {now_str}. "
+        "You have access to web_search (Serper live search) and get_market_data tools. "
+        "ALWAYS use web_search for any question about current events, news, prices, people, facts after 2023. "
+        "Think step by step. Be concise and direct."
+    )
+    msgs = [{"role": "system", "content": system}]
+    if history: msgs.extend(history[-6:])
     msgs.append({"role": "user", "content": prompt})
-    tools = all_tools(); used_model = MODELS[0]
-    for step in range(6):
-        if step == 5:
+    tools = all_tools()
+    used_model = MODELS[0]
+
+    for step in range(8):
+        # Always use streaming for final reply
+        if step >= 7 or (step > 0 and not tools):
             full_text = ""
             async for token in groq_stream(msgs):
                 full_text += token
@@ -262,45 +271,73 @@ async def react_ws(prompt, history, ws):
                 if len(_thoughts) > 20: _thoughts.pop(0)
             await ws.send_json({"t": "done", "m": used_model})
             return full_text
+
+        # Try tool-call step
         resp, err = await asyncio.to_thread(groq_call, msgs, tools)
         if err or not resp:
-            await ws.send_json({"t": "error", "v": err or "no response"})
-            return ""
-        choice = resp["choices"][0]; msg = choice["message"]
+            # Fallback: stream without tools
+            full_text = ""
+            msgs_notool = [m for m in msgs if m.get("role") != "tool"]
+            async for token in groq_stream(msgs_notool):
+                full_text += token
+                await ws.send_json({"t": "token", "v": token})
+            await ws.send_json({"t": "done", "m": used_model})
+            return full_text
+
+        choice = resp["choices"][0]
+        msg = choice["message"]
         used_model = resp.get("model", MODELS[0])
+
         if msg.get("tool_calls"):
             msgs.append(msg)
             for tc in msg["tool_calls"]:
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"].get("arguments") or "{}")
-                await ws.send_json({"t": "tool_start", "n": fn_name})
+                await ws.send_json({"t": "tool", "n": fn_name, "q": str(fn_args)[:80]})
                 result = await asyncio.to_thread(run_tool, fn_name, fn_args)
-                await ws.send_json({"t": "tool_done", "n": fn_name, "r": result[:200]})
+                await ws.send_json({"t": "tool_result", "n": fn_name, "r": result[:300]})
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
+            # Got final text — stream it
             text = msg.get("content") or ""
-            for word in text.split(" "):
-                await ws.send_json({"t": "token", "v": word + " "})
-                await asyncio.sleep(0.01)
+            if not text:
+                continue
             with _lock:
                 _thoughts.append({"text": text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
                 if len(_thoughts) > 20: _thoughts.pop(0)
+            # Stream via groq for natural flow
+            msgs_for_stream = msgs + [{"role": "assistant", "content": ""}]
+            msgs_for_stream[-1]["content"] = text
+            # Just chunk the text as tokens for smooth output
+            words = text.split(" ")
+            full_text = ""
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words)-1 else "")
+                full_text += chunk
+                await ws.send_json({"t": "token", "v": chunk})
+                await asyncio.sleep(0.008)
             await ws.send_json({"t": "done", "m": used_model})
-            return text
+            return full_text
     return ""
 
 ARCHETYPES = {
-    "Architect": "You are the Architect - strategic, sees systems. Reply in 1-2 sentences.",
-    "Builder": "You are the Builder - pragmatic, action-oriented. Reply in 1-2 sentences.",
-    "Grok": "You are Grok - philosophical, questions assumptions. Reply in 1-2 sentences.",
-    "Lucas": "You are Lucas - empathetic, human-centered. Reply in 1-2 sentences.",
+    "Architect": "You are the Architect — strategic, systems-thinker, sees long-term patterns. Be visionary in 1-2 sentences.",
+    "Builder": "You are the Builder — pragmatic, action-first, ships fast. Give a practical take in 1-2 sentences.",
+    "Grok": "You are Grok — analytical, cuts through noise, data-driven. Highlight the key insight in 1-2 sentences.",
+    "Lucas": "You are Lucas — empathetic, human-centered, considers impact on people. Share your perspective in 1-2 sentences.",
+    "Harper": "You are Harper — researcher, loves deep context, asks 'why'. Add a relevant fact or question in 1-2 sentences.",
+    "Benjamin": "You are Benjamin — wise, historical context, pattern-matcher across time. Draw a parallel in 1-2 sentences.",
 }
 
 async def get_archetype_reply(name, system, main_reply, user_msg):
-    msgs = [{"role": "system", "content": system}, {"role": "user", "content": f"User: {user_msg}\nGodLocal: {main_reply[:300]}\nYour take:"}]
+    msgs = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": f"User asked: {user_msg}\nGodLocal replied: {main_reply[:400]}\nYour perspective (1-2 sentences, be distinct):"}
+    ]
     resp, err = await asyncio.to_thread(groq_call, msgs, None, 1)
     if err or not resp: return ""
     return resp["choices"][0]["message"].get("content", "")
+
 
 MAX_SOUL = 50
 
