@@ -117,8 +117,7 @@ const TOOL_LABEL: Record<string, string> = {
 
 // ─── MarkdownText (no deps) ────────────────────────────────────────────────────
 function MarkdownText({ text, streaming }: { text:string; streaming?:boolean }) {
-  type Seg = {kind:'code';lang:string;body:string}|{kind:'normal';body:string}
-  const segments: Seg[] = []
+  const segments: Array<{kind:'code';lang:string;body:string}|{kind:'normal';body:string}> = []
   const codeRe = /```([\w]*)?\n?([\s\S]*?)```/g
   let last = 0; let m: RegExpExecArray|null
   while ((m = codeRe.exec(text))) {
@@ -227,7 +226,7 @@ export default function OasisPage() {
     const qs = (text.match(/[^.!?\n]*\?/g) || [])
       .map(s => s.replace(/[\n\r]+/g,' ').trim())
       .filter(s => s.length > 10 && s.length < 90)
-    return [...new Set(qs)].slice(0,3)
+    return Array.from(new Set(qs)).slice(0,3)
   }
   const [vvHeight,     setVvHeight]     = useState<number|null>(null)
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
