@@ -175,7 +175,6 @@ export default function OasisPage() {
   const [connected, setConnected]     = useState(false)
   const [connecting, setConnecting]   = useState(false)
   const [showAgents, setShowAgents]   = useState(false)
-  const [showServices, setShowServices] = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
   const [vvHeight,     setVvHeight]     = useState<number|null>(null)
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
@@ -270,7 +269,7 @@ export default function OasisPage() {
   // ── Send ──
   const send = useCallback(() => {
     const text = input.trim()
-    if (!text) return
+    if (!text && attachments.length === 0) return
     const msg: Message = { id:rnd(), role:'user', content:text, ts:Date.now(), files: attachments.length ? [...attachments] : undefined }
     setMessages(prev => [...prev, msg])
     setInput('')
@@ -361,14 +360,14 @@ export default function OasisPage() {
           {/* Status dot only — no text */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
           {/* Services */}
-          <button onClick={() => { setShowServices(!showServices); setShowAccounts(!showAccounts); setShowAgents(false) }}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showServices ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#0d131e] text-gray-600 active:text-gray-300'}`}>
+          <button onClick={() => { setShowAccounts(a => !a); setShowAgents(false) }}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showAccounts ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#1a2535] text-[#6C5CE7] opacity-60 active:opacity-100'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
             </svg>
           </button>
           {/* Agent selector — icon + name only, no XP clutter */}
-          <button onClick={() => { setShowAgents(!showAgents); setShowServices(false); setShowAccounts(false) }}
+          <button onClick={() => { setShowAgents(a => !a); setShowAccounts(false) }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
             style={{ borderColor: activeAgent.color+'50', background: showAgents ? activeAgent.color+'22' : activeAgent.color+'12', color: activeAgent.color }}>
             <span style={{fontSize:16, lineHeight:1}}>{activeAgent.icon}</span>
@@ -406,7 +405,7 @@ export default function OasisPage() {
 
       {/* ── Accounts Connection Sheet ──────────────────────────────────────── */}
       <AnimatePresence>
-        {(showServices || showAccounts) && (
+        {showAccounts && (
           <motion.div
             initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
             transition={{type:'spring', stiffness:320, damping:30}}
@@ -422,7 +421,7 @@ export default function OasisPage() {
                 <div className="text-sm font-bold text-gray-100">Подключение аккаунтов</div>
                 <div className="text-xs text-gray-600 mt-0.5">Агенты используют эти сервисы при ответе</div>
               </div>
-              <button onClick={() => { setShowServices(false); setShowAccounts(false) }}
+              <button onClick={() => setShowAccounts(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-[#0f1820] text-gray-500 active:bg-[#1a2535]">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
