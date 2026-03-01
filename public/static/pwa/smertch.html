@@ -625,15 +625,24 @@ async function setupTg(){
 }
 
 // ── AI CHAT ───────────────────────────────────────────────────────────────────
+// ── AI WARM-UP ─────────────────────────────────────────────────────────────────
+async function warmupApi(){
+  try{await fetch('https://godlocal-api.onrender.com/api/health',{signal:AbortSignal.timeout(8000)});}catch(e){}
+}
+
+// ── AI CHAT ───────────────────────────────────────────────────────────────────
 async function askAI(question){
   const portCtx=portfolio.length?`\nПортфель: ${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.`:'';
   const prompt=`Ты AI крипто-стратег для флиппинга мемкойнов на Solana. Отвечай кратко на русском. Используй эмодзи умеренно.${portCtx}\n\n${question}`;
   const t=typing();
+  const tb0=t.querySelector('.bbl');
+  if(tb0) tb0.innerHTML='<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
   try{
+    await warmupApi();
     let reply='';
     await new Promise((resolve)=>{
       const ws=new WebSocket('wss://godlocal-api.onrender.com/ws/search');
-      const timer=setTimeout(()=>{ws.close();resolve();},22000);
+      const timer=setTimeout(()=>{ws.close();resolve();},30000);
       ws.onopen=()=>ws.send(JSON.stringify({query:prompt,agent:'GodLocal'}));
       ws.onmessage=(e)=>{
         try{
@@ -644,14 +653,14 @@ async function askAI(question){
           if(tb) tb.innerHTML=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')||'<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
         }catch(ex){reply+=e.data||'';}
       };
-      ws.onerror=ws.onclose=()=>{clearTimeout(timer);resolve();};
+      ws.onerror=()=>{clearTimeout(timer);resolve();};
+      ws.onclose=()=>{clearTimeout(timer);resolve();};
     });
     rmTyping();
     if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>'));
-    else botMsg('Нет ответа от сервера.');
+    else botMsg('⚠️ Нет ответа. Сервер просыпается (~15 сек) — попробуй ещё раз.');
   }catch(e){rmTyping();botMsg('⚠️ AI: '+esc(e.message));}
 }
-
 // ── COMMAND ROUTER ────────────────────────────────────────────────────────────
 const SOL_RE=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
