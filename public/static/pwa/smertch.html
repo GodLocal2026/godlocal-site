@@ -644,12 +644,13 @@ async function askAI(question){
     await new Promise((resolve)=>{
       const ws=new WebSocket('wss://godlocal-api.onrender.com/ws/search');
       const timer=setTimeout(()=>{ws.close();resolve();},30000);
-      ws.onopen=()=>ws.send(JSON.stringify({query:prompt,agent:'GodLocal'}));
+      ws.onopen=()=>ws.send(JSON.stringify({prompt:prompt,session_id:'smertch-wolf'}));
       ws.onmessage=(e)=>{
         try{
           const d=JSON.parse(e.data);
-          reply+=(d.data||d.token||'');
-          if(d.type==='done'||d.done){clearTimeout(timer);ws.close();resolve();}
+          if(d.t==='token'&&d.v) reply+=d.v;
+          else if(d.t==='error') reply='⚠️ '+d.v;
+          if(d.t==='done'){clearTimeout(timer);ws.close();resolve();}
           const tb=t.querySelector('.bbl');
           if(tb) tb.innerHTML=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')||'<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
         }catch(ex){reply+=e.data||'';}
@@ -658,7 +659,7 @@ async function askAI(question){
       ws.onclose=()=>{clearTimeout(timer);resolve();};
     });
     rmTyping();
-    if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>'));
+    if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>'));
     else botMsg('⚠️ Нет ответа. Сервер просыпается (~15 сек) — попробуй ещё раз.');
   }catch(e){rmTyping();botMsg('⚠️ AI: '+esc(e.message));}
 }
