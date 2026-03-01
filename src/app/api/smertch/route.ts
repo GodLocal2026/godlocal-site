@@ -260,7 +260,6 @@ html{height:100%}body{height:100dvh;height:100vh;display:flex;flex-direction:col
 </div>
 
 <script>
-'use strict';
 
 // Strip raw tool-call artifacts from agent output before rendering
 function stripFuncTags(txt) {
@@ -412,7 +411,7 @@ function tokenCard(p,opts={}){
 }
 
 // ── PUMP.FUN CARD ─────────────────────────────────────────────────────────────
-function pumpCard(coin){
+async function pumpCard(coin){
   const sym=esc(coin.symbol||'?'), name=esc(coin.name||'');
   const mcap=coin.usd_market_cap||0;
   const addr=coin.mint||'';
@@ -549,12 +548,12 @@ async function runBag(){
   }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
-function quickEnter(addr,sym){
+async function quickEnter(addr,sym){
   portfolio.push({id:Date.now(),addr,sym,entry:0,sol:0,ts:Date.now()});
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
   botMsg(\`✅ <b>\${esc(sym)}</b> в портфеле. Введи: <i>вход \${esc(sym)} 0.000001 0.5</i> — для цены входа и размера\`);
 }
-function closePos(i){
+async function closePos(i){
   const sym=portfolio[i]?.sym||'токен';
   portfolio.splice(i,1);
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
@@ -654,13 +653,13 @@ async function getSolanaHolders(mintAddr){
 }
 
 // ── TELEGRAM PUSH ─────────────────────────────────────────────────────────────
-function getTg(){
+async function getTg(){
   const tok=localStorage.getItem('gl_telegram');
   const chat=localStorage.getItem('gl_tg_chat');
   return {tok,chat,ok:!!tok&&!!chat};
 }
 
-function fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
+async function fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
   const dir=c1h>=0?'📈':'📉';
   const tg=c1h>=0?'+':'';
   const dexUrl='https://dexscreener.com/solana/'+addr;
@@ -825,7 +824,7 @@ function startAutoLoops(){
 // ══ TAB NAVIGATION ═════════════════════════════════════════════════════════════
 const wolfEls = ['chips','fltPanel','chat','input-wrap'];
 let currentTab = 'wolf';
-function switchTab(tab){
+async function switchTab(tab){
   currentTab = tab;
   const wolfVisible = tab === 'wolf';
   const mktVisible  = tab === 'market';
@@ -925,7 +924,7 @@ function renderMarket(coins){
   }).join('');
 }
 
-function mktOpenCoin(id, sym, name, price, chg){
+async function mktOpenCoin(id, sym, name, price, chg){
   // Switch to WOLF tab and analyze
   switchTab('wolf');
   const ctx = \\\`\\\${sym} (\\\${name}) | Цена: \\\${fmtPrice(price)} | 24h: \\\${chg>=0?'+':''}+\\\${chg.toFixed(2)}%\\\`;
@@ -1021,13 +1020,13 @@ async function loadTokenAccounts(){
   }catch(e){}
 }
 
-function fillSwapAddr(mint){
+async function fillSwapAddr(mint){
   document.getElementById('swapToAddr').value = mint;
   document.getElementById('swapToLabel').textContent = mint.slice(0,4)+'...';
   debounceQuote();
 }
 
-function setSwapMode(mode){
+async function setSwapMode(mode){
   swapMode = mode;
   document.getElementById('swapTabBuy').classList.toggle('active', mode==='buy');
   document.getElementById('swapTabSell').classList.toggle('active', mode==='sell');
@@ -1036,7 +1035,7 @@ function setSwapMode(mode){
   document.getElementById('swapQuote').textContent = '';
 }
 
-function debounceQuote(){
+async function debounceQuote(){
   clearTimeout(quoteTimer);
   quoteTimer = setTimeout(getSwapQuote, 600);
 }
@@ -1139,7 +1138,7 @@ const AGENT_ICONS = {
 let agentMode = false;
 let lastTokenCtx = '';
 
-function toggleAgentMode(){
+async function toggleAgentMode(){
   agentMode = !agentMode;
   const btn = document.getElementById('agentToggle');
   const bar = document.getElementById('agentModeBar');
@@ -1151,7 +1150,7 @@ function toggleAgentMode(){
   );
 }
 
-function agentBubble(agentName, html){
+async function agentBubble(agentName, html){
   const color = AGENT_COLORS[agentName] || '#a79cf7';
   const icon = AGENT_ICONS[agentName] || '🤖';
   const d = document.createElement('div');
