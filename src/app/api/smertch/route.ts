@@ -13,9 +13,9 @@ const HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#07090e;--bg2:#0d1118;--bg3:#131a24;--border:#1b2433;--g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00b4d8;--o:#FF8C00;--txt:#c5cee0;--dim:#4a5568}
+:root{--bg:#07090e;--bg1:#0a0c10;--bg2:#0d1118;--bg3:#131a24;--border:#1b2433;--g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00FF9D;--o:#FF8C00;--txt:#c5cee0;--fg:#c5cee0;--dim:#4a5568}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:calc(54px + env(safe-area-inset-bottom))}
 
 /* ── TOP BAR ── */
 .top{display:flex;align-items:center;gap:8px;padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -134,10 +134,9 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--dim);font-size:9px;font-weight:700;letter-spacing:.5px;transition:color .15s;padding:4px 0}
 .tab.active{color:var(--b)}
 .tab .tab-ico{font-size:20px;line-height:1}
-body{padding-bottom:54px}
 
 /* ── MARKET PANEL ── */
-#marketPanel{display:none;flex-direction:column;height:calc(100vh - 100px - 54px);overflow:hidden}
+#marketPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 #marketPanel.active{display:flex}
 .mkt-search{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--fg);font-size:13px;width:100%;box-sizing:border-box;margin:8px 0}
 .mkt-search::placeholder{color:var(--dim)}
@@ -160,7 +159,7 @@ body{padding-bottom:54px}
 .mkt-cat-btn.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
 
 /* ── WALLET PANEL ── */
-#walletPanel{display:none;flex-direction:column;height:calc(100vh - 100px - 54px);overflow-y:auto;padding:0 4px}
+#walletPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding:0 4px}
 #walletPanel.active{display:flex}
 .wallet-connect-btn{background:rgba(108,92,231,.2);border:2px solid #6C5CE7;border-radius:14px;padding:14px;text-align:center;cursor:pointer;margin:16px 0;font-weight:700;font-size:14px;color:#a79cf7;transition:all .2s}
 .wallet-connect-btn:active{background:rgba(108,92,231,.4)}
@@ -815,11 +814,13 @@ function switchTab(tab){
   // Hide all panels
   document.getElementById('marketPanel').classList.remove('active');
   document.getElementById('walletPanel').classList.remove('active');
-  // Wolf elements
+  // Wolf elements - use IDs and proper show/hide
   const wolfVisible = tab === 'wolf';
-  document.querySelector('.chips').style.display   = wolfVisible ? '' : 'none';
-  document.querySelector('.flt-panel').style.display = wolfVisible ? '' : 'none';
-  document.querySelector('.chat').style.display    = wolfVisible ? '' : 'none';
+  document.querySelector('.chips').style.display = wolfVisible ? 'flex' : 'none';
+  // fltPanel: only show if it was open (has .open class)
+  const fp = document.getElementById('fltPanel');
+  if(fp) fp.style.display = wolfVisible ? (fp.classList.contains('open') ? 'block' : 'none') : 'none';
+  document.getElementById('chat').style.display = wolfVisible ? 'flex' : 'none';
   document.querySelector('.input-wrap').style.display = wolfVisible ? '' : 'none';
   // Activate correct panel
   if(tab === 'market'){ document.getElementById('marketPanel').classList.add('active'); loadMarket(); }
