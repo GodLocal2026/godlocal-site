@@ -1,769 +1,617 @@
 import { NextResponse } from 'next/server';
 
-const HTML = `<!DOCTYPE html>
-<html lang="en">
+const HTML = String.raw`<!DOCTYPE html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="theme-color" content="#0A0C0F"/>
   <title>GodLocal Voice</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg: #0A0C0F;
-      --surface: #111316;
-      --border: #1e2127;
-      --green: #00FF9D;
-      --purple: #6C5CE7;
-      --text: #E0E0E0;
-      --muted: rgba(224,224,224,0.45);
-      --dim: rgba(224,224,224,0.18);
+      --s: #111316;
+      --b: #1e2127;
+      --g: #00FF9D;
+      --p: #6C5CE7;
+      --t: #E0E0E0;
+      --m: rgba(224,224,224,.45);
+      --d: rgba(224,224,224,.18);
     }
+    html, body { height:100%; background:var(--bg); color:var(--t);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      overflow:hidden; -webkit-tap-highlight-color:transparent; }
 
-    html, body {
-      height: 100%; width: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
-    }
+    #app { display:flex; flex-direction:column; height:100%; }
 
-    /* ── LAYOUT ─────────────────────────────── */
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      position: relative;
-    }
-
-    /* ── HEADER ─────────────────────────────── */
+    /* HEADER */
     header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(10,12,15,0.9);
-      backdrop-filter: blur(12px);
-      flex-shrink: 0;
-      z-index: 10;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; border-bottom:1px solid var(--b);
+      background:rgba(10,12,15,.92); backdrop-filter:blur(12px);
+      flex-shrink:0; z-index:10;
     }
-    .logo {
-      display: flex; align-items: center; gap: 8px;
-      text-decoration: none; color: var(--text);
+    .logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--t); }
+    .logo-ico {
+      width:26px; height:26px; border-radius:6px;
+      background:rgba(0,255,157,.1); border:1px solid rgba(0,255,157,.3);
+      display:flex; align-items:center; justify-content:center;
+      font-family:monospace; font-weight:700; font-size:12px; color:var(--g);
     }
-    .logo-icon {
-      width: 28px; height: 28px; border-radius: 7px;
-      background: rgba(0,255,157,0.1);
-      border: 1px solid rgba(0,255,157,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-family: monospace; font-weight: 700; font-size: 13px;
-      color: var(--green);
-    }
-    .logo-text { font-weight: 700; font-size: 15px; }
-    .logo-text span { color: var(--green); }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .ws-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #555; transition: all 0.3s;
-    }
-    .ws-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(0,255,157,0.7); }
-    .ws-dot.error { background: #FF6B6B; }
-    #settings-btn {
-      background: none; border: none; cursor: pointer;
-      color: var(--muted); font-size: 18px; padding: 4px;
-      transition: color 0.2s;
-    }
-    #settings-btn:hover { color: var(--text); }
+    .logo-txt { font-weight:700; font-size:15px; }
+    .logo-txt span { color:var(--g); }
+    .hdr-r { display:flex; align-items:center; gap:10px; }
+    #dot { width:7px; height:7px; border-radius:50%; background:#444; transition:all .3s; }
+    #dot.on  { background:var(--g); box-shadow:0 0 6px rgba(0,255,157,.7); }
+    #dot.err { background:#FF6B6B; }
+    #set-btn { background:none; border:none; cursor:pointer; color:var(--m);
+      font-size:18px; padding:4px 6px; line-height:1; }
 
-    /* ── TRANSCRIPT AREA ─────────────────────── */
-    #transcript {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 16px 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      scroll-behavior: smooth;
+    /* CHAT */
+    #chat {
+      flex:1; overflow-y:auto; padding:12px 14px 6px;
+      display:flex; flex-direction:column; gap:8px;
     }
-    #transcript::-webkit-scrollbar { width: 3px; }
-    #transcript::-webkit-scrollbar-track { background: transparent; }
-    #transcript::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    #chat::-webkit-scrollbar { width:2px; }
+    #chat::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); }
 
-    .msg {
-      display: flex;
-      flex-direction: column;
-      max-width: 82%;
-      animation: fadeUp 0.25s ease;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .msg.user { align-self: flex-end; align-items: flex-end; }
-    .msg.agent { align-self: flex-start; align-items: flex-start; }
+    .msg { display:flex; flex-direction:column; max-width:84%; animation:fu .22s ease; }
+    @keyframes fu { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .msg.u { align-self:flex-end; align-items:flex-end; }
+    .msg.a { align-self:flex-start; align-items:flex-start; }
+    .bbl { padding:9px 13px; border-radius:15px; font-size:14px; line-height:1.55; }
+    .msg.u .bbl { background:rgba(0,255,157,.1); border:1px solid rgba(0,255,157,.2);
+      border-bottom-right-radius:3px; }
+    .msg.a .bbl { background:var(--s); border:1px solid var(--b);
+      border-bottom-left-radius:3px; }
+    .ts { font-size:10px; color:var(--d); margin-top:2px; padding:0 3px; font-family:monospace; }
 
-    .msg-bubble {
-      padding: 10px 14px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.55;
-      position: relative;
-    }
-    .msg.user .msg-bubble {
-      background: rgba(0,255,157,0.1);
-      border: 1px solid rgba(0,255,157,0.2);
-      border-bottom-right-radius: 4px;
-      color: var(--text);
-    }
-    .msg.agent .msg-bubble {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-      color: var(--text);
-    }
-    .msg-time {
-      font-size: 10px; color: var(--dim);
-      margin-top: 3px; padding: 0 4px;
-      font-family: monospace;
+    .dots { display:inline-flex; gap:4px; }
+    .dots span { width:6px; height:6px; border-radius:50%; background:var(--g); opacity:.3;
+      animation:bk 1.2s infinite; }
+    .dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+    @keyframes bk{0%,80%,100%{opacity:.2;transform:scale(.9)}40%{opacity:1;transform:scale(1.1)}}
+
+    /* EMPTY */
+    #empty { flex:1; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; gap:6px; color:var(--d); text-align:center; }
+    #empty .em-ico { font-size:44px; opacity:.35; margin-bottom:4px; }
+    #empty p { font-size:14px; line-height:1.6; max-width:200px; color:var(--m); }
+    #empty small { font-size:11px; font-family:monospace; opacity:.5; }
+
+    /* LIVE BAR */
+    #live { flex-shrink:0; padding:4px 18px; min-height:24px; font-size:12px;
+      font-style:italic; color:var(--m); opacity:0; transition:opacity .2s; }
+    #live.on { opacity:1; }
+
+    /* BOTTOM ZONE */
+    #bot {
+      flex-shrink:0; padding:12px 14px 20px;
+      border-top:1px solid var(--b);
+      background:linear-gradient(to top,rgba(0,255,157,.03),transparent);
+      display:flex; flex-direction:column; align-items:center; gap:10px;
     }
 
-    /* thinking dots */
-    .thinking-dots { display: inline-flex; gap: 4px; align-items: center; }
-    .thinking-dots span {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--green); opacity: 0.4;
-      animation: blink 1.2s infinite;
-    }
-    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink {
-      0%,80%,100% { opacity: 0.2; transform: scale(0.9); }
-      40% { opacity: 1; transform: scale(1.1); }
-    }
+    #st { font-size:12px; font-family:monospace; color:var(--m); height:15px; transition:color .2s; }
+    #st.ls { color:var(--g); } #st.tk { color:var(--p); } #st.sp { color:#00B4D8; }
 
-    /* ── LIVE TRANSCRIPT BAR ─────────────────── */
-    #live-bar {
-      flex-shrink: 0;
-      padding: 6px 20px;
-      min-height: 28px;
-      display: flex; align-items: center;
-      font-size: 13px;
-      font-style: italic;
-      color: var(--muted);
-      transition: opacity 0.2s;
-      opacity: 0;
+    /* ORB */
+    #orb {
+      width:68px; height:68px; border-radius:50%;
+      background:var(--s); border:2px solid rgba(0,255,157,.2);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:all .15s; position:relative;
+      -webkit-user-select:none; user-select:none;
+      touch-action:manipulation;
+      /* CRITICAL for iOS: explicit tap target */
+      -webkit-tap-highlight-color:rgba(0,255,157,.15);
+      outline:none;
     }
-    #live-bar.visible { opacity: 1; }
-    #live-text { flex: 1; }
+    /* CSS-only active state — works even if JS is slow */
+    #orb:active { transform:scale(.93); background:rgba(0,255,157,.12);
+      border-color:var(--g); }
+    #orb.ls {
+      background:rgba(0,255,157,.1); border-color:var(--g);
+      animation:pulse 1.4s ease-in-out infinite;
+    }
+    #orb.tk { background:rgba(108,92,231,.1); border-color:var(--p); }
+    #orb.sp { background:rgba(0,180,216,.1); border-color:#00B4D8; }
+    @keyframes pulse {
+      0%{box-shadow:0 0 0 0 rgba(0,255,157,.4)}
+      70%{box-shadow:0 0 0 16px rgba(0,255,157,0)}
+      100%{box-shadow:0 0 0 0 rgba(0,255,157,0)}
+    }
+    #orb-ico { font-size:26px; pointer-events:none; }
 
-    /* ── ORB ZONE ────────────────────────────── */
-    #orb-zone {
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      padding: 16px 20px 28px;
-      background: linear-gradient(to top, rgba(0,255,157,0.03) 0%, transparent 100%);
-      border-top: 1px solid var(--border);
+    /* TEXT ROW */
+    #txt-row {
+      display:flex; gap:8px; width:100%; max-width:480px;
     }
+    #txt-in {
+      flex:1; background:var(--s); border:1px solid var(--b);
+      border-radius:20px; color:var(--t); padding:9px 14px;
+      font-size:14px; outline:none; min-width:0;
+    }
+    #txt-in::placeholder { color:var(--d); }
+    #txt-in:focus { border-color:rgba(0,255,157,.35); }
+    #send-btn {
+      background:rgba(0,255,157,.1); border:1px solid rgba(0,255,157,.25);
+      border-radius:20px; color:var(--g); padding:9px 14px;
+      font-size:13px; cursor:pointer; white-space:nowrap;
+      transition:background .15s; touch-action:manipulation;
+    }
+    #send-btn:active { background:rgba(0,255,157,.2); }
 
-    #status-text {
-      font-size: 12px;
-      font-family: monospace;
-      color: var(--muted);
-      text-align: center;
-      height: 16px;
-      transition: color 0.2s;
+    /* ACTIONS */
+    #acts { display:flex; gap:8px; }
+    .act {
+      padding:5px 12px; border-radius:16px; font-size:11px; font-family:monospace;
+      border:1px solid var(--b); background:none; color:var(--m);
+      cursor:pointer; transition:all .15s; touch-action:manipulation;
     }
-    #status-text.listening { color: var(--green); }
-    #status-text.thinking { color: var(--purple); }
-    #status-text.speaking { color: #00B4D8; }
+    .act:active { color:var(--t); border-color:rgba(255,255,255,.2); }
 
-    /* Orb button */
-    #mic-btn {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: none; cursor: pointer;
-      background: var(--surface);
-      border: 2px solid rgba(0,255,157,0.2);
-      display: flex; align-items: center; justify-content: center;
-      position: relative;
-      transition: all 0.2s;
-      -webkit-user-select: none; user-select: none;
-      touch-action: manipulation;
+    /* SETTINGS PANEL */
+    #sp {
+      position:absolute; inset:0; background:rgba(10,12,15,.97);
+      backdrop-filter:blur(14px); z-index:20;
+      display:flex; flex-direction:column; padding:22px 18px; gap:18px;
+      transform:translateX(100%); transition:transform .26s cubic-bezier(.4,0,.2,1);
     }
-    #mic-btn:active { transform: scale(0.94); }
-    #mic-btn.listening {
-      background: rgba(0,255,157,0.1);
-      border-color: var(--green);
-      box-shadow: 0 0 0 0 rgba(0,255,157,0.4);
-      animation: orbPulse 1.5s ease-in-out infinite;
+    #sp.open { transform:translateX(0); }
+    .sp-hdr { display:flex; align-items:center; justify-content:space-between; }
+    .sp-title { font-weight:700; font-size:16px; }
+    #sp-close { background:none; border:none; cursor:pointer; color:var(--m); font-size:22px; }
+    .sg label { display:block; font-size:11px; font-family:monospace; color:var(--m);
+      text-transform:uppercase; letter-spacing:.08em; margin-bottom:7px; }
+    .sg select, .sg input {
+      width:100%; background:var(--s); border:1px solid var(--b); border-radius:10px;
+      color:var(--t); padding:9px 12px; font-size:13px; outline:none;
+      -webkit-appearance:none; appearance:none;
     }
-    #mic-btn.thinking {
-      background: rgba(108,92,231,0.1);
-      border-color: var(--purple);
-    }
-    #mic-btn.speaking {
-      background: rgba(0,180,216,0.1);
-      border-color: #00B4D8;
-    }
-    @keyframes orbPulse {
-      0% { box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
-      70% { box-shadow: 0 0 0 18px rgba(0,255,157,0); }
-      100% { box-shadow: 0 0 0 0 rgba(0,255,157,0); }
-    }
-    #mic-icon { font-size: 28px; pointer-events: none; }
-
-    /* Action row */
-    #action-row {
-      display: flex; gap: 10px; align-items: center;
-    }
-    .action-btn {
-      padding: 7px 14px;
-      border-radius: 20px;
-      font-size: 12px; font-family: monospace;
-      border: 1px solid var(--border);
-      background: none;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .action-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
-
-    /* ── SETTINGS PANEL ──────────────────────── */
-    #settings-panel {
-      position: absolute; inset: 0;
-      background: rgba(10,12,15,0.97);
-      backdrop-filter: blur(12px);
-      z-index: 20;
-      display: flex; flex-direction: column;
-      padding: 24px 20px;
-      gap: 20px;
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-    }
-    #settings-panel.open { transform: translateX(0); }
-    .settings-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 4px;
-    }
-    .settings-title { font-weight: 700; font-size: 16px; }
-    #close-settings {
-      background: none; border: none; cursor: pointer;
-      color: var(--muted); font-size: 22px;
-    }
-    .setting-group label {
-      display: block; font-size: 11px;
-      font-family: monospace; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 8px;
-    }
-    .setting-group select, .setting-group input {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      padding: 10px 14px;
-      font-size: 14px;
-      outline: none;
-    }
-    .setting-group select:focus, .setting-group input:focus {
-      border-color: rgba(0,255,157,0.4);
-    }
-
-    /* ── EMPTY STATE ─────────────────────────── */
-    #empty {
-      flex: 1;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 8px; color: var(--dim);
-      text-align: center;
-    }
-    #empty .icon { font-size: 48px; opacity: 0.4; margin-bottom: 6px; }
-    #empty p { font-size: 14px; line-height: 1.6; max-width: 220px; }
-    #empty small { font-size: 11px; font-family: monospace; opacity: 0.6; }
+    .sg select:focus, .sg input[type="text"]:focus { border-color:rgba(0,255,157,.4); }
+    .sp-note { font-size:12px; color:var(--d); line-height:1.5; }
   </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- Header -->
   <header>
     <a class="logo" href="/">
-      <div class="logo-icon">G</div>
-      <div class="logo-text">God<span>Local</span> Voice</div>
+      <div class="logo-ico">G</div>
+      <span class="logo-txt">God<span>Local</span> Voice</span>
     </a>
-    <div class="header-right">
-      <div class="ws-dot" id="ws-dot" title="API connection"></div>
-      <button id="settings-btn" onclick="toggleSettings()" aria-label="Settings">⚙</button>
+    <div class="hdr-r">
+      <div id="dot" title="API"></div>
+      <button id="set-btn" onclick="openSettings()" aria-label="Settings">&#9881;</button>
     </div>
   </header>
 
-  <!-- Conversation -->
-  <div id="transcript">
+  <div id="chat">
     <div id="empty">
-      <div class="icon">🎙️</div>
-      <p>Hold the button and speak.<br/>I'll think and reply aloud.</p>
-      <small>Powered by GodLocal AI</small>
+      <div class="em-ico">&#127897;&#65039;</div>
+      <p>Нажми кнопку и говори. Или напечатай вопрос.</p>
+      <small>GodLocal AI · WebSocket</small>
     </div>
   </div>
 
-  <!-- Live interim text -->
-  <div id="live-bar"><span id="live-text"></span></div>
+  <div id="live"></div>
 
-  <!-- Orb zone -->
-  <div id="orb-zone">
-    <div id="status-text">tap and hold to speak</div>
+  <div id="bot">
+    <div id="st">нажми чтобы говорить</div>
 
-    <button id="mic-btn"
-      ontouchstart="startListen(event)"
-      ontouchend="stopListen(event)"
-      ontouchcancel="stopListen(event)"
-      onmousedown="startListen(event)"
-      onmouseup="stopListen(event)"
-      onmouseleave="stopListen(event)"
-    >
-      <span id="mic-icon">🎤</span>
-    </button>
+    <div id="orb" role="button" aria-label="Speak">
+      <span id="orb-ico">&#127908;</span>
+    </div>
 
-    <div id="action-row">
-      <button class="action-btn" onclick="toggleMute()" id="mute-btn">🔊 sound</button>
-      <button class="action-btn" onclick="clearHistory()">🗑 clear</button>
+    <div id="txt-row">
+      <input id="txt-in" type="text" placeholder="или напечатай здесь…" autocomplete="off" autocorrect="off"/>
+      <button id="send-btn" onclick="sendText()">&#9658;</button>
+    </div>
+
+    <div id="acts">
+      <button class="act" id="mute-btn" onclick="toggleMute()">&#128266; звук</button>
+      <button class="act" onclick="clearChat()">&#128465; очистить</button>
     </div>
   </div>
 
-  <!-- Settings Panel -->
-  <div id="settings-panel">
-    <div class="settings-header">
-      <span class="settings-title">⚙ Settings</span>
-      <button id="close-settings" onclick="toggleSettings()">×</button>
+  <div id="sp">
+    <div class="sp-hdr">
+      <span class="sp-title">&#9881; Настройки</span>
+      <button id="sp-close" onclick="closeSettings()">&#215;</button>
     </div>
-    <div class="setting-group">
-      <label>Voice</label>
-      <select id="voice-select" onchange="saveVoice()">
-        <option value="">Default</option>
+    <div class="sg">
+      <label>Голос TTS</label>
+      <select id="v-sel" onchange="saveCfg()"></select>
+    </div>
+    <div class="sg">
+      <label>Скорость речи</label>
+      <input type="range" id="rate" min="0.6" max="1.6" step="0.1" value="1.0" oninput="saveCfg()"/>
+    </div>
+    <div class="sg">
+      <label>Персона агента</label>
+      <select id="persona" onchange="saveCfg()">
+        <option value="j">Jarvis — точный и быстрый</option>
+        <option value="s">Sage — вдумчивый и глубокий</option>
+        <option value="w">WOLF — прямой, без воды</option>
       </select>
     </div>
-    <div class="setting-group">
-      <label>Speech Rate</label>
-      <input type="range" id="rate-slider" min="0.6" max="1.6" step="0.1" value="1.0" oninput="saveRate(this.value)"/>
-    </div>
-    <div class="setting-group">
-      <label>Agent Persona</label>
-      <select id="persona-select" onchange="savePersona()">
-        <option value="jarvis">Jarvis — Precise & Fast</option>
-        <option value="sage">Sage — Thoughtful & Deep</option>
-        <option value="wolf">WOLF — Blunt & Direct</option>
+    <div class="sg">
+      <label>Язык распознавания</label>
+      <select id="lang-sel" onchange="saveCfg()">
+        <option value="ru-RU">Русский</option>
+        <option value="en-US">English</option>
       </select>
     </div>
-    <div class="setting-group">
-      <label>API Endpoint</label>
-      <input type="text" id="api-input" placeholder="wss://godlocal-api.onrender.com/ws/chat" oninput="saveApi()"/>
-    </div>
+    <p class="sp-note">Кнопка микрофона: нажми один раз — начать, ещё раз — остановить. Или введи текст внизу.</p>
   </div>
 
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────────
-const DEFAULT_WS = 'wss://godlocal-api.onrender.com/ws/chat';
-let cfg = {
-  wsUrl: localStorage.getItem('voice_ws') || DEFAULT_WS,
-  voice: localStorage.getItem('voice_name') || '',
-  rate: parseFloat(localStorage.getItem('voice_rate') || '1.0'),
-  persona: localStorage.getItem('voice_persona') || 'jarvis',
-  muted: localStorage.getItem('voice_muted') === 'true',
+(function(){
+'use strict';
+
+// ── CFG ──
+var WS_URL = 'wss://godlocal-api.onrender.com/ws/chat';
+var PERSONAS = {
+  j:'You are Jarvis. Be concise, precise, fast. 1-3 sentences max unless asked more.',
+  s:'You are Sage, a wise thoughtful AI. Give nuanced, insightful answers.',
+  w:'You are WOLF. Blunt, direct, no fluff. Short answers only. Market mindset.'
+};
+var cfg = {
+  voice: ls('vn') || '',
+  rate: parseFloat(ls('vr') || '1.0'),
+  persona: ls('vp') || 'j',
+  lang: ls('vl') || 'ru-RU',
+  muted: ls('vm') === '1'
 };
 
-// ── STATE ─────────────────────────────────────────────────────────────
-let ws = null, wsReady = false;
-let recognition = null, listening = false;
-let synth = window.speechSynthesis;
-let voices = [];
-let currentThinkingId = null;
-let msgCount = 0;
-let speakQueue = [];
-let isSpeaking = false;
+function ls(k){ return localStorage.getItem('gl_v_'+k); }
+function ss(k,v){ localStorage.setItem('gl_v_'+k,v); }
 
-const PERSONAS = {
-  jarvis: 'You are Jarvis, a precise and fast AI assistant. Give concise, direct answers. Be helpful and efficient. Max 2-3 sentences unless asked for more.',
-  sage: 'You are Sage, a thoughtful AI assistant. Give nuanced, insightful answers. Be wise and considerate.',
-  wolf: 'You are WOLF. Be blunt, direct, no fluff. Short answers. Market mindset. No pleasantries.',
-};
+// ── STATE ──
+var ws=null, wsOk=false;
+var rec=null, recActive=false;
+var synth=window.speechSynthesis;
+var voices=[];
+var thinkId=null;
+var speaking=false;
+var streamBuf='';
+var streamTimer=null;
 
-// ── DOM ───────────────────────────────────────────────────────────────
-const $transcript = document.getElementById('transcript');
-const $empty = document.getElementById('empty');
-const $liveBar = document.getElementById('live-bar');
-const $liveText = document.getElementById('live-text');
-const $status = document.getElementById('status-text');
-const $micBtn = document.getElementById('mic-btn');
-const $micIcon = document.getElementById('mic-icon');
-const $wsDot = document.getElementById('ws-dot');
-const $muteBtn = document.getElementById('mute-btn');
+// ── ELEMENTS ──
+var $chat=document.getElementById('chat');
+var $empty=document.getElementById('empty');
+var $live=document.getElementById('live');
+var $st=document.getElementById('st');
+var $orb=document.getElementById('orb');
+var $ico=document.getElementById('orb-ico');
+var $dot=document.getElementById('dot');
+var $mute=document.getElementById('mute-btn');
+var $txtIn=document.getElementById('txt-in');
 
-// ── INIT ──────────────────────────────────────────────────────────────
-function init() {
-  document.getElementById('api-input').value = cfg.wsUrl;
-  document.getElementById('rate-slider').value = cfg.rate;
-  document.getElementById('persona-select').value = cfg.persona;
-  $muteBtn.textContent = cfg.muted ? '🔇 muted' : '🔊 sound';
+// ── INIT ──
+function init(){
+  // restore settings UI
+  document.getElementById('rate').value = cfg.rate;
+  document.getElementById('persona').value = cfg.persona;
+  document.getElementById('lang-sel').value = cfg.lang;
+  updateMuteBtn();
   loadVoices();
   connectWS();
-}
-
-// ── WEBSOCKET ─────────────────────────────────────────────────────────
-function connectWS() {
-  try {
-    if (ws) { ws.onclose = null; ws.close(); }
-    ws = new WebSocket(cfg.wsUrl);
-    $wsDot.className = 'ws-dot';
-
-    ws.onopen = () => {
-      wsReady = true;
-      $wsDot.className = 'ws-dot connected';
-    };
-
-    ws.onclose = () => {
-      wsReady = false;
-      $wsDot.className = 'ws-dot error';
-      setTimeout(connectWS, 4000);
-    };
-
-    ws.onerror = () => {
-      wsReady = false;
-      $wsDot.className = 'ws-dot error';
-    };
-
-    ws.onmessage = (e) => {
-      const data = typeof e.data === 'string' ? e.data : '';
-      if (!data) return;
-
-      // Remove thinking bubble
-      if (currentThinkingId) {
-        const el = document.getElementById(currentThinkingId);
-        if (el) el.remove();
-        currentThinkingId = null;
-      }
-
-      // Find or create streaming bubble
-      let bubble = document.getElementById('streaming-bubble');
-      if (!bubble) {
-        bubble = addMessage('agent', '', { id: 'streaming-bubble', streaming: true });
-      }
-      const textEl = bubble.querySelector('.msg-text');
-      textEl.textContent = (textEl.textContent || '') + data;
-      $transcript.scrollTop = $transcript.scrollHeight;
-    };
-
-    // Detect stream end via silence (500ms with no new tokens)
-    let streamTimer = null;
-    const origOnMsg = ws.onmessage;
-    ws.onmessage = (e) => {
-      origOnMsg(e);
-      clearTimeout(streamTimer);
-      streamTimer = setTimeout(() => {
-        const bubble = document.getElementById('streaming-bubble');
-        if (bubble) {
-          const text = bubble.querySelector('.msg-text').textContent;
-          bubble.removeAttribute('id');
-          speak(text);
-        }
-      }, 600);
-    };
-
-  } catch(err) {
-    $wsDot.className = 'ws-dot error';
-  }
-}
-
-function sendToAgent(text) {
-  if (!text.trim()) return;
-
-  addMessage('user', text);
-  currentThinkingId = 'thinking-' + Date.now();
-  addThinking(currentThinkingId);
-  setStatus('thinking');
-
-  const payload = JSON.stringify({
-    message: text,
-    system: PERSONAS[cfg.persona] || PERSONAS.jarvis,
-    service_tokens: {},
+  bindOrb();
+  // enter key on text input
+  $txtIn.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
   });
+}
 
-  if (wsReady && ws.readyState === WebSocket.OPEN) {
-    ws.send(payload);
+// ── ORB BINDING — iOS safe ──
+function bindOrb(){
+  // Primary: click event (works on iOS, Android, desktop)
+  $orb.addEventListener('click', function(e){
+    e.preventDefault();
+    toggleListen();
+  });
+}
+
+function toggleListen(){
+  if(speaking){ synth.cancel(); speaking=false; }
+  if(recActive){
+    stopRec();
   } else {
-    // HTTP fallback
-    fetch('https://godlocal-api.onrender.com/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-    })
-    .then(r => r.json())
-    .then(d => {
-      if (currentThinkingId) {
-        const el = document.getElementById(currentThinkingId);
-        if (el) el.remove();
-        currentThinkingId = null;
-      }
-      const reply = d.response || d.message || d.text || JSON.stringify(d);
-      addMessage('agent', reply);
-      speak(reply);
-    })
-    .catch(() => {
-      if (currentThinkingId) {
-        const el = document.getElementById(currentThinkingId);
-        if (el) el.remove();
-        currentThinkingId = null;
-      }
-      const msg = "I couldn't connect to the agent. Check your network.";
-      addMessage('agent', msg);
-      speak(msg);
-    });
+    startRec();
   }
 }
 
-// ── SPEECH RECOGNITION ────────────────────────────────────────────────
-function initRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return null;
+// ── SPEECH RECOGNITION ──
+function startRec(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    setStatus('Микрофон не поддерживается — используй текст ниже');
+    $txtIn.focus();
+    return;
+  }
+  recActive = true;
+  $orb.className='ls'; $ico.textContent='🔴';
+  setStatus('слушаю…','ls');
 
-  const r = new SpeechRecognition();
-  r.continuous = false;
-  r.interimResults = true;
-  r.maxAlternatives = 1;
-  r.lang = 'ru-RU'; // can be overridden
+  rec = new SR();
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.lang = cfg.lang;
 
-  r.onresult = (e) => {
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+  rec.onstart = function(){ recActive=true; };
+
+  rec.onresult = function(e){
+    var interim='', final='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final += e.results[i][0].transcript;
       else interim += e.results[i][0].transcript;
     }
-    $liveText.textContent = final || interim;
-    $liveBar.classList.toggle('visible', !!(final || interim));
-    if (final) {
-      stopListen();
-      $liveBar.classList.remove('visible');
+    showLive(final||interim);
+    if(final){
+      hideLive();
+      stopRec(true);
       sendToAgent(final.trim());
     }
   };
 
-  r.onerror = (e) => {
-    if (e.error === 'no-speech') {
-      setStatus('tap and hold to speak');
-    } else if (e.error === 'not-allowed') {
-      setStatus('mic access denied');
-    }
-    resetMic();
-  };
-
-  r.onend = () => {
-    if (listening) {
-      // auto-restart if still holding
+  rec.onerror = function(e){
+    hideLive();
+    recActive=false;
+    if(e.error==='not-allowed'){
+      setStatus('Нет доступа к микрофону');
+    } else if(e.error==='no-speech'){
+      setStatus('Не услышал — попробуй ещё раз');
     } else {
-      resetMic();
+      setStatus('Ошибка: '+e.error);
     }
+    resetOrb();
+    setTimeout(function(){ setStatus('нажми чтобы говорить'); }, 2000);
   };
 
-  return r;
+  rec.onend = function(){
+    if(recActive){ recActive=false; resetOrb(); }
+  };
+
+  try {
+    rec.start();
+  } catch(ex){
+    recActive=false;
+    setStatus('Не удалось запустить микрофон');
+    resetOrb();
+  }
 }
 
-function startListen(e) {
-  e.preventDefault();
-  if (isSpeaking) { synth.cancel(); isSpeaking = false; }
-  if (listening) return;
+function stopRec(silent){
+  recActive=false;
+  if(rec){ try{ rec.stop(); }catch(ex){} rec=null; }
+  if(!silent) resetOrb();
+}
 
-  // Stop any speech
-  synth.cancel();
+function resetOrb(){
+  if(!thinkId && !speaking){
+    $orb.className=''; $ico.textContent='🎤';
+    setStatus('нажми чтобы говорить');
+  }
+}
 
-  listening = true;
-  $micBtn.className = 'listening';
-  $micIcon.textContent = '🔴';
-  setStatus('listening…', 'listening');
+// ── WEBSOCKET ──
+function connectWS(){
+  try {
+    if(ws){ ws.onclose=null; try{ws.close();}catch(e){} }
+    ws = new WebSocket(WS_URL);
+    setDot('');
 
-  recognition = initRecognition();
-  if (recognition) {
-    try { recognition.start(); } catch(e2) {}
+    ws.onopen=function(){ wsOk=true; setDot('on'); };
+    ws.onerror=function(){ wsOk=false; setDot('err'); };
+    ws.onclose=function(){
+      wsOk=false; setDot('err');
+      setTimeout(connectWS, 5000);
+    };
+
+    ws.onmessage=function(e){
+      var tok = typeof e.data==='string' ? e.data : '';
+      if(!tok) return;
+      // remove thinking bubble on first token
+      if(thinkId){
+        var el=document.getElementById(thinkId);
+        if(el) el.remove();
+        thinkId=null;
+      }
+      // stream into bubble
+      var bbl=document.getElementById('sb');
+      if(!bbl){ bbl=addMsg('a','',{id:'sb'}); }
+      var txt=bbl.querySelector('.btxt');
+      txt.textContent=(txt.textContent||'')+tok;
+      scrollBot();
+      // detect end
+      clearTimeout(streamTimer);
+      streamTimer=setTimeout(function(){
+        var el=document.getElementById('sb');
+        if(el){
+          var t=el.querySelector('.btxt').textContent;
+          el.removeAttribute('id');
+          setStatus('нажми чтобы говорить'); resetOrb();
+          speak(t);
+        }
+      }, 700);
+    };
+  } catch(ex){ setDot('err'); }
+}
+
+function sendToAgent(text){
+  if(!text) return;
+  addMsg('u', text);
+  thinkId='tk-'+Date.now();
+  addThink(thinkId);
+  setStatus('думаю…','tk');
+  $orb.className='tk'; $ico.textContent='💭';
+
+  var payload=JSON.stringify({
+    message: text,
+    system: PERSONAS[cfg.persona]||PERSONAS.j,
+    service_tokens:{}
+  });
+
+  if(wsOk && ws && ws.readyState===1){
+    ws.send(payload);
   } else {
-    // Fallback: type mode
-    setStatus('speech not supported — type below', '');
-  }
-}
-
-function stopListen(e) {
-  if (e) e.preventDefault();
-  if (!listening) return;
-  listening = false;
-  if (recognition) {
-    try { recognition.stop(); } catch(e2) {}
-  }
-  resetMic();
-}
-
-function resetMic() {
-  listening = false;
-  $micBtn.className = '';
-  $micIcon.textContent = '🎤';
-  if (!currentThinkingId) setStatus('tap and hold to speak');
-}
-
-// ── TEXT TO SPEECH ────────────────────────────────────────────────────
-function loadVoices() {
-  const load = () => {
-    voices = synth.getVoices();
-    const sel = document.getElementById('voice-select');
-    sel.innerHTML = '<option value="">Auto</option>';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.name;
-      opt.textContent = \`\${v.name} (\${v.lang})\`;
-      if (v.name === cfg.voice) opt.selected = true;
-      sel.appendChild(opt);
+    // HTTP fallback
+    fetch('https://godlocal-api.onrender.com/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:payload
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(thinkId){var el=document.getElementById(thinkId);if(el)el.remove();thinkId=null;}
+      var reply=d.response||d.message||d.text||'...';
+      addMsg('a',reply);
+      setStatus('нажми чтобы говорить'); resetOrb();
+      speak(reply);
+    })
+    .catch(function(){
+      if(thinkId){var el=document.getElementById(thinkId);if(el)el.remove();thinkId=null;}
+      var r='Нет соединения с агентом. Проверь сеть.';
+      addMsg('a',r); resetOrb();
     });
-  };
-  load();
-  synth.addEventListener('voiceschanged', load);
+  }
 }
 
-function speak(text) {
-  if (cfg.muted || !text) return;
-  setStatus('speaking…', 'speaking');
-  $micBtn.className = 'speaking';
-  $micIcon.textContent = '🔊';
+// text input send
+window.sendText=function(){
+  var v=$txtIn.value.trim();
+  if(!v) return;
+  $txtIn.value='';
+  if(speaking){synth.cancel();speaking=false;}
+  sendToAgent(v);
+};
 
-  // Strip markdown
-  const clean = text.replace(/[*_\`~#>]/g, '').replace(/https?:\/\/\S+/g, '').trim();
-  const chunks = splitIntoChunks(clean, 180);
+// ── TTS ──
+function loadVoices(){
+  function load(){
+    voices=synth.getVoices();
+    var sel=document.getElementById('v-sel');
+    sel.innerHTML='<option value="">Авто</option>';
+    voices.forEach(function(v){
+      var o=document.createElement('option');
+      o.value=v.name; o.textContent=v.name+' ('+v.lang+')';
+      if(v.name===cfg.voice)o.selected=true;
+      sel.appendChild(o);
+    });
+  }
+  load();
+  if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=load;
+}
 
-  let i = 0;
-  isSpeaking = true;
+function speak(text){
+  if(cfg.muted||!text) return;
+  setStatus('говорю…','sp');
+  $orb.className='sp'; $ico.textContent='🔊';
+  speaking=true;
 
-  function next() {
-    if (!isSpeaking || i >= chunks.length) {
-      isSpeaking = false;
-      resetMic();
-      setStatus('tap and hold to speak');
+  // clean markdown
+  var clean=text.replace(/[*_~#>\x60]/g,'').replace(/https?:\/\/\S+/g,'').trim();
+  // split into sentence chunks for iOS (iOS TTS cuts off long utterances)
+  var chunks=[];
+  var sents=clean.match(/[^.!?]+[.!?]*/g)||[clean];
+  var cur='';
+  sents.forEach(function(s){
+    if((cur+s).length>160&&cur){chunks.push(cur.trim());cur=s;}
+    else cur+=s;
+  });
+  if(cur.trim())chunks.push(cur.trim());
+  chunks=chunks.filter(Boolean);
+
+  var i=0;
+  function next(){
+    if(!speaking||i>=chunks.length){
+      speaking=false; resetOrb();
       return;
     }
-    const utt = new SpeechSynthesisUtterance(chunks[i++]);
-    utt.rate = cfg.rate;
-    utt.pitch = 1.0;
-    if (cfg.voice) {
-      const v = voices.find(v2 => v2.name === cfg.voice);
-      if (v) utt.voice = v;
+    var u=new SpeechSynthesisUtterance(chunks[i++]);
+    u.rate=cfg.rate; u.pitch=1.0;
+    if(cfg.voice){
+      var vx=voices.find(function(v){return v.name===cfg.voice;});
+      if(vx)u.voice=vx;
     }
-    utt.onend = next;
-    utt.onerror = next;
-    synth.speak(utt);
+    u.onend=next; u.onerror=next;
+    synth.speak(u);
   }
+  // iOS: need to kick synth within user gesture context
+  // We just proceed with next() directly
   next();
 }
 
-function splitIntoChunks(text, maxLen) {
-  const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
-  const chunks = [];
-  let cur = '';
-  for (const s of sentences) {
-    if ((cur + s).length > maxLen && cur) { chunks.push(cur.trim()); cur = s; }
-    else cur += s;
-  }
-  if (cur.trim()) chunks.push(cur.trim());
-  return chunks.filter(Boolean);
-}
-
-// ── UI HELPERS ────────────────────────────────────────────────────────
-function addMessage(role, text, opts = {}) {
-  if ($empty) $empty.style.display = 'none';
-
-  const wrap = document.createElement('div');
-  wrap.className = 'msg ' + role;
-  if (opts.id) wrap.id = opts.id;
-
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-
-  const textEl = document.createElement('span');
-  textEl.className = 'msg-text';
-  textEl.textContent = text;
-  bubble.appendChild(textEl);
-
-  const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  wrap.appendChild(bubble);
-  wrap.appendChild(time);
-  $transcript.appendChild(wrap);
-  $transcript.scrollTop = $transcript.scrollHeight;
+// ── UI HELPERS ──
+function addMsg(role,text,opts){
+  if($empty) $empty.style.display='none';
+  var wrap=document.createElement('div');
+  wrap.className='msg '+role;
+  if(opts&&opts.id)wrap.id=opts.id;
+  var bbl=document.createElement('div');
+  bbl.className='bbl';
+  var span=document.createElement('span');
+  span.className='btxt';
+  span.textContent=text;
+  bbl.appendChild(span);
+  var ts=document.createElement('div');
+  ts.className='ts';
+  ts.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  wrap.appendChild(bbl);
+  wrap.appendChild(ts);
+  $chat.appendChild(wrap);
+  scrollBot();
   return wrap;
 }
+function addThink(id){
+  var wrap=document.createElement('div');
+  wrap.className='msg a'; wrap.id=id;
+  wrap.innerHTML='<div class="bbl"><div class="dots"><span></span><span></span><span></span></div></div>';
+  $chat.appendChild(wrap);
+  scrollBot();
+}
+function scrollBot(){ $chat.scrollTop=$chat.scrollHeight; }
+function setStatus(t,cls){ $st.textContent=t; $st.className=cls||''; }
+function setDot(cls){ $dot.className=cls; }
+function showLive(t){ $live.textContent=t; $live.className='on'; }
+function hideLive(){ $live.textContent=''; $live.className=''; }
 
-function addThinking(id) {
-  const wrap = document.createElement('div');
-  wrap.className = 'msg agent';
-  wrap.id = id;
-  wrap.innerHTML = '<div class="msg-bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>';
-  $transcript.appendChild(wrap);
-  $transcript.scrollTop = $transcript.scrollHeight;
+// ── ACTIONS ──
+window.toggleMute=function(){
+  cfg.muted=!cfg.muted; ss('vm',cfg.muted?'1':'0');
+  if(cfg.muted){synth.cancel();speaking=false;resetOrb();}
+  updateMuteBtn();
+};
+function updateMuteBtn(){
+  $mute.textContent=cfg.muted?'🔇 без звука':'🔊 звук';
 }
+window.clearChat=function(){
+  $chat.innerHTML=''; $chat.appendChild($empty); $empty.style.display='';
+};
+window.openSettings=function(){ document.getElementById('sp').classList.add('open'); };
+window.closeSettings=function(){ document.getElementById('sp').classList.remove('open'); };
+window.saveCfg=function(){
+  cfg.voice=document.getElementById('v-sel').value;
+  cfg.rate=parseFloat(document.getElementById('rate').value);
+  cfg.persona=document.getElementById('persona').value;
+  cfg.lang=document.getElementById('lang-sel').value;
+  ss('vn',cfg.voice); ss('vr',cfg.rate); ss('vp',cfg.persona); ss('vl',cfg.lang);
+};
 
-function setStatus(text, cls = '') {
-  $status.textContent = text;
-  $status.className = cls;
-}
+// prevent iOS bounce scroll
+document.body.addEventListener('touchmove',function(e){
+  if(!e.target.closest('#chat'))e.preventDefault();
+},{passive:false});
 
-// ── ACTIONS ───────────────────────────────────────────────────────────
-function toggleMute() {
-  cfg.muted = !cfg.muted;
-  localStorage.setItem('voice_muted', cfg.muted);
-  $muteBtn.textContent = cfg.muted ? '🔇 muted' : '🔊 sound';
-  if (cfg.muted) { synth.cancel(); isSpeaking = false; resetMic(); }
-}
-
-function clearHistory() {
-  $transcript.innerHTML = '';
-  $transcript.appendChild($empty);
-  $empty.style.display = '';
-}
-
-function toggleSettings() {
-  document.getElementById('settings-panel').classList.toggle('open');
-}
-
-function saveVoice() {
-  cfg.voice = document.getElementById('voice-select').value;
-  localStorage.setItem('voice_name', cfg.voice);
-}
-function saveRate(v) {
-  cfg.rate = parseFloat(v);
-  localStorage.setItem('voice_rate', v);
-}
-function savePersona() {
-  cfg.persona = document.getElementById('persona-select').value;
-  localStorage.setItem('voice_persona', cfg.persona);
-}
-function saveApi() {
-  const val = document.getElementById('api-input').value.trim() || DEFAULT_WS;
-  cfg.wsUrl = val;
-  localStorage.setItem('voice_ws', val);
-  connectWS();
-}
-
-// ── START ─────────────────────────────────────────────────────────────
-window.addEventListener('load', init);
-
-// Keep synth alive on iOS
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && !isSpeaking) synth.cancel();
-});
+window.addEventListener('load',init);
+})();
 </script>
 </body>
 </html>`;
