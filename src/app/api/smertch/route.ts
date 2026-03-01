@@ -14,8 +14,8 @@ const HTML = `<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#07090e;--bg1:#0a0c10;--bg2:#0d1118;--bg3:#131a24;--border:#1b2433;--g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00FF9D;--o:#FF8C00;--txt:#c5cee0;--fg:#c5cee0;--dim:#4a5568}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:calc(54px + 60px + env(safe-area-inset-bottom))}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top)}
 
 /* ── TOP BAR ── */
 .top{display:flex;align-items:center;gap:8px;padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:200}
@@ -53,7 +53,7 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 .flt-reset{font-size:10px;color:var(--r);cursor:pointer;padding:2px 6px;border:1px solid rgba(255,75,110,.25);border-radius:6px;margin-left:auto}
 
 /* ── CHAT ── */
-.chat{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.chat{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px 180px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;-webkit-overflow-scrolling:touch}
 
 /* ── BUBBLES ── */
 .msg{display:flex;flex-direction:column;gap:4px;max-width:100%}
@@ -136,7 +136,7 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 .tab .tab-ico{font-size:20px;line-height:1}
 
 /* ── MARKET PANEL ── */
-#marketPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+#marketPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;-webkit-overflow-scrolling:touch}
 #marketPanel.active{display:flex}
 .mkt-search{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--fg);font-size:13px;width:100%;box-sizing:border-box;margin:8px 0}
 .mkt-search::placeholder{color:var(--dim)}
@@ -159,7 +159,7 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 .mkt-cat-btn.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
 
 /* ── WALLET PANEL ── */
-#walletPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding:0 4px}
+#walletPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding:0 4px;-webkit-overflow-scrolling:touch}
 #walletPanel.active{display:flex}
 .wallet-connect-btn{background:rgba(108,92,231,.2);border:2px solid #6C5CE7;border-radius:14px;padding:14px;text-align:center;cursor:pointer;margin:16px 0;font-weight:700;font-size:14px;color:#a79cf7;transition:all .2s}
 .wallet-connect-btn:active{background:rgba(108,92,231,.4)}
