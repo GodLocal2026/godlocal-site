@@ -14,10 +14,9 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      {
-        source: '/game',
-        destination: '/api/game',
-      },
+      { source: '/game', destination: '/api/game' },
+      { source: '/static/pwa/voice.html', destination: '/api/voice' },
+      { source: '/voice', destination: '/api/voice' },
     ];
   },
 };
