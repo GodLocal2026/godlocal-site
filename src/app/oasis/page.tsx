@@ -209,7 +209,7 @@ export default function OasisPage() {
   const [connecting, setConnecting]   = useState(false)
   const [showAgents, setShowAgents]   = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
-  const [feedback, setFeedback] = useState<Record<string,'up'|'down'>>(() => {
+  const [feedback, setFeedback] = useState<Record<string,'exact'|'partial'|'miss'>>(() => {
     try { return JSON.parse(localStorage.getItem('gl_feedback')||'{}') } catch { return {} }
   })
 
