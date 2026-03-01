@@ -213,14 +213,39 @@ export default function OasisPage() {
     try { return JSON.parse(localStorage.getItem('gl_feedback')||'{}') } catch { return {} }
   })
 
-  const handleFeedback = useCallback((id: string, vote: 'up'|'down') => {
+  const handleFeedback = useCallback((id: string, vote: 'exact'|'partial'|'miss') => {
     setFeedback(prev => {
       const next = {...prev}
       if (prev[id] === vote) delete next[id]; else next[id] = vote
       try { localStorage.setItem('gl_feedback', JSON.stringify(next)) } catch {}
       return next
     })
+
+  const [artifacts, setArtifacts] = useState<{id:string;content:string;agentName?:string;ts:number}[]>(() => {
+    try { return JSON.parse(localStorage.getItem('gl_artifacts')||'[]') } catch { return [] }
+  })
+
+  const saveArtifact = useCallback((msg: Message) => {
+    setArtifacts(prev => {
+      const next = prev.some(a=>a.id===msg.id) ? prev.filter(a=>a.id!==msg.id) : [{ id:msg.id, content:msg.content, agentName:msg.agentName, ts:msg.ts }, ...prev].slice(0,50)
+      try { localStorage.setItem('gl_artifacts', JSON.stringify(next)) } catch {}
+      return next
+    })
   }, [])
+
+  const [showMemory, setShowMemory] = useState(false)
+  const [memory, setMemory] = useState<string[]>([])
+  const [showArtifacts, setShowArtifacts] = useState(false)
+  const [expandedTools, setExpandedTools] = useState<Record<string,boolean>>({})
+  const toggleTools = (id: string) => setExpandedTools(p => ({...p, [id]: !p[id]}))
+
+
+  const fetchMemory = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/memory?session_id=${sessionId}`)
+      if (r.ok) { const d = await r.json(); setMemory(Array.isArray(d) ? d : d.memories || []) }
+    } catch {}
+  }, [sessionId])
 
   function extractQuestions(text: string): string[] {
     const qs = (text.match(/[^.!?\n]*\?/g) || [])
@@ -393,6 +418,27 @@ export default function OasisPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
   }
 
+
+  const [expandedTools, setExpandedTools] = useState<Record<string,boolean>>({})
+  const toggleTools = (id: string) => setExpandedTools(p => ({...p, [id]: !p[id]}))
+
+  // Group tool messages: build a map of agentMsgId → preceding tool messages
+  const toolGroups = (() => {
+    const map: Record<string, {id:string;content:string}[]> = {}
+    const pending: {id:string;content:string}[] = []
+    for (const msg of messages) {
+      if (msg.role === 'tool') {
+        pending.push({id:msg.id, content:msg.content})
+      } else if (msg.role === 'agent' && pending.length) {
+        map[msg.id] = [...pending]
+        pending.length = 0
+      } else {
+        pending.length = 0
+      }
+    }
+    return map
+  })()
+
   return (
     <div className="relative flex flex-col bg-[#030508] text-gray-200 overflow-hidden"
       style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
@@ -417,6 +463,18 @@ export default function OasisPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
             </svg>
+          </button>
+          {/* Memory */}
+          <button onClick={() => { setShowMemory(m => !m); if (!showMemory) fetchMemory() }}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showMemory ? 'border-[#00FF9D]/50 bg-[#00FF9D]/10 text-[#00FF9D]' : 'border-[#1a2535] text-gray-600 hover:text-gray-400'}`}
+            title="Память агента">
+            <span className="text-sm">🧠</span>
+          </button>
+          {/* Artifacts */}
+          <button onClick={() => setShowArtifacts(a => !a)}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showArtifacts ? 'border-[#FDCB6E]/50 bg-[#FDCB6E]/10 text-[#FDCB6E]' : 'border-[#1a2535] text-gray-600 hover:text-gray-400'}`}
+            title="Галерея артефактов">
+            <span className="text-sm">☆</span>
           </button>
           {/* Agent selector — icon + name only, no XP clutter */}
           <button onClick={() => { setShowAgents(a => !a); setShowAccounts(false) }}
@@ -457,7 +515,67 @@ export default function OasisPage() {
 
       {/* ── Accounts Connection Sheet ──────────────────────────────────────── */}
       <AnimatePresence>
-        {showAccounts && (
+        {/* ── Memory Panel ─────────────────────────────────────────────────── */}
+        {showMemory && (
+          <motion.div
+            initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
+            transition={{type:'spring', stiffness:320, damping:30}}
+            className="absolute bottom-0 left-0 right-0 bg-[#080d14] border-t border-[#1a2535] z-40 max-h-[55vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2535] shrink-0">
+              <span className="text-sm font-medium text-[#00FF9D]">🧠 Память агента</span>
+              <button onClick={() => setShowMemory(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-[#0f1820] text-gray-500">×</button>
+            </div>
+            <div className="overflow-y-auto p-4 flex-1">
+              {memory.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-6">Агент ещё ничего не запомнил</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {memory.map((m, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-[#0a1018] border border-[#1a2535] group">
+                      <span className="text-[#00FF9D] text-xs mt-0.5 shrink-0">◆</span>
+                      <span className="text-gray-300 text-sm flex-1">{typeof m === 'string' ? m : JSON.stringify(m)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Artifacts Panel ───────────────────────────────────────────────── */}
+        {showArtifacts && (
+          <motion.div
+            initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
+            transition={{type:'spring', stiffness:320, damping:30}}
+            className="absolute bottom-0 left-0 right-0 bg-[#080d14] border-t border-[#1a2535] z-40 max-h-[60vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a2535] shrink-0">
+              <span className="text-sm font-medium text-[#FDCB6E]">★ Галерея артефактов ({artifacts.length})</span>
+              <button onClick={() => setShowArtifacts(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-[#0f1820] text-gray-500">×</button>
+            </div>
+            <div className="overflow-y-auto p-3 flex-1">
+              {artifacts.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-6">Нажми ☆ под любым ответом агента чтобы сохранить</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {artifacts.map((art) => (
+                    <div key={art.id} className="p-3 rounded-lg bg-[#0a1018] border border-[#1a2535]">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-[#FDCB6E]">{art.agentName || 'Agent'}</span>
+                        <div className="flex gap-2">
+                          <button onClick={() => navigator.clipboard.writeText(art.content)} className="text-xs text-gray-600 hover:text-gray-400">📋</button>
+                          <button onClick={() => saveArtifact({id:art.id, content:art.content, agentName:art.agentName, role:'agent', ts:art.ts})} className="text-xs text-[#FDCB6E]">★</button>
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-xs line-clamp-3">{art.content.slice(0,200)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+                {showAccounts && (
           <motion.div
             initial={{opacity:0, y:40}} animate={{opacity:1, y:0}} exit={{opacity:0, y:40}}
             transition={{type:'spring', stiffness:320, damping:30}}
@@ -555,8 +673,30 @@ export default function OasisPage() {
               )
 
               /* Agent */
+              {/* Tool accordion (Live Tool Feed) */}
+              const msgTools = toolGroups[msg.id] || []
               return (
-                <motion.div key={msg.id} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="flex gap-2.5 mb-4 items-start">
+                <motion.div key={msg.id} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="mb-4">
+                  {msgTools.length > 0 && (
+                    <div className="mb-1.5 ml-10">
+                      <button onClick={() => toggleTools(msg.id)}
+                        className="flex items-center gap-1.5 text-xs text-emerald-600/60 hover:text-emerald-500 transition-colors">
+                        <span className={`transition-transform inline-block ${expandedTools[msg.id] ? 'rotate-90' : ''}`}>▶</span>
+                        <span>{msgTools.length} tool{msgTools.length > 1 ? 's' : ''}</span>
+                      </button>
+                      {expandedTools[msg.id] && (
+                        <div className="mt-1 flex flex-col gap-1">
+                          {msgTools.map(t => (
+                            <div key={t.id} className="flex items-center gap-1.5 text-xs text-emerald-600/70 bg-[#030508] px-2.5 py-1 rounded-lg border border-emerald-900/20 font-mono">
+                              <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0"/>
+                              <span className="truncate">{t.content}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex gap-2.5 items-start">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm border mt-0.5"
                     style={{background:(agent?.color||'#00FF9D')+'12', borderColor:(agent?.color||'#00FF9D')+'35'}}>
                     {agent?.icon||'⚡'}
@@ -574,10 +714,19 @@ export default function OasisPage() {
                           className="text-gray-700 hover:text-gray-400 transition-colors text-xs active:scale-95">
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         </button>
-                        <button onClick={() => handleFeedback(msg.id,'up')}
-                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='up' ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}>👍</button>
-                        <button onClick={() => handleFeedback(msg.id,'down')}
-                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='down' ? 'opacity-100' : 'opacity-30 hover:opacity-70'}`}>👎</button>
+                        <button title="Сохранить" onClick={() => saveArtifact(msg)}
+                          className={`text-xs transition-all active:scale-95 ${artifacts.some(a=>a.id===msg.id) ? 'text-[#FDCB6E]' : 'text-gray-700 hover:text-gray-400'}`}>
+                          {artifacts.some(a=>a.id===msg.id) ? '★' : '☆'}
+                        </button>
+                        <button onClick={() => handleFeedback(msg.id,'exact')}
+                          title="Точно"
+                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='exact' ? 'opacity-100 scale-110' : 'opacity-30 hover:opacity-70'}`}>🎯</button>
+                        <button onClick={() => handleFeedback(msg.id,'partial')}
+                          title="Частично"
+                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='partial' ? 'opacity-100 scale-110' : 'opacity-30 hover:opacity-70'}`}>🤔</button>
+                        <button onClick={() => handleFeedback(msg.id,'miss')}
+                          title="Мимо"
+                          className={`text-sm transition-all active:scale-95 ${feedback[msg.id]==='miss' ? 'opacity-100 scale-110' : 'opacity-30 hover:opacity-70'}`}>💀</button>
                       </div>
                     )}
                     {!msg.streaming && (() => {
@@ -594,6 +743,7 @@ export default function OasisPage() {
                         </div>
                       )
                     })()}
+                  </div>
                   </div>
                 </motion.div>
               )
