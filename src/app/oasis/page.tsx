@@ -480,7 +480,6 @@ export default function OasisPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-          </div>{/* end items-end row */}
         </div>
       </div>
 
@@ -872,6 +871,7 @@ export default function OasisPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
           </button>
+          </div>{/* end items-end row */}
         </div>
       </div>
     </div>
