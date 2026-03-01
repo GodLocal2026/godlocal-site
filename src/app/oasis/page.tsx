@@ -245,7 +245,7 @@ export default function OasisPage() {
       const r = await fetch(`${API_BASE}/memory?session_id=${sessionId}`)
       if (r.ok) { const d = await r.json(); setMemory(Array.isArray(d) ? d : (d.memories || [])) }
     } catch {}
-  }, [sessionId])
+  }, [])
 
   const [expandedTools, setExpandedTools] = useState<Record<string,boolean>>({})
   const toggleTools = (id: string) => setExpandedTools(p => ({...p, [id]: !p[id]}))
