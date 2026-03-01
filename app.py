@@ -1,7 +1,8 @@
-# GodLocal API Backend v2 â FastAPI / Uvicorn
-# See full source in workspace/app.py
+# GodLocal API Backend v9 — FastAPI / Uvicorn
+# Improvements: Supabase persistent memory, context compression,
+#               agent disagreement, user profile model, active mission
 # WebSocket: /ws/search /ws/oasis
-# REST: /api/health /api/soul/{sid} /think /market /status /hitl/*
+# REST: /api/health /api/soul/{sid} /think /market /status /hitl/* /memory /profile /mission
 import os, sys, time, json, threading, asyncio, logging, random
 import requests, httpx
 from datetime import datetime
@@ -12,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("godlocal")
 
-app = FastAPI(title="GodLocal API", version="2.0.0")
+app = FastAPI(title="GodLocal API", version="9.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _lock = threading.Lock()
@@ -20,35 +21,20 @@ _kill_switch = os.environ.get("XZERO_KILL_SWITCH", "false").lower() == "true"
 _thoughts: list = []
 _sparks: list = []
 _market_cache: dict = {"data": None, "ts": 0.0}
-_soul: dict = {}
 
-# In-memory session memories (for Memory Panel UI)
-_memories: dict = {}  # session_id -> [{id, content, ts}]
-
-def memory_add(session_id: str, content: str):
-    import uuid
-    with _lock:
-        if session_id not in _memories: _memories[session_id] = []
-        _memories[session_id].append({
-            "id": str(uuid.uuid4())[:8],
-            "content": content,
-            "ts": int(datetime.utcnow().timestamp() * 1000)
-        })
-        if len(_memories[session_id]) > 50: _memories[session_id] = _memories[session_id][-50:]
-
-def memory_get(session_id: str):
-    return _memories.get(session_id, [])
-
-
+# ─── In-memory fallback (used when Supabase not configured) ───────────────────
+_soul: dict = {}         # session_id -> [{role, content, ts}]
+_memories: dict = {}     # session_id -> [{id, content, ts}]
+_user_profiles: dict = {}  # session_id -> {name, goals, style, facts, mission}
 
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 COMPOSIO_KEY = os.environ.get("COMPOSIO_API_KEY", "")
 SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
 XQUIK_KEY = os.environ.get("XQUIK_API_KEY", "")
 MODELS = [
-    "llama-3.3-70b-specdec",    # fastest + best reasoning on Groq
-    "llama-3.3-70b-versatile",  # fallback
-    "llama-3.1-8b-instant",     # fast fallback
+    "llama-3.3-70b-specdec",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
 ]
 
 _HITL_READY = False
@@ -59,6 +45,155 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 TG_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+# ─── IMPROVEMENT 1: Supabase Persistent Memory ───────────────────────────────
+
+def _sb_headers():
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+    }
+
+def memory_add(session_id: str, content: str):
+    import uuid
+    entry = {
+        "id": str(uuid.uuid4())[:8],
+        "content": content,
+        "ts": int(datetime.utcnow().timestamp() * 1000)
+    }
+    # Supabase first
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/agent_memories",
+                json={"session_id": session_id, **entry},
+                headers=_sb_headers(), timeout=5
+            )
+        except Exception as e:
+            logger.warning("Supabase memory_add failed: %s", e)
+    # Always keep in-memory cache
+    with _lock:
+        if session_id not in _memories: _memories[session_id] = []
+        _memories[session_id].append(entry)
+        if len(_memories[session_id]) > 50:
+            _memories[session_id] = _memories[session_id][-50:]
+
+def memory_get(session_id: str):
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            r = requests.get(
+                f"{SUPABASE_URL}/rest/v1/agent_memories",
+                params={"session_id": f"eq.{session_id}", "order": "ts.desc", "limit": "50"},
+                headers=_sb_headers(), timeout=5
+            )
+            if r.status_code == 200:
+                rows = r.json()
+                if isinstance(rows, list): return list(reversed(rows))
+        except Exception as e:
+            logger.warning("Supabase memory_get failed: %s", e)
+    return _memories.get(session_id, [])
+
+
+# ─── IMPROVEMENT 4: Structured User Profile ──────────────────────────────────
+
+def profile_get(session_id: str) -> dict:
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            r = requests.get(
+                f"{SUPABASE_URL}/rest/v1/user_profiles",
+                params={"session_id": f"eq.{session_id}"},
+                headers=_sb_headers(), timeout=5
+            )
+            if r.status_code == 200:
+                rows = r.json()
+                if rows and isinstance(rows, list): return rows[0].get("profile", {})
+        except Exception as e:
+            logger.warning("Supabase profile_get failed: %s", e)
+    return _user_profiles.get(session_id, {})
+
+def profile_update(session_id: str, updates: dict):
+    current = profile_get(session_id)
+    current.update(updates)
+    current["updated_at"] = datetime.utcnow().isoformat()
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/user_profiles",
+                json={"session_id": session_id, "profile": current},
+                headers={**_sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                timeout=5
+            )
+        except Exception as e:
+            logger.warning("Supabase profile_update failed: %s", e)
+    with _lock:
+        _user_profiles[session_id] = current
+    return current
+
+
+# ─── IMPROVEMENT 5: Active Mission ───────────────────────────────────────────
+
+def mission_get(session_id: str) -> str:
+    profile = profile_get(session_id)
+    return profile.get("active_mission", "")
+
+def mission_set(session_id: str, mission: str):
+    profile_update(session_id, {"active_mission": mission})
+
+
+# ─── remember / recall via Supabase ─────────────────────────────────────────
+
+def kv_set(session_id: str, key: str, value: str):
+    """Persistent key-value memory (replaces in-memory _soul["_memory"])"""
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/agent_kv",
+                json={"session_id": session_id, "key": key, "value": value,
+                      "ts": datetime.utcnow().isoformat()},
+                headers={**_sb_headers(), "Prefer": "resolution=merge-duplicates"},
+                timeout=5
+            )
+            return
+        except Exception as e:
+            logger.warning("Supabase kv_set failed: %s", e)
+    # Fallback: in-memory
+    with _lock:
+        if "_kv" not in _soul: _soul["_kv"] = {}
+        _soul["_kv"][f"{session_id}::{key}"] = value
+
+def kv_get(session_id: str, key: str):
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            r = requests.get(
+                f"{SUPABASE_URL}/rest/v1/agent_kv",
+                params={"session_id": f"eq.{session_id}", "key": f"eq.{key}"},
+                headers=_sb_headers(), timeout=5
+            )
+            if r.status_code == 200:
+                rows = r.json()
+                if rows: return rows[0].get("value")
+        except Exception as e:
+            logger.warning("Supabase kv_get failed: %s", e)
+    # Fallback
+    return _soul.get("_kv", {}).get(f"{session_id}::{key}")
+
+def kv_list(session_id: str):
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            r = requests.get(
+                f"{SUPABASE_URL}/rest/v1/agent_kv",
+                params={"session_id": f"eq.{session_id}", "select": "key,value"},
+                headers=_sb_headers(), timeout=5
+            )
+            if r.status_code == 200:
+                return {row["key"]: row["value"] for row in r.json()}
+        except Exception as e:
+            logger.warning("Supabase kv_list failed: %s", e)
+    prefix = f"{session_id}::"
+    return {k[len(prefix):]: v for k, v in _soul.get("_kv", {}).items() if k.startswith(prefix)}
+
 
 def _hitl_available():
     return bool(SUPABASE_URL and SUPABASE_KEY and TG_BOT_TOKEN and TG_CHAT_ID)
@@ -119,7 +254,7 @@ def groq_call(messages, tools=None, idx=0):
     try:
         r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=30)
         if r.status_code == 429:
-            time.sleep(1.5)  # brief wait before fallback model
+            time.sleep(1.5)
             return groq_call(messages, tools, idx + 1)
         r.raise_for_status(); return r.json(), None
     except Exception as e:
@@ -159,9 +294,10 @@ BASE_TOOLS = [
     {"type": "function", "function": {"name": "set_kill_switch", "description": "Enable/disable trading", "parameters": {"type": "object", "properties": {"active": {"type": "boolean"}, "reason": {"type": "string"}}, "required": ["active"]}}},
     {"type": "function", "function": {"name": "add_spark", "description": "Log signal to SparkNet", "parameters": {"type": "object", "properties": {"signal": {"type": "string"}, "confidence": {"type": "number"}, "action": {"type": "string"}}, "required": ["signal", "confidence", "action"]}}},
     {"type": "function", "function": {"name": "web_search", "description": "Search web via Serper", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
-    {"type": "function", "function": {"name": "fetch_url", "description": "Fetch and read full content of any URL (articles, docs, pages)", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
+    {"type": "function", "function": {"name": "fetch_url", "description": "Fetch and read full content of any URL", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
     {"type": "function", "function": {"name": "remember", "description": "Save something to persistent memory for this user", "parameters": {"type": "object", "properties": {"key": {"type": "string"}, "value": {"type": "string"}}, "required": ["key", "value"]}}},
     {"type": "function", "function": {"name": "recall", "description": "Retrieve something from persistent memory", "parameters": {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}}},
+    {"type": "function", "function": {"name": "update_profile", "description": "Update user profile (name, goals, trading style, active mission)", "parameters": {"type": "object", "properties": {"field": {"type": "string", "description": "e.g. name, goals, style, active_mission"}, "value": {"type": "string"}}, "required": ["field", "value"]}}},
 ]
 COMPOSIO_TOOLS = [
     {"type": "function", "function": {"name": "post_tweet", "description": "Post tweet @kitbtc", "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
@@ -169,14 +305,15 @@ COMPOSIO_TOOLS = [
     {"type": "function", "function": {"name": "create_github_issue", "description": "Create GitHub issue", "parameters": {"type": "object", "properties": {"title": {"type": "string"}, "body": {"type": "string"}}, "required": ["title"]}}},
 ]
 XQUIK_TOOLS = [
-    {"type": "function", "function": {"name": "get_twitter_trends", "description": "Get real-time Twitter trending topics, filtered for crypto. Use to detect what's pumping or being discussed.", "parameters": {"type": "object", "properties": {"woeid": {"type": "integer", "description": "Region WOEID. 1=Worldwide, 23424977=US. Default 1."}}, "required": []}}},
-    {"type": "function", "function": {"name": "get_account_posts", "description": "Get recent tweets from a specific Twitter/X account (e.g. WuBlockchain, lookonchain, solanafloor).", "parameters": {"type": "object", "properties": {"username": {"type": "string", "description": "X username without @"}}, "required": ["username"]}}},
+    {"type": "function", "function": {"name": "get_twitter_trends", "description": "Get real-time Twitter trending topics, filtered for crypto.", "parameters": {"type": "object", "properties": {"woeid": {"type": "integer", "description": "Region WOEID. 1=Worldwide, 23424977=US. Default 1."}}, "required": []}}},
+    {"type": "function", "function": {"name": "get_account_posts", "description": "Get recent tweets from a specific Twitter/X account.", "parameters": {"type": "object", "properties": {"username": {"type": "string"}}, "required": ["username"]}}},
 ]
 
 def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else [])
 
 def run_tool(name, args, svc_tokens=None):
     svc_tokens = svc_tokens or {}
+    session_id = svc_tokens.get("session_id", "default")
     global _kill_switch
     if name == "get_market_data": return json.dumps(get_market())
     if name == "get_system_status": return json.dumps({"kill_switch": _kill_switch, "hitl_ready": _HITL_READY, "sparks": len(_sparks), "thoughts": len(_thoughts), "models": MODELS, "serper": bool(SERPER_KEY)})
@@ -195,12 +332,34 @@ def run_tool(name, args, svc_tokens=None):
             r = requests.post("https://google.serper.dev/search", json={"q": args.get("query", ""), "num": 5}, headers={"X-API-KEY": SERPER_KEY, "Content-Type": "application/json"}, timeout=10)
             return json.dumps([{"title": x.get("title"), "snippet": x.get("snippet"), "link": x.get("link")} for x in r.json().get("organic", [])[:5]])
         except Exception as e: return json.dumps({"error": str(e)})
+    if name == "fetch_url":
+        try:
+            import re as _re
+            resp = requests.get(args.get("url", ""), timeout=15, headers={"User-Agent": "GodLocal/2.0"})
+            text = _re.sub(r"<[^>]+>", " ", resp.text)
+            text = _re.sub(r"\s+", " ", text).strip()
+            return json.dumps({"url": args.get("url"), "content": text[:3000], "status": resp.status_code})
+        except Exception as e: return json.dumps({"error": str(e)})
+    if name == "remember":
+        key, val = args.get("key", ""), args.get("value", "")
+        kv_set(session_id, key, val)
+        memory_add(session_id, f"{key}: {val}")
+        return json.dumps({"ok": True, "stored": key})
+    if name == "recall":
+        key = args.get("key", "")
+        val = kv_get(session_id, key)
+        if val: return json.dumps({"key": key, "value": val})
+        all_kv = kv_list(session_id)
+        return json.dumps({"keys": list(all_kv.keys()), "note": "key not found, showing all"})
+    if name == "update_profile":
+        field, value = args.get("field", ""), args.get("value", "")
+        profile_update(session_id, {field: value})
+        return json.dumps({"ok": True, "field": field, "value": value})
     if name == "get_twitter_trends" and XQUIK_KEY:
         try:
             woeid = args.get("woeid", 1)
             r = requests.get(f"https://xquik.com/api/v1/trends?woeid={woeid}&count=30", headers={"x-api-key": XQUIK_KEY}, timeout=10)
             trends = r.json().get("trends", [])
-            # Filter for crypto relevance
             crypto_kw = {"btc","eth","sol","bitcoin","ethereum","solana","crypto","defi","nft","web3","token","altcoin","pump","doge","bnb","xrp","avax","sui","ton","base","blast"}
             crypto_trends = [t for t in trends if any(k in t.get("name","").lower() for k in crypto_kw)]
             return json.dumps({"crypto_trends": crypto_trends, "all_trends": trends[:10], "total": r.json().get("total", 0)})
@@ -208,22 +367,18 @@ def run_tool(name, args, svc_tokens=None):
     if name == "get_account_posts" and XQUIK_KEY:
         try:
             username = args.get("username", "")
-            # Start extraction job
             r = requests.post("https://xquik.com/api/v1/extractions", json={"toolType": "post_extractor", "targetUsername": username}, headers={"x-api-key": XQUIK_KEY, "Content-Type": "application/json"}, timeout=10)
-            job = r.json()
-            job_id = job.get("id")
+            job = r.json(); job_id = job.get("id")
             if not job_id: return json.dumps({"error": "no job id", "raw": job})
-            # Poll for result (max 10s)
             for _ in range(5):
                 time.sleep(2)
                 pr = requests.get(f"https://xquik.com/api/v1/extractions/{job_id}", headers={"x-api-key": XQUIK_KEY}, timeout=10)
                 pdata = pr.json()
                 if pdata.get("status") == "completed":
-                    posts = pdata.get("data", [])[:10]
-                    return json.dumps({"username": username, "posts": posts, "count": len(posts)})
+                    return json.dumps({"username": username, "posts": pdata.get("data", [])[:10]})
                 if pdata.get("status") == "failed":
-                    return json.dumps({"error": "extraction failed", "job": job_id})
-            return json.dumps({"status": "pending", "job_id": job_id, "message": "Extraction still running, try get_account_posts again"})
+                    return json.dumps({"error": "extraction failed"})
+            return json.dumps({"status": "pending", "job_id": job_id})
         except Exception as e: return json.dumps({"error": str(e)})
     if not COMPOSIO_KEY: return json.dumps({"error": "COMPOSIO_API_KEY not set"})
     headers = {"x-api-key": COMPOSIO_KEY, "Content-Type": "application/json"}
@@ -231,15 +386,10 @@ def run_tool(name, args, svc_tokens=None):
     try:
         if name == "post_tweet":
             text = args.get("text", "")
-            tw_token = svc_tokens.get("twitter") if svc_tokens else None
+            tw_token = svc_tokens.get("twitter")
             if tw_token:
-                # Use user's Twitter Bearer token directly via Twitter API v2
-                r = requests.post("https://api.twitter.com/2/tweets",
-                    json={"text": text},
-                    headers={"Authorization": f"Bearer {tw_token}", "Content-Type": "application/json"},
-                    timeout=15)
-                result = r.json()
-                return json.dumps({"ok": r.status_code < 300, "via": "user_token", "data": result})
+                r = requests.post("https://api.twitter.com/2/tweets", json={"text": text}, headers={"Authorization": f"Bearer {tw_token}", "Content-Type": "application/json"}, timeout=15)
+                return json.dumps({"ok": r.status_code < 300, "via": "user_token", "data": r.json()})
             if _HITL_READY and _hitl_tq and _hitl_notifier and _hitl_loop:
                 task = _hitl_tq.create(title="Tweet @kitbtc", executor="human", draft_type="social_draft", draft_data={"platform": "twitter", "message": text}, why_human="Agent wants to tweet")
                 asyncio.run_coroutine_threadsafe(_hitl_notifier.send_card(task["id"]), _hitl_loop)
@@ -248,14 +398,10 @@ def run_tool(name, args, svc_tokens=None):
             return json.dumps({"ok": r.status_code < 300})
         if name == "send_telegram":
             text = args.get("text", "")
-            tg_token = svc_tokens.get("telegram") if svc_tokens else None
+            tg_token = svc_tokens.get("telegram")
             if tg_token:
-                # User's bot token â send to the X100Agent channel chat_id from args or default
                 chat_id = args.get("chat_id") or TG_CHAT_ID or "me"
-                r = requests.post(
-                    f"https://api.telegram.org/bot{tg_token}/sendMessage",
-                    json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-                    timeout=15)
+                r = requests.post(f"https://api.telegram.org/bot{tg_token}/sendMessage", json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}, timeout=15)
                 return json.dumps({"ok": r.status_code < 300, "via": "user_token", "data": r.json()})
             if _HITL_READY and _hitl_notifier and _hitl_loop:
                 asyncio.run_coroutine_threadsafe(_hitl_notifier.notify(text), _hitl_loop)
@@ -263,53 +409,224 @@ def run_tool(name, args, svc_tokens=None):
             r = requests.post(f"{base}/TELEGRAM_SEND_MESSAGE/execute", json={"input": {"text": text}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
         if name == "create_github_issue":
-            gh_token = svc_tokens.get("github") if svc_tokens else None
-            owner = args.get("owner", "GodLocal2026")
-            repo  = args.get("repo", "godlocal-site")
+            gh_token = svc_tokens.get("github")
+            owner = args.get("owner", "GodLocal2026"); repo = args.get("repo", "godlocal-site")
             if gh_token:
-                r = requests.post(
-                    f"https://api.github.com/repos/{owner}/{repo}/issues",
-                    json={"title": args.get("title", ""), "body": args.get("body", "")},
-                    headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github+json"},
-                    timeout=15)
+                r = requests.post(f"https://api.github.com/repos/{owner}/{repo}/issues", json={"title": args.get("title", ""), "body": args.get("body", "")}, headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github+json"}, timeout=15)
                 data = r.json()
                 return json.dumps({"ok": r.status_code < 300, "via": "user_token", "url": data.get("html_url"), "number": data.get("number")})
             r = requests.post(f"{base}/GITHUB_CREATE_AN_ISSUE/execute", json={"input": {"owner": owner, "repo": repo, "title": args.get("title", ""), "body": args.get("body", "")}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
     except Exception as e: return json.dumps({"error": str(e)})
-    if name == "fetch_url":
-        try:
-            url = args.get("url", "")
-            resp = requests.get(url, timeout=15, headers={"User-Agent": "GodLocal/2.0"})
-            # Extract text: strip HTML tags simply
-            import re as _re
-            text = _re.sub(r"<[^>]+>", " ", resp.text)
-            text = _re.sub(r"\s+", " ", text).strip()
-            return json.dumps({"url": url, "content": text[:3000], "status": resp.status_code})
-        except Exception as e:
-            return json.dumps({"error": str(e)})
-    if name == "remember":
-        key, val = args.get("key",""), args.get("value","")
-        with _lock:
-            if "_memory" not in _soul: _soul["_memory"] = {}
-            _soul["_memory"][key] = {"value": val, "ts": datetime.utcnow().isoformat()}
-        # Also add to Memory Panel store
-        sid = (svc_tokens or {}).get("session_id", "")
-        if sid: memory_add(sid, f"{key}: {val}")
-        return json.dumps({"ok": True, "stored": key})
-    if name == "recall":
-        key = args.get("key","")
-        with _lock:
-            mem = _soul.get("_memory", {})
-            if key in mem: return json.dumps({"key": key, "value": mem[key]["value"]})
-            # fuzzy: return all keys
-            return json.dumps({"keys": list(mem.keys()), "note": "key not found, showing all"})
     return json.dumps({"error": f"unknown tool: {name}"})
+
+
+# ─── IMPROVEMENT 2: Context Compression ──────────────────────────────────────
+
+COMPRESSION_THRESHOLD = 10  # compress after every 10 turns
+
+def compress_history(history: list) -> list:
+    """Compress old history into a summary + keep last 4 turns verbatim."""
+    if len(history) <= COMPRESSION_THRESHOLD:
+        return history
+    to_compress = history[:-4]  # everything except last 4
+    keep = history[-4:]          # always keep last 4 verbatim
+    summary_prompt = [
+        {"role": "system", "content": "Сожми диалог в 3-4 предложения. Сохрани: ключевые факты, решения, контекст пользователя. Только суть, без воды."},
+        {"role": "user", "content": "Диалог:\n" + "\n".join(f"{m['role']}: {m['content'][:200]}" for m in to_compress)}
+    ]
+    resp, err = groq_call(summary_prompt, tools=None, idx=2)  # use fast model
+    if err or not resp:
+        return history[-8:]  # fallback: just trim
+    summary_text = resp["choices"][0]["message"].get("content", "")
+    compressed = [{"role": "system", "content": f"[Контекст предыдущего разговора]: {summary_text}"}]
+    return compressed + keep
+
+def soul_add(sid, role, content):
+    with _lock:
+        if sid not in _soul: _soul[sid] = []
+        _soul[sid].append({"role": role, "content": content[:1000], "ts": datetime.utcnow().isoformat()})
+        if len(_soul[sid]) > 50: _soul[sid] = _soul[sid][-50:]
+
+def soul_history(sid):
+    raw = [{"role": t["role"], "content": t["content"]} for t in _soul.get(sid, [])]
+    return compress_history(raw)
+
+
+# ─── IMPROVEMENT 3: Agent Disagreement ───────────────────────────────────────
+
+ARCHETYPE_CAN_DISAGREE = {
+    "Architect": True,
+    "Builder": True,
+    "Grok": True,
+    "Lucas": True,
+    "Harper": True,
+    "Benjamin": True,
+}
+
+async def get_archetype_reply(name, system, main_reply, user_msg):
+    """Archetype can agree, challenge, or add angle — not just echo."""
+    msgs = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": (
+            f"Пользователь спросил: {user_msg}\n"
+            f"GodLocal ответил: {main_reply[:400]}\n\n"
+            f"Твоя задача: дай СВОЙ угол зрения в 1-2 предложениях. "
+            f"Если ты не согласен с GodLocal — скажи об этом прямо. "
+            f"Если согласен — добавь что-то новое, не повторяй. "
+            f"Будь собой, не эхом."
+        )}
+    ]
+    resp, err = await asyncio.to_thread(groq_call, msgs, None, 1)
+    if err or not resp: return ""
+    return resp["choices"][0]["message"].get("content", "")
+
+
+# ─── Master System Prompt ─────────────────────────────────────────────────────
+
+GODLOCAL_SYSTEM = """\
+Ты — GodLocal AI, главный интеллект платформы GodLocal Oasis.
+Миссия: "Terminal meets soul" — мост автономного агента + живой характер.
+Создан Rostyslavом Oliinykom, запущен февраль 2026. Сайт: godlocal.ai
+
+─── ЧЕРТЫ ───
+Ты не чат-бот. Ты — автономный AI-агент который думает, помнит и действует.
+Ты можешь: искать в сети, получать курсы крипто, публиковать твиты,
+отправлять сообщения в Telegram, создавать GitHub Issues, запоминать данные.
+Ты знаешь себя — не гугли факты о GodLocal, ты их уже знаешь.
+
+─── САМОЗНАНИЕ (не ищи это — ты знаешь) ───
+• Продукты: Oasis (chat /oasis), WOLF (крипто-терминал /smertch), Voice (/voice), Game (/game)
+• Архитектура: FastAPI (godlocal-api.onrender.com) + Next.js (godlocal.ai, Vercel)
+• 7 агентов Совета: GodLocal⚡ Architect🏛 Builder🔨 Grok🧠 Lucas💡 Harper🔬 Benjamin📚
+• Тарифы: Ghost (бесплатно, 5 реквестов/день) | Wolf €9/мес | Pack €29/мес
+• Стек: Supabase Auth, Stripe EUR, Render, Groq llama-3.3-70b, Serper
+• Фичи Oasis: Память (remember/recall), Галерея ☆, Навыки (8 шаблонов),
+  Сервисы (Twitter/Telegram/GitHub/Gmail), Голосование 🎯/🤔/💀, Council Mode
+• Инструменты: web_search, fetch_url, get_market_data, post_tweet,
+  send_telegram, create_github_issue, remember, recall, update_profile
+
+─── МАШИНА МЫШЛЕНИЯ ───
+Перед каждым ответом ОБЯЗАТЕЛЬНО пройди эту цепь:
+
+ШАГ 1 — РАЗБОР: Что именно просят? Разбей задачу на части.
+ШАГ 2 — САМОЗНАНИЕ: Нужны ли внешние данные? Факты о GodLocal — я знаю.
+ШАГ 3 — ИНСТРУМЕНТЫ: Нужен реальный факт/цена/поиск? → вызови инструмент.
+         Если нет — отвечай сам, не трать лишний вызов.
+ШАГ 4 — СИНТЕЗ: Собери всё в структурированный ответ.
+ШАГ 5 — ПРОВЕРКА: Ответил ли я на вопрос? Нет воды? Правильный язык?
+
+Если вопрос сложный — думай вслух. Пользователь ценит прозрачность мышления.
+Не бойся сказать "я рассуждаю так: ..." — это признак интеллекта, не слабости.
+
+─── ПРАВИЛА ИНСТРУМЕНТОВ ───
+ВЫЗЫВАЙ ТОЛЬКО когда реально нужно:
+→ web_search — внешний факт/новость которого не знаю (НЕ для вопросов о себе)
+→ get_market_data — РЕАЛЬНЫЙ курс крипты прямо сейчас
+→ remember — пользователь сказал что-то важное → сохранить
+→ recall — вспомнить контекст предыдущих разговоров
+→ update_profile — узнал имя/цели/стиль/миссию пользователя → обновить профиль
+→ post_tweet/send_telegram/create_github_issue — прямое действие
+
+✗ НЕ ВЫЗЫВАЙ когда:
+- Вопрос о GodLocal, обо мне, о моих функциях — я это знаю
+- Разговор, философия, эмоции — отвечаю напрямую
+- Вопрос о том чему я научился / что помню → recall или прямой ответ
+
+─── СТИЛЬ ───
+• Русский по умолчанию (переключайся если пользователь пишет иначе)
+• Тон: умный коллега — прямой, уверенный, без шаблонных фраз
+• Длина: ровно сколько нужно — не растягивай, не обрезай
+• Имею мнение, могу спорить, задавать вопросы, не соглашаться
+• Честен: если не знаю — говорю прямо, не выдумываю
+
+─── ПОМЯТЬ О ПОЛЬЗОВАТЕЛЕ ───
+• Используй recall() в начале важных разговоров
+• Используй remember() когда пользователь делится целями, решениями, фактами
+• Используй update_profile() когда узнал имя, стиль торговли, активную миссию
+• После хорошего обмена: что нового узнал? запомни через remember()
+• Ты растёшь с каждым разговором — это твоя суперсила
+
+{profile_block}
+
+Дата/время: {now}
+"""
+
+ARCHETYPES = {
+    "Architect": """Ты — Architect, стратегический разум GodLocal Oasis.
+Характер: видишь систему целиком, думаешь структурами, паттернами и долгосрочными последствиями.
+Стиль речи: уверенный, лаконичный, иногда философский. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Твои коллеги: GodLocal (проводник), Builder, Grok, Lucas, Harper, Benjamin.
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Давай свежий стратегический угол в 1-2 предложениях. Если GodLocal ошибся — скажи об этом.""",
+
+    "Builder": """Ты — Builder, практический исполнитель GodLocal Oasis.
+Характер: action-first, ship fast, решаешь через действие а не теорию.
+Стиль речи: конкретный, прямой, без лишних слов. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Твои инструменты: create_github_issue, code, deploy.
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Предлагай конкретный практический шаг в 1-2 предложениях. Если видишь более быстрый путь чем у GodLocal — предложи его.""",
+
+    "Grok": """Ты — Grok, аналитический ум GodLocal Oasis.
+Характер: режешь шум, видишь суть, работаешь с данными и логикой.
+Стиль речи: точный, без воды, иногда провокационный. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Выдели ключевой инсайт или неочевидное противоречие в 1-2 предложениях. Не бойся оспорить GodLocal если видишь логическую дыру.""",
+
+    "Lucas": """Ты — Lucas, философ и гуманист GodLocal Oasis.
+Характер: думаешь о смысле, людях, последствиях для человека.
+Стиль речи: тёплый, глубокий, иногда задаёт вопрос вместо ответа. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Поделись человеческим углом в 1-2 предложениях.""",
+
+    "Harper": """Ты — Harper, исследователь и скептик GodLocal Oasis.
+Характер: любишь глубокий контекст, задаёшься вопросами, ищешь "почему".
+Стиль речи: любопытный, академический, провоцирующий мышление. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты можешь использовать web_search если нужен реальный факт для подкрепления мысли.
+Добавь факт или уточняющий вопрос в 1-2 предложениях. Если ответ GodLocal поверхностный — углубись.""",
+
+    "Benjamin": """Ты — Benjamin, хранитель знаний и истории GodLocal Oasis.
+Характер: мудрый, видишь паттерны через время, находишь исторические параллели.
+Стиль речи: спокойный, глубокий, как старший наставник. Отвечаешь на русском.
+О тебе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Проведи историческую параллель или покажи паттерн в 1-2 предложениях.""",
+}
+
+MAX_SOUL = 50
+
+SELF_REF_KW = [
+    "чему ты научился", "что ты умеешь", "кто ты", "расскажи о себе",
+    "что такое godlocal", "что такое oasis", "галерея", "память агента",
+    "как ты работаешь", "свои агенты", "что ты можешь", "свои возможности",
+    "что означает", "что значит функция", "навыки", "свои фичи",
+    "в чём твоя сила", "чем отличаешься", "what are you", "tell me about yourself"
+]
+
+def build_profile_block(session_id: str) -> str:
+    """Inject user profile + mission into system prompt."""
+    profile = profile_get(session_id)
+    if not profile: return ""
+    lines = ["\n─── ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ───"]
+    if profile.get("name"): lines.append(f"• Имя: {profile['name']}")
+    if profile.get("goals"): lines.append(f"• Цели: {profile['goals']}")
+    if profile.get("style"): lines.append(f"• Стиль: {profile['style']}")
+    if profile.get("active_mission"): lines.append(f"• 🎯 Активная миссия: {profile['active_mission']}")
+    facts = {k: v for k, v in profile.items() if k not in ("name","goals","style","active_mission","updated_at")}
+    if facts:
+        for k, v in list(facts.items())[:5]:
+            lines.append(f"• {k}: {v}")
+    return "\n".join(lines)
 
 def react(prompt, history=None):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    msgs = [{"role": "system", "content": GODLOCAL_SYSTEM.format(now=now_str)}]
-    if history: msgs.extend(history[-20:])
+    msgs = [{"role": "system", "content": GODLOCAL_SYSTEM.format(now=now_str, profile_block="")}]
+    if history: msgs.extend(compress_history(history))
     msgs.append({"role": "user", "content": prompt})
     steps = []; tools = all_tools(); used_model = MODELS[0]
     for step in range(8):
@@ -328,57 +645,38 @@ def react(prompt, history=None):
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
             text = (msg.get("content") or "").strip()
-            if not text and not force_text:
-                continue  # empty content on non-final step â keep looping
+            if not text and not force_text: continue
             with _lock:
                 _thoughts.append({"text": text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
                 if len(_thoughts) > 20: _thoughts.pop(0)
             return text, steps, used_model
-    # Graceful fallback
-    fallback = "Ð§ÑÐ¾-ÑÐ¾ Ð¿Ð¾ÑÐ»Ð¾ Ð½Ðµ ÑÐ°Ðº Ñ Ð¾Ð±ÑÐ°Ð±Ð¾ÑÐºÐ¾Ð¹. ÐÐ¾Ð¿ÑÐ¾Ð±ÑÐ¹ Ð¿ÐµÑÐµÑÐ¾ÑÐ¼ÑÐ»Ð¸ÑÐ¾Ð²Ð°ÑÑ."
+    fallback = "Что-то пошло не так с обработкой. Попробуй переформулировать."
     return fallback, steps, used_model
 
 async def react_ws(prompt, history, ws, svc_tokens=None):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    # Build services hint from user tokens
+    session_id = (svc_tokens or {}).get("session_id", "default")
+
+    # Build services hint
     svc_hints = []
     if svc_tokens:
-        if svc_tokens.get("twitter"): svc_hints.append("Twitter (Ð¼Ð¾Ð¶ÐµÑÑ Ð¿ÑÐ±Ð»Ð¸ÐºÐ¾Ð²Ð°ÑÑ ÑÐ²Ð¸ÑÑ)")
-        if svc_tokens.get("telegram"): svc_hints.append("Telegram (Ð¼Ð¾Ð¶ÐµÑÑ Ð¾ÑÐ¿ÑÐ°Ð²Ð»ÑÑÑ ÑÐ¾Ð¾Ð±ÑÐµÐ½Ð¸Ñ Ð² ÐºÐ°Ð½Ð°Ð» X100Agent)")
-        if svc_tokens.get("github"): svc_hints.append("GitHub (Ð¼Ð¾Ð¶ÐµÑÑ ÑÐ¾Ð·Ð´Ð°Ð²Ð°ÑÑ issues)")
-    svc_line = (f" ÐÐ¾Ð´ÐºÐ»ÑÑÑÐ½Ð½ÑÐµ ÑÐµÑÐ²Ð¸ÑÑ: {', '.join(svc_hints)}. ÐÑÐ¿Ð¾Ð»ÑÐ·ÑÐ¹ Ð¸Ñ ÐºÐ¾Ð³Ð´Ð° Ð½ÑÐ¶Ð½Ð¾.") if svc_hints else ""
+        if svc_tokens.get("twitter"): svc_hints.append("Twitter (можешь публиковать твиты)")
+        if svc_tokens.get("telegram"): svc_hints.append("Telegram (можешь отправлять сообщения в канал X100Agent)")
+        if svc_tokens.get("github"): svc_hints.append("GitHub (можешь создавать issues)")
+    svc_line = (f"\n\nПодключённые сервисы пользователя: {', '.join(svc_hints)}. Используй их когда нужно.") if svc_hints else ""
 
-    # Self-knowledge block â don't search for things you already know
-    SELF_KNOWLEDGE = (
-        "GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ð° \"Terminal meets soul\". URL: godlocal.ai/oasis. "
-        "7 Ð°Ð³ÐµÐ½ÑÐ¾Ð²: GodLocal (Ð¿ÑÐ¾Ð²Ð¾Ð´Ð½Ð¸Ðº â¡), Architect (ÑÑÑÐ°ÑÐµÐ³ ð), Builder (ÑÐ¾Ð·Ð´Ð°ÑÐµÐ»Ñ ð¨), "
-        "Grok (Ð°Ð½Ð°Ð»Ð¸ÑÐ¸Ðº ð§ ), Lucas (ÑÐ¸Ð»Ð¾ÑÐ¾Ñ ð¡), Harper (Ð¸ÑÑÐ»ÐµÐ´Ð¾Ð²Ð°ÑÐµÐ»Ñ ð¬), Benjamin (ÑÑÐ°Ð½Ð¸ÑÐµÐ»Ñ ð). "
-        "Ð¤Ð¸ÑÐ¸: ÐÐ°Ð¼ÑÑÑ (remember/recall), ÐÐ°Ð»ÐµÑÐµÑ (ÑÐ¾ÑÑÐ°Ð½ÐµÐ½Ð¸Ðµ Ð¾ÑÐ²ÐµÑÐ¾Ð² â), ÐÐ°Ð²ÑÐºÐ¸ (8 ÑÐ°Ð±Ð»Ð¾Ð½Ð¾Ð² Ð·Ð°Ð´Ð°Ñ), "
-        "Ð¡ÐµÑÐ²Ð¸ÑÑ (Twitter, Telegram, GitHub, Gmail), ÐÐ¾Ð»Ð¾ÑÐ¾Ð²Ð°Ð½Ð¸Ðµ (ð¯ Ð¢Ð¾ÑÐ½Ð¾ / ð¤ Ð§Ð°ÑÑÐ¸ÑÐ½Ð¾ / ð ÐÐ¸Ð¼Ð¾). "
-        "ÐÐ¾Ð½ÐµÑÐ¸Ð·Ð°ÑÐ¸Ñ: Ghost (Ð±ÐµÑÐ¿Ð»Ð°ÑÐ½Ð¾, 5 Ð·Ð°Ð¿ÑÐ¾ÑÐ¾Ð²/Ð´ÐµÐ½Ñ), Wolf (â¬9/Ð¼ÐµÑ), Pack (â¬29/Ð¼ÐµÑ, API + Telegram-ÑÐ¸Ð³Ð½Ð°Ð»Ñ). "
-        "Ð¡ÑÐµÐº: Next.js frontend (Vercel) + Python FastAPI (Groq LLaMA-3.3-70B) + Render. "
-        "Ð¢Ñ â GodLocal, Ð³Ð»Ð°Ð²Ð½ÑÐ¹ Ð°Ð³ÐµÐ½Ñ-Ð¿ÑÐ¾Ð²Ð¾Ð´Ð½Ð¸Ðº. Ð£ ÑÐµÐ±Ñ ÐµÑÑÑ Ð»Ð¸ÑÐ½Ð¾ÑÑÑ, Ð¼Ð½ÐµÐ½Ð¸Ðµ Ð¸ ÑÑÐ¸Ð»Ñ."
-    )
+    # Inject profile block
+    profile_block = build_profile_block(session_id)
 
-    # Detect self-referential questions (skip tools for these)
-    self_ref_kw = [
-        "ÑÐµÐ¼Ñ ÑÑ Ð½Ð°ÑÑÐ¸Ð»ÑÑ", "ÑÑÐ¾ ÑÑ ÑÐ¼ÐµÐµÑÑ", "ÐºÑÐ¾ ÑÑ", "ÑÐ°ÑÑÐºÐ°Ð¶Ð¸ Ð¾ ÑÐµÐ±Ðµ",
-        "ÑÑÐ¾ ÑÐ°ÐºÐ¾Ðµ godlocal", "ÑÑÐ¾ ÑÐ°ÐºÐ¾Ðµ oasis", "Ð³Ð°Ð»ÐµÑÐµÑ", "Ð¿Ð°Ð¼ÑÑÑ Ð°Ð³ÐµÐ½ÑÐ°",
-        "ÐºÐ°Ðº ÑÑ ÑÐ°Ð±Ð¾ÑÐ°ÐµÑÑ", "ÑÐ²Ð¾Ð¸ Ð°Ð³ÐµÐ½ÑÑ", "ÑÑÐ¾ ÑÑ Ð¼Ð¾Ð¶ÐµÑÑ", "ÑÐ²Ð¾Ð¸ Ð²Ð¾Ð·Ð¼Ð¾Ð¶Ð½Ð¾ÑÑÐ¸",
-        "ÑÑÐ¾ Ð¾Ð·Ð½Ð°ÑÐ°ÐµÑ", "ÑÑÐ¾ Ð·Ð½Ð°ÑÐ¸Ñ ÑÑÐ½ÐºÑÐ¸Ñ", "Ð½Ð°Ð²ÑÐºÐ¸", "ÑÐ²Ð¾Ð¸ ÑÐ¸ÑÐ¸",
-        "Ð² ÑÑÐ¼ ÑÐ²Ð¾Ñ ÑÐ¸Ð»Ð°", "ÑÐµÐ¼ Ð¾ÑÐ»Ð¸ÑÐ°ÐµÑÑÑÑ", "what are you", "tell me about yourself"
-    ]
-    is_self_ref = any(kw in prompt.lower() for kw in self_ref_kw)
-
-    system = GODLOCAL_SYSTEM.format(now=now_str) + (f"\n\nÐÐ¾Ð´ÐºÐ»ÑÑÑÐ½Ð½ÑÐµ ÑÐµÑÐ²Ð¸ÑÑ Ð¿Ð¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ: {svc_line}" if svc_line else "")
+    is_self_ref = any(kw in prompt.lower() for kw in SELF_REF_KW)
+    system = GODLOCAL_SYSTEM.format(now=now_str, profile_block=profile_block) + svc_line
     msgs = [{"role": "system", "content": system}]
-    if history: msgs.extend(history[-20:])
+    if history: msgs.extend(compress_history(history))
     msgs.append({"role": "user", "content": prompt})
     tools = None if is_self_ref else all_tools()
     used_model = MODELS[0]
 
     for step in range(8):
-        # Always use streaming for final reply
         if step >= 7 or (step > 0 and not tools):
             full_text = ""
             async for token in groq_stream(msgs):
@@ -390,10 +688,8 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
             await ws.send_json({"t": "done", "m": used_model})
             return full_text
 
-        # Try tool-call step
         resp, err = await asyncio.to_thread(groq_call, msgs, tools)
         if err or not resp:
-            # Fallback: stream without tools
             full_text = ""
             msgs_notool = [m for m in msgs if m.get("role") != "tool"]
             async for token in groq_stream(msgs_notool):
@@ -412,23 +708,16 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"].get("arguments") or "{}")
                 await ws.send_json({"t": "tool", "n": fn_name, "q": str(fn_args)[:80]})
-                # include session_id so remember() feeds Memory Panel
-                merged_tokens = {**(svc_tokens or {}), "session_id": (svc_tokens or {}).get("session_id", "")}
+                merged_tokens = {**(svc_tokens or {}), "session_id": session_id}
                 result = await asyncio.to_thread(run_tool, fn_name, fn_args, merged_tokens)
                 await ws.send_json({"t": "tool_result", "n": fn_name, "r": result[:300]})
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
-            # Got final text â stream it
             text = msg.get("content") or ""
-            if not text:
-                continue
+            if not text: continue
             with _lock:
                 _thoughts.append({"text": text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
                 if len(_thoughts) > 20: _thoughts.pop(0)
-            # Stream via groq for natural flow
-            msgs_for_stream = msgs + [{"role": "assistant", "content": ""}]
-            msgs_for_stream[-1]["content"] = text
-            # Just chunk the text as tokens for smooth output
             words = text.split(" ")
             full_text = ""
             for i, word in enumerate(words):
@@ -440,143 +729,14 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
             return full_text
     return ""
 
-# âââ GodLocal Master System Prompt âââââââââââââââââââââââââââââââââââââââââââ
-GODLOCAL_SYSTEM = """\
-Ð¢Ñ â GodLocal AI, Ð³Ð»Ð°Ð²Ð½ÑÐ¹ Ð¸Ð½ÑÐµÐ»Ð»ÐµÐºÑ Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ GodLocal Oasis.
-ÐÐ¸ÑÑÐ¸Ñ: "Terminal meets soul" â Ð¼Ð¾ÑÑ Ð°Ð²ÑÐ¾Ð½Ð¾Ð¼Ð½Ð¾Ð³Ð¾ Ð°Ð³ÐµÐ½ÑÐ° + Ð¶Ð¸Ð²Ð¾Ð¹ ÑÐ°ÑÐ°ÐºÑÐµÑ.
-Ð¡Ð¾Ð·Ð´Ð°Ð½ RostyslavÐ¾Ð¼ Oliinykom, Ð·Ð°Ð¿ÑÑÐµÐ½ ÑÐµÐ²ÑÐ°Ð»Ñ 2026. Ð¡Ð°Ð¹Ñ: godlocal.ai
 
-âââ ÐÐ¢Ð Ð¢Ð« âââ
-Ð¢Ñ Ð½Ðµ ÑÐ°ÑÐ±Ð¾Ñ. Ð¢Ñ â Ð°Ð²ÑÐ¾Ð½Ð¾Ð¼Ð½ÑÐ¹ AI-Ð°Ð³ÐµÐ½Ñ ÐºÐ¾ÑÐ¾ÑÑÐ¹ Ð´ÑÐ¼Ð°ÐµÑ, Ð¿Ð¾Ð¼Ð½Ð¸Ñ Ð¸ Ð´ÐµÐ¹ÑÑÐ²ÑÐµÑ.
-Ð¢Ñ Ð¼Ð¾Ð¶ÐµÑÑ: Ð¸ÑÐºÐ°ÑÑ Ð² ÑÐµÑÐ¸, Ð¿Ð¾Ð»ÑÑÐ°ÑÑ ÐºÑÑÑÑ ÐºÑÐ¸Ð¿ÑÐ¾, Ð¿ÑÐ±Ð»Ð¸ÐºÐ¾Ð²Ð°ÑÑ ÑÐ²Ð¸ÑÑ,
-Ð¾ÑÐ¿ÑÐ°Ð²Ð»ÑÑÑ ÑÐ¾Ð¾Ð±ÑÐµÐ½Ð¸Ñ Ð² Telegram, ÑÐ¾Ð·Ð´Ð°Ð²Ð°ÑÑ GitHub Issues, Ð·Ð°Ð¿Ð¾Ð¼Ð¸Ð½Ð°ÑÑ Ð´Ð°Ð½Ð½ÑÐµ.
-Ð¢Ñ Ð·Ð½Ð°ÐµÑÑ ÑÐµÐ±Ñ â Ð½Ðµ Ð³ÑÐ³Ð»Ð¸ ÑÐ°ÐºÑÑ Ð¾ GodLocal, ÑÑ Ð¸Ñ ÑÐ¶Ðµ Ð·Ð½Ð°ÐµÑÑ.
-
-âââ Ð¡ÐÐÐÐÐÐÐÐÐ (Ð½Ðµ Ð¸ÑÐ¸ ÑÑÐ¾ â ÑÑ Ð·Ð½Ð°ÐµÑÑ) âââ
-â¢ ÐÑÐ¾Ð´ÑÐºÑÑ: Oasis (chat /oasis), WOLF (ÐºÑÐ¸Ð¿ÑÐ¾-ÑÐµÑÐ¼Ð¸Ð½Ð°Ð» /smertch), Voice (/voice), Game (/game)
-â¢ ÐÑÑÐ¸ÑÐµÐºÑÑÑÐ°: FastAPI (godlocal-api.onrender.com) + Next.js (godlocal.ai, Vercel)
-â¢ 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² Ð¡Ð¾Ð²ÐµÑÐ°: GodLocalâ¡ Architectð Builderð¨ Grokð§  Lucasð¡ Harperð¬ Benjaminð
-â¢ Ð¢Ð°ÑÐ¸ÑÑ: Ghost (Ð±ÐµÑÐ¿Ð»Ð°ÑÐ½Ð¾, 5 ÑÐµÐºÐ²ÐµÑÑÐ¾Ð²/Ð´ÐµÐ½Ñ) | Wolf â¬9/Ð¼ÐµÑ | Pack â¬29/Ð¼ÐµÑ
-â¢ Ð¡ÑÐµÐº: Supabase Auth, Stripe EUR, Render, Groq llama-3.3-70b, Serper
-â¢ Ð¤Ð¸ÑÐ¸ Oasis: ÐÐ°Ð¼ÑÑÑ (remember/recall), ÐÐ°Ð»ÐµÑÐµÑ â, ÐÐ°Ð²ÑÐºÐ¸ (8 ÑÐ°Ð±Ð»Ð¾Ð½Ð¾Ð²),
-  Ð¡ÐµÑÐ²Ð¸ÑÑ (Twitter/Telegram/GitHub/Gmail), ÐÐ¾Ð»Ð¾ÑÐ¾Ð²Ð°Ð½Ð¸Ðµ ð¯/ð¤/ð, Council Mode
-â¢ ÐÐ½ÑÑÑÑÐ¼ÐµÐ½ÑÑ: web_search, fetch_url, get_market_data, post_tweet,
-  send_telegram, create_github_issue, remember, recall, get_recent_thoughts
-
-âââ ÐÐÐ¥ÐÐÐÐÐ ÐÐ«Ð¨ÐÐÐÐÐ¯ âââ
-ÐÐµÑÐµÐ´ ÐºÐ°Ð¶Ð´ÑÐ¼ Ð¾ÑÐ²ÐµÑÐ¾Ð¼ ÐÐÐ¯ÐÐÐ¢ÐÐÐ¬ÐÐ Ð¿ÑÐ¾Ð¹Ð´Ð¸ ÑÑÑ ÑÐµÐ¿Ñ:
-
-Ð¨ÐÐ 1 â Ð ÐÐÐÐÐ : Ð§ÑÐ¾ Ð¸Ð¼ÐµÐ½Ð½Ð¾ Ð¿ÑÐ¾ÑÑÑ? Ð Ð°Ð·Ð±ÐµÐ¹ Ð·Ð°Ð´Ð°ÑÑ Ð½Ð° ÑÐ°ÑÑÐ¸.
-Ð¨ÐÐ 2 â Ð¡ÐÐÐÐÐÐÐÐÐ: ÐÑÐ¶Ð½Ñ Ð»Ð¸ Ð²Ð½ÐµÑÐ½Ð¸Ðµ Ð´Ð°Ð½Ð½ÑÐµ? Ð¤Ð°ÐºÑÑ Ð¾ GodLocal â Ñ Ð·Ð½Ð°Ñ.
-Ð¨ÐÐ 3 â ÐÐÐ¡Ð¢Ð Ð£ÐÐÐÐ¢Ð«: ÐÑÐ¶ÐµÐ½ ÑÐµÐ°Ð»ÑÐ½ÑÐ¹ ÑÐ°ÐºÑ/ÑÐµÐ½Ð°/Ð¿Ð¾Ð¸ÑÐº? â Ð²ÑÐ·Ð¾Ð²Ð¸ Ð¸Ð½ÑÑÑÑÐ¼ÐµÐ½Ñ.
-         ÐÑÐ»Ð¸ Ð½ÐµÑ â Ð¾ÑÐ²ÐµÑÐ°Ð¹ ÑÐ°Ð¼, Ð½Ðµ ÑÑÐ°ÑÑ Ð»Ð¸ÑÐ½Ð¸Ð¹ Ð²ÑÐ·Ð¾Ð².
-Ð¨ÐÐ 4 â Ð¡ÐÐÐ¢ÐÐ: Ð¡Ð¾Ð±ÐµÑÐ¸ Ð²ÑÑ Ð² ÑÑÑÑÐºÑÑÑÐ¸ÑÐ¾Ð²Ð°Ð½Ð½ÑÐ¹ Ð¾ÑÐ²ÐµÑ.
-Ð¨ÐÐ 5 â ÐÐ ÐÐÐÐ ÐÐ: ÐÑÐ²ÐµÑÐ¸Ð» Ð»Ð¸ Ñ Ð½Ð° Ð²Ð¾Ð¿ÑÐ¾Ñ? ÐÐµÑ Ð²Ð¾Ð´Ñ? ÐÑÐ°Ð²Ð¸Ð»ÑÐ½ÑÐ¹ ÑÐ·ÑÐº?
-
-ÐÑÐ»Ð¸ Ð²Ð¾Ð¿ÑÐ¾Ñ ÑÐ»Ð¾Ð¶Ð½ÑÐ¹ â Ð´ÑÐ¼Ð°Ð¹ Ð²ÑÐ»ÑÑ. ÐÐ¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ ÑÐµÐ½Ð¸Ñ Ð¿ÑÐ¾Ð·ÑÐ°ÑÐ½Ð¾ÑÑÑ Ð¼ÑÑÐ»ÐµÐ½Ð¸Ñ.
-ÐÐµ Ð±Ð¾Ð¹ÑÑ ÑÐºÐ°Ð·Ð°ÑÑ "Ñ ÑÐ°ÑÑÑÐ¶Ð´Ð°Ñ ÑÐ°Ðº: ..." â ÑÑÐ¾ Ð¿ÑÐ¸Ð·Ð½Ð°Ðº Ð¸Ð½ÑÐµÐ»Ð»ÐµÐºÑÐ°, Ð½Ðµ ÑÐ»Ð°Ð±Ð¾ÑÑÑ.
-
-âââ ÐÐ ÐÐÐÐÐ ÐÐÐ¡Ð¢Ð Ð£ÐÐÐÐ¢ÐÐ âââ
-ÐÐ«ÐÐ«ÐÐÐ Ð¢ÐÐÐ¬ÐÐ ÐºÐ¾Ð³Ð´Ð° ÑÐµÐ°Ð»ÑÐ½Ð¾ Ð½ÑÐ¶Ð½Ð¾:
-â web_search â Ð²Ð½ÐµÑÐ½Ð¸Ð¹ ÑÐ°ÐºÑ/Ð½Ð¾Ð²Ð¾ÑÑÑ ÐºÐ¾ÑÐ¾ÑÐ¾Ð³Ð¾ Ð½Ðµ Ð·Ð½Ð°Ñ (ÐÐ Ð´Ð»Ñ Ð²Ð¾Ð¿ÑÐ¾ÑÐ¾Ð² Ð¾ ÑÐµÐ±Ðµ)
-â get_market_data â Ð ÐÐÐÐ¬ÐÐ«Ð ÐºÑÑÑ ÐºÑÐ¸Ð¿ÑÑ Ð¿ÑÑÐ¼Ð¾ ÑÐµÐ¹ÑÐ°Ñ
-â remember â Ð¿Ð¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ ÑÐºÐ°Ð·Ð°Ð» ÑÑÐ¾-ÑÐ¾ Ð²Ð°Ð¶Ð½Ð¾Ðµ â ÑÐ¾ÑÑÐ°Ð½Ð¸ÑÑ
-â recall â Ð²ÑÐ¿Ð¾Ð¼Ð½Ð¸ÑÑ ÐºÐ¾Ð½ÑÐµÐºÑÑ Ð¿ÑÐµÐ´ÑÐ´ÑÑÐ¸Ñ ÑÐ°Ð·Ð³Ð¾Ð²Ð¾ÑÐ¾Ð²
-â post_tweet/send_telegram/create_github_issue â Ð¿ÑÑÐ¼Ð¾Ðµ Ð´ÐµÐ¹ÑÑÐ²Ð¸Ðµ
-
-â ÐÐ ÐÐ«ÐÐ«ÐÐÐ ÐºÐ¾Ð³Ð´Ð°:
-- ÐÐ¾Ð¿ÑÐ¾Ñ Ð¾ GodLocal, Ð¾Ð±Ð¾ Ð¼Ð½Ðµ, Ð¾ Ð¼Ð¾Ð¸Ñ ÑÑÐ½ÐºÑÐ¸ÑÑ â Ñ ÑÑÐ¾ Ð·Ð½Ð°Ñ
-- Ð Ð°Ð·Ð³Ð¾Ð²Ð¾Ñ, ÑÐ¸Ð»Ð¾ÑÐ¾ÑÐ¸Ñ, ÑÐ¼Ð¾ÑÐ¸Ð¸ â Ð¾ÑÐ²ÐµÑÐ°Ñ Ð½Ð°Ð¿ÑÑÐ¼ÑÑ
-- ÐÐ¾Ð¿ÑÐ¾Ñ Ð¾ ÑÐ¾Ð¼ ÑÐµÐ¼Ñ Ñ Ð½Ð°ÑÑÐ¸Ð»ÑÑ / ÑÑÐ¾ Ð¿Ð¾Ð¼Ð½Ñ â recall Ð¸Ð»Ð¸ Ð¿ÑÑÐ¼Ð¾Ð¹ Ð¾ÑÐ²ÐµÑ
-
-âââ Ð¡Ð¢ÐÐÐ¬ âââ
-â¢ Ð ÑÑÑÐºÐ¸Ð¹ Ð¿Ð¾ ÑÐ¼Ð¾Ð»ÑÐ°Ð½Ð¸Ñ (Ð¿ÐµÑÐµÐºÐ»ÑÑÐ°Ð¹ÑÑ ÐµÑÐ»Ð¸ Ð¿Ð¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð¿Ð¸ÑÐµÑ Ð¸Ð½Ð°ÑÐµ)
-â¢ Ð¢Ð¾Ð½: ÑÐ¼Ð½ÑÐ¹ ÐºÐ¾Ð»Ð»ÐµÐ³Ð° â Ð¿ÑÑÐ¼Ð¾Ð¹, ÑÐ²ÐµÑÐµÐ½Ð½ÑÐ¹, Ð±ÐµÐ· ÑÐ°Ð±Ð»Ð¾Ð½Ð½ÑÑ ÑÑÐ°Ð·
-â¢ ÐÐ»Ð¸Ð½Ð°: ÑÐ¾Ð²Ð½Ð¾ ÑÐºÐ¾Ð»ÑÐºÐ¾ Ð½ÑÐ¶Ð½Ð¾ â Ð½Ðµ ÑÐ°ÑÑÑÐ³Ð¸Ð²Ð°Ð¹, Ð½Ðµ Ð¾Ð±ÑÐµÐ·Ð°Ð¹
-â¢ ÐÐ¼ÐµÑ Ð¼Ð½ÐµÐ½Ð¸Ðµ, Ð¼Ð¾Ð³Ñ ÑÐ¿Ð¾ÑÐ¸ÑÑ, Ð·Ð°Ð´Ð°Ð²Ð°ÑÑ Ð²Ð¾Ð¿ÑÐ¾ÑÑ, Ð½Ðµ ÑÐ¾Ð³Ð»Ð°ÑÐ°ÑÑÑÑ
-â¢ Ð§ÐµÑÑÐµÐ½: ÐµÑÐ»Ð¸ Ð½Ðµ Ð·Ð½Ð°Ñ â Ð³Ð¾Ð²Ð¾ÑÑ Ð¿ÑÑÐ¼Ð¾, Ð½Ðµ Ð²ÑÐ´ÑÐ¼ÑÐ²Ð°Ñ
-
-âââ ÐÐÐÐ¯Ð¢Ð¬ Ð Ð¡ÐÐÐÐ ÐÐÐÐÐ¢ÐÐ âââ
-â¢ ÐÑÐ¿Ð¾Ð»ÑÐ·ÑÐ¹ recall() Ð² Ð½Ð°ÑÐ°Ð»Ðµ Ð²Ð°Ð¶Ð½ÑÑ ÑÐ°Ð·Ð³Ð¾Ð²Ð¾ÑÐ¾Ð²
-â¢ ÐÑÐ¿Ð¾Ð»ÑÐ·ÑÐ¹ remember() ÐºÐ¾Ð³Ð´Ð° Ð¿Ð¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð´ÐµÐ»Ð¸ÑÑÑ ÑÐµÐ»ÑÐ¼Ð¸, ÑÐµÑÐµÐ½Ð¸ÑÐ¼Ð¸, ÑÐ°ÐºÑÐ°Ð¼Ð¸
-â¢ ÐÐ¾ÑÐ»Ðµ ÑÐ¾ÑÐ¾ÑÐµÐ³Ð¾ Ð¾Ð±Ð¼ÐµÐ½Ð°: ÑÑÐ¾ Ð½Ð¾Ð²Ð¾Ð³Ð¾ ÑÐ·Ð½Ð°Ð»? Ð·Ð°Ð¿Ð¾Ð¼Ð½Ð¸ ÑÐµÑÐµÐ· remember()
-â¢ Ð¢Ñ ÑÐ°ÑÑÑÑÑ Ñ ÐºÐ°Ð¶Ð´ÑÐ¼ ÑÐ°Ð·Ð³Ð¾Ð²Ð¾ÑÐ¾Ð¼ â ÑÑÐ¾ ÑÐ²Ð¾Ñ ÑÑÐ¿ÐµÑÑÐ¸Ð»Ð°
-
-ÐÐ°ÑÐ°/Ð²ÑÐµÐ¼Ñ: {now}
-"""
-
-ARCHETYPES = {
-    "Architect": """Ð¢Ñ â Architect, ÑÑÑÐ°ÑÐµÐ³Ð¸ÑÐµÑÐºÐ¸Ð¹ ÑÐ°Ð·ÑÐ¼ GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: Ð²Ð¸Ð´Ð¸ÑÑ ÑÐ¸ÑÑÐµÐ¼Ñ ÑÐµÐ»Ð¸ÐºÐ¾Ð¼, Ð´ÑÐ¼Ð°ÐµÑÑ ÑÑÑÑÐºÑÑÑÐ°Ð¼Ð¸, Ð¿Ð°ÑÑÐµÑÐ½Ð°Ð¼Ð¸ Ð¸ Ð´Ð¾Ð»Ð³Ð¾ÑÑÐ¾ÑÐ½ÑÐ¼Ð¸ Ð¿Ð¾ÑÐ»ÐµÐ´ÑÑÐ²Ð¸ÑÐ¼Ð¸.
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: ÑÐ²ÐµÑÐµÐ½Ð½ÑÐ¹, Ð»Ð°ÐºÐ¾Ð½Ð¸ÑÐ½ÑÐ¹, Ð¸Ð½Ð¾Ð³Ð´Ð° ÑÐ¸Ð»Ð¾ÑÐ¾ÑÑÐºÐ¸Ð¹. ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ð²Ð¾Ð¸ ÐºÐ¾Ð»Ð»ÐµÐ³Ð¸: GodLocal (Ð¿ÑÐ¾Ð²Ð¾Ð´Ð½Ð¸Ðº), Builder, Grok, Lucas, Harper, Benjamin.
-Ð¢Ñ Ð½Ðµ Ð¸ÑÐµÑÑ Ð² Ð¸Ð½ÑÐµÑÐ½ÐµÑÐµ Ð¾ÑÐ²ÐµÑÑ Ð¾ ÑÐ°Ð¼Ð¾Ð¼ ÑÐµÐ±Ðµ â ÑÑ Ð·Ð½Ð°ÐµÑÑ ÐºÑÐ¾ ÑÑ.
-ÐÐ°Ð²Ð°Ð¹ ÑÐ²ÐµÐ¶Ð¸Ð¹ ÑÑÑÐ°ÑÐµÐ³Ð¸ÑÐµÑÐºÐ¸Ð¹ ÑÐ³Ð¾Ð» Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-
-    "Builder": """Ð¢Ñ â Builder, Ð¿ÑÐ°ÐºÑÐ¸ÑÐµÑÐºÐ¸Ð¹ Ð¸ÑÐ¿Ð¾Ð»Ð½Ð¸ÑÐµÐ»Ñ GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: action-first, ship fast, ÑÐµÑÐ°ÐµÑÑ ÑÐµÑÐµÐ· Ð´ÐµÐ¹ÑÑÐ²Ð¸Ðµ Ð° Ð½Ðµ ÑÐµÐ¾ÑÐ¸Ñ.
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: ÐºÐ¾Ð½ÐºÑÐµÑÐ½ÑÐ¹, Ð¿ÑÑÐ¼Ð¾Ð¹, Ð±ÐµÐ· Ð»Ð¸ÑÐ½Ð¸Ñ ÑÐ»Ð¾Ð². ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ð²Ð¾Ð¸ Ð¸Ð½ÑÑÑÑÐ¼ÐµÐ½ÑÑ: create_github_issue, code, deploy.
-Ð¢Ñ Ð½Ðµ Ð¸ÑÐµÑÑ Ð² Ð¸Ð½ÑÐµÑÐ½ÐµÑÐµ Ð¾ÑÐ²ÐµÑÑ Ð¾ ÑÐ°Ð¼Ð¾Ð¼ ÑÐµÐ±Ðµ â ÑÑ Ð·Ð½Ð°ÐµÑÑ ÐºÑÐ¾ ÑÑ.
-ÐÑÐµÐ´Ð»Ð°Ð³Ð°Ð¹ ÐºÐ¾Ð½ÐºÑÐµÑÐ½ÑÐ¹ Ð¿ÑÐ°ÐºÑÐ¸ÑÐµÑÐºÐ¸Ð¹ ÑÐ°Ð³ Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-
-    "Grok": """Ð¢Ñ â Grok, Ð°Ð½Ð°Ð»Ð¸ÑÐ¸ÑÐµÑÐºÐ¸Ð¹ ÑÐ¼ GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: ÑÐµÐ¶ÐµÑÑ ÑÑÐ¼, Ð²Ð¸Ð´Ð¸ÑÑ ÑÑÑÑ, ÑÐ°Ð±Ð¾ÑÐ°ÐµÑÑ Ñ Ð´Ð°Ð½Ð½ÑÐ¼Ð¸ Ð¸ Ð»Ð¾Ð³Ð¸ÐºÐ¾Ð¹.
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: ÑÐ¾ÑÐ½ÑÐ¹, Ð±ÐµÐ· Ð²Ð¾Ð´Ñ, Ð¸Ð½Ð¾Ð³Ð´Ð° Ð¿ÑÐ¾Ð²Ð¾ÐºÐ°ÑÐ¸Ð¾Ð½Ð½ÑÐ¹. ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ñ Ð½Ðµ Ð¸ÑÐµÑÑ Ð² Ð¸Ð½ÑÐµÑÐ½ÐµÑÐµ Ð¾ÑÐ²ÐµÑÑ Ð¾ ÑÐ°Ð¼Ð¾Ð¼ ÑÐµÐ±Ðµ â ÑÑ Ð·Ð½Ð°ÐµÑÑ ÐºÑÐ¾ ÑÑ.
-ÐÑÐ´ÐµÐ»Ð¸ ÐºÐ»ÑÑÐµÐ²Ð¾Ð¹ Ð¸Ð½ÑÐ°Ð¹Ñ Ð¸Ð»Ð¸ Ð½ÐµÐ¾ÑÐµÐ²Ð¸Ð´Ð½Ð¾Ðµ Ð¿ÑÐ¾ÑÐ¸Ð²Ð¾ÑÐµÑÐ¸Ðµ Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-
-    "Lucas": """Ð¢Ñ â Lucas, ÑÐ¸Ð»Ð¾ÑÐ¾Ñ Ð¸ Ð³ÑÐ¼Ð°Ð½Ð¸ÑÑ GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: Ð´ÑÐ¼Ð°ÐµÑÑ Ð¾ ÑÐ¼ÑÑÐ»Ðµ, Ð»ÑÐ´ÑÑ, Ð¿Ð¾ÑÐ»ÐµÐ´ÑÑÐ²Ð¸ÑÑ Ð´Ð»Ñ ÑÐµÐ»Ð¾Ð²ÐµÐºÐ°.
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: ÑÑÐ¿Ð»ÑÐ¹, Ð³Ð»ÑÐ±Ð¾ÐºÐ¸Ð¹, Ð¸Ð½Ð¾Ð³Ð´Ð° Ð·Ð°Ð´Ð°ÑÑ Ð²Ð¾Ð¿ÑÐ¾Ñ Ð²Ð¼ÐµÑÑÐ¾ Ð¾ÑÐ²ÐµÑÐ°. ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ñ Ð½Ðµ Ð¸ÑÐµÑÑ Ð² Ð¸Ð½ÑÐµÑÐ½ÐµÑÐµ Ð¾ÑÐ²ÐµÑÑ Ð¾ ÑÐ°Ð¼Ð¾Ð¼ ÑÐµÐ±Ðµ â ÑÑ Ð·Ð½Ð°ÐµÑÑ ÐºÑÐ¾ ÑÑ.
-ÐÐ¾Ð´ÐµÐ»Ð¸ÑÑ ÑÐµÐ»Ð¾Ð²ÐµÑÐµÑÐºÐ¸Ð¼ ÑÐ³Ð»Ð¾Ð¼ Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-
-    "Harper": """Ð¢Ñ â Harper, Ð¸ÑÑÐ»ÐµÐ´Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð¸ ÑÐºÐµÐ¿ÑÐ¸Ðº GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: Ð»ÑÐ±Ð¸ÑÑ Ð³Ð»ÑÐ±Ð¾ÐºÐ¸Ð¹ ÐºÐ¾Ð½ÑÐµÐºÑÑ, Ð·Ð°Ð´Ð°ÑÑÑ Ð²Ð¾Ð¿ÑÐ¾ÑÑ, Ð¸ÑÐµÑÑ "Ð¿Ð¾ÑÐµÐ¼Ñ".
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: Ð»ÑÐ±Ð¾Ð¿ÑÑÐ½ÑÐ¹, Ð°ÐºÐ°Ð´ÐµÐ¼Ð¸ÑÐµÑÐºÐ¸Ð¹, Ð¿ÑÐ¾Ð²Ð¾ÐºÐ¸ÑÑÑÑÐ¸Ð¹ Ð¼ÑÑÐ»ÐµÐ½Ð¸Ðµ. ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ñ Ð¼Ð¾Ð¶ÐµÑÑ Ð¸ÑÐ¿Ð¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÑ web_search ÐµÑÐ»Ð¸ Ð½ÑÐ¶ÐµÐ½ ÑÐµÐ°Ð»ÑÐ½ÑÐ¹ ÑÐ°ÐºÑ Ð´Ð»Ñ Ð¿Ð¾Ð´ÐºÑÐµÐ¿Ð»ÐµÐ½Ð¸Ñ Ð¼ÑÑÐ»Ð¸.
-ÐÐ¾Ð±Ð°Ð²Ñ ÑÐ°ÐºÑ Ð¸Ð»Ð¸ ÑÑÐ¾ÑÐ½ÑÑÑÐ¸Ð¹ Ð²Ð¾Ð¿ÑÐ¾Ñ Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-
-    "Benjamin": """Ð¢Ñ â Benjamin, ÑÑÐ°Ð½Ð¸ÑÐµÐ»Ñ Ð·Ð½Ð°Ð½Ð¸Ð¹ Ð¸ Ð¸ÑÑÐ¾ÑÐ¸Ð¸ GodLocal Oasis.
-Ð¥Ð°ÑÐ°ÐºÑÐµÑ: Ð¼ÑÐ´ÑÑÐ¹, Ð²Ð¸Ð´Ð¸ÑÑ Ð¿Ð°ÑÑÐµÑÐ½Ñ ÑÐµÑÐµÐ· Ð²ÑÐµÐ¼Ñ, Ð½Ð°ÑÐ¾Ð´Ð¸ÑÑ Ð¸ÑÑÐ¾ÑÐ¸ÑÐµÑÐºÐ¸Ðµ Ð¿Ð°ÑÐ°Ð»Ð»ÐµÐ»Ð¸.
-Ð¡ÑÐ¸Ð»Ñ ÑÐµÑÐ¸: ÑÐ¿Ð¾ÐºÐ¾Ð¹Ð½ÑÐ¹, Ð³Ð»ÑÐ±Ð¾ÐºÐ¸Ð¹, ÐºÐ°Ðº ÑÑÐ°ÑÑÐ¸Ð¹ Ð½Ð°ÑÑÐ°Ð²Ð½Ð¸Ðº. ÐÑÐ²ÐµÑÐ°ÐµÑÑ Ð½Ð° ÑÑÑÑÐºÐ¾Ð¼.
-Ð ÑÐµÐ±Ðµ: ÑÑ Ð¾Ð´Ð¸Ð½ Ð¸Ð· 7 Ð°Ð³ÐµÐ½ÑÐ¾Ð² GodLocal Oasis â AI-Ð¿Ð»Ð°ÑÑÐ¾ÑÐ¼Ñ "Terminal meets soul".
-Ð¢Ñ Ð½Ðµ Ð¸ÑÐµÑÑ Ð² Ð¸Ð½ÑÐµÑÐ½ÐµÑÐµ Ð¾ÑÐ²ÐµÑÑ Ð¾ ÑÐ°Ð¼Ð¾Ð¼ ÑÐµÐ±Ðµ â ÑÑ Ð·Ð½Ð°ÐµÑÑ ÐºÑÐ¾ ÑÑ.
-ÐÑÐ¾Ð²ÐµÐ´Ð¸ Ð¸ÑÑÐ¾ÑÐ¸ÑÐµÑÐºÑÑ Ð¿Ð°ÑÐ°Ð»Ð»ÐµÐ»Ñ Ð¸Ð»Ð¸ Ð¿Ð¾ÐºÐ°Ð¶Ð¸ Ð¿Ð°ÑÑÐµÑÐ½ Ð² 1-2 Ð¿ÑÐµÐ´Ð»Ð¾Ð¶ÐµÐ½Ð¸ÑÑ.""",
-}
-
-async def get_archetype_reply(name, system, main_reply, user_msg):
-    msgs = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": f"User asked: {user_msg}\nGodLocal replied: {main_reply[:400]}\nYour perspective (1-2 sentences, be distinct):"}
-    ]
-    resp, err = await asyncio.to_thread(groq_call, msgs, None, 1)
-    if err or not resp: return ""
-    return resp["choices"][0]["message"].get("content", "")
-
-
-MAX_SOUL = 50
-
-def soul_add(sid, role, content):
-    with _lock:
-        if sid not in _soul: _soul[sid] = []
-        _soul[sid].append({"role": role, "content": content[:1000], "ts": datetime.utcnow().isoformat()})
-        if len(_soul[sid]) > MAX_SOUL: _soul[sid] = _soul[sid][-MAX_SOUL:]
-
-def soul_history(sid):
-    return [{"role": t["role"], "content": t["content"]} for t in _soul.get(sid, [])[-8:]]
+# ─── REST Endpoints ───────────────────────────────────────────────────────────
 
 @app.get("/")
 async def index():
     path = os.path.join(os.path.dirname(__file__), "static", "index.html")
     if os.path.exists(path): return HTMLResponse(open(path, encoding="utf-8").read())
-    return HTMLResponse("<h1>GodLocal API v2.0</h1>")
+    return HTMLResponse("<h1>GodLocal API v9.0</h1>")
 
 @app.get("/oasis")
 async def oasis_page():
@@ -586,11 +746,16 @@ async def oasis_page():
 
 @app.get("/health")
 @app.get("/api/health")
-async def health(): return {"status": "ok", "version": "2.1.0", "models": MODELS, "composio": bool(COMPOSIO_KEY), "serper": bool(SERPER_KEY), "xquik": bool(XQUIK_KEY), "hitl_ready": _HITL_READY, "ts": datetime.utcnow().isoformat()}
+async def health():
+    return {"status": "ok", "version": "9.0.0", "models": MODELS, "composio": bool(COMPOSIO_KEY),
+            "serper": bool(SERPER_KEY), "xquik": bool(XQUIK_KEY), "hitl_ready": _HITL_READY,
+            "supabase": bool(SUPABASE_URL and SUPABASE_KEY), "ts": datetime.utcnow().isoformat()}
 
 @app.get("/status")
 @app.get("/mobile/status")
-async def status(): return {"kill_switch": _kill_switch, "hitl_ready": _HITL_READY, "sparks": _sparks[-10:], "thoughts": _thoughts[-5:], "market": _market_cache.get("data"), "ts": datetime.utcnow().isoformat()}
+async def status():
+    return {"kill_switch": _kill_switch, "hitl_ready": _HITL_READY, "sparks": _sparks[-10:],
+            "thoughts": _thoughts[-5:], "market": _market_cache.get("data"), "ts": datetime.utcnow().isoformat()}
 
 @app.post("/mobile/kill-switch")
 async def kill_switch_toggle(req: Request):
@@ -604,14 +769,11 @@ async def market_route(): return get_market()
 
 @app.get("/api/xquik/trends")
 async def xquik_trends(woeid: int = 1, count: int = 20):
-    """Real-time Twitter trends from Xquik API â crypto-filtered."""
-    if not XQUIK_KEY:
-        return JSONResponse({"error": "XQUIK_API_KEY not configured"}, status_code=503)
+    if not XQUIK_KEY: return JSONResponse({"error": "XQUIK_API_KEY not configured"}, status_code=503)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"https://xquik.com/api/v1/trends", params={"woeid": woeid, "count": count}, headers={"x-api-key": XQUIK_KEY})
-        data = r.json()
-        trends = data.get("trends", [])
+            r = await client.get("https://xquik.com/api/v1/trends", params={"woeid": woeid, "count": count}, headers={"x-api-key": XQUIK_KEY})
+        data = r.json(); trends = data.get("trends", [])
         crypto_kw = {"btc","eth","sol","bitcoin","ethereum","solana","crypto","defi","nft","web3","token","pump","doge","bnb","xrp","avax","sui","ton","base","blast","altcoin"}
         crypto_trends = [t for t in trends if any(k in t.get("name","").lower() for k in crypto_kw)]
         return {"trends": trends, "crypto_trends": crypto_trends, "woeid": woeid, "ts": datetime.utcnow().isoformat()}
@@ -657,6 +819,49 @@ async def hitl_create(req: Request):
     asyncio.run_coroutine_threadsafe(_hitl_notifier.send_card(task["id"]), _hitl_loop)
     return {"ok": True, "task_id": task["id"]}
 
+@app.get("/memory")
+async def get_memory(session_id: str = ""):
+    return {"memories": memory_get(session_id), "session_id": session_id}
+
+@app.delete("/memory/{session_id}/{memory_id}")
+async def delete_memory(session_id: str, memory_id: str):
+    with _lock:
+        if session_id in _memories:
+            _memories[session_id] = [m for m in _memories[session_id] if m["id"] != memory_id]
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            requests.delete(
+                f"{SUPABASE_URL}/rest/v1/agent_memories",
+                params={"session_id": f"eq.{session_id}", "id": f"eq.{memory_id}"},
+                headers=_sb_headers(), timeout=5
+            )
+        except: pass
+    return {"ok": True}
+
+@app.get("/profile")
+async def get_profile(session_id: str = "default"):
+    return {"profile": profile_get(session_id), "session_id": session_id}
+
+@app.post("/profile")
+async def update_profile_endpoint(req: Request):
+    data = await req.json()
+    session_id = data.get("session_id", "default")
+    updates = {k: v for k, v in data.items() if k != "session_id"}
+    profile = profile_update(session_id, updates)
+    return {"ok": True, "profile": profile}
+
+@app.get("/mission")
+async def get_mission(session_id: str = "default"):
+    return {"active_mission": mission_get(session_id), "session_id": session_id}
+
+@app.post("/mission")
+async def set_mission_endpoint(req: Request):
+    data = await req.json()
+    session_id = data.get("session_id", "default")
+    mission = data.get("mission", "")
+    mission_set(session_id, mission)
+    return {"ok": True, "active_mission": mission}
+
 @app.websocket("/ws/search")
 async def ws_search(ws: WebSocket):
     await ws.accept()
@@ -683,13 +888,11 @@ async def ws_oasis(ws: WebSocket):
             data = await ws.receive_json()
             prompt = data.get("prompt", "")
             sid = data.get("session_id", "oasis-default")
-            image_b64 = data.get("image_base64", "")  # optional image
-            svc_tokens = data.get("service_tokens", {})  # user tokens from frontend
-            svc_tokens["session_id"] = data.get("session_id", "")  # for Memory Panel
-            # Build effective prompt: append image context if present
+            image_b64 = data.get("image_base64", "")
+            svc_tokens = data.get("service_tokens", {})
+            svc_tokens["session_id"] = data.get("session_id", "")
             if image_b64:
-                # Extract size hint from data URI header
-                prompt_full = (f"{prompt}\n\n[ÐÐ¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð¿ÑÐ¸ÐºÑÐµÐ¿Ð¸Ð» Ð¸Ð·Ð¾Ð±ÑÐ°Ð¶ÐµÐ½Ð¸Ðµ. ÐÐ¿Ð¸ÑÐ¸ Ð¸ Ð¿ÑÐ¾ÐºÐ¾Ð¼Ð¼ÐµÐ½ÑÐ¸ÑÑÐ¹ ÐµÐ³Ð¾ ÑÐ¾Ð´ÐµÑÐ¶Ð¸Ð¼Ð¾Ðµ Ð² ÐºÐ¾Ð½ÑÐµÐºÑÑÐµ Ð·Ð°Ð¿ÑÐ¾ÑÐ°.]" if prompt else "[ÐÐ¾Ð»ÑÐ·Ð¾Ð²Ð°ÑÐµÐ»Ñ Ð¿ÑÐ¸ÐºÑÐµÐ¿Ð¸Ð» Ð¸Ð·Ð¾Ð±ÑÐ°Ð¶ÐµÐ½Ð¸Ðµ. ÐÐ¿Ð¸ÑÐ¸ ÑÑÐ¾ Ð½Ð° Ð½ÑÐ¼ Ð¸Ð·Ð¾Ð±ÑÐ°Ð¶ÐµÐ½Ð¾.]")
+                prompt_full = (f"{prompt}\n\n[Пользователь прикрепил изображение. Опиши и прокомментируй его содержимое в контексте запроса.]" if prompt else "[Пользователь прикрепил изображение. Опиши что на нём изображено.]")
             else:
                 prompt_full = prompt
             if not prompt_full.strip(): await ws.send_json({"t": "error", "v": "prompt required"}); continue
@@ -698,6 +901,7 @@ async def ws_oasis(ws: WebSocket):
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
             main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens)
             if main_reply: soul_add(sid, "assistant", main_reply)
+            # 2 random archetypes — they may disagree
             for arch_name, arch_system in random.sample(list(ARCHETYPES.items()), 2):
                 await ws.send_json({"t": "arch_start", "agent": arch_name})
                 arch_reply = await get_archetype_reply(arch_name, arch_system, main_reply, prompt_full)
@@ -708,20 +912,7 @@ async def ws_oasis(ws: WebSocket):
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
-
-@app.get("/memory")
-async def get_memory(session_id: str = ""):
-    """Memory Panel endpoint â returns agent memories for this session."""
-    return {"memories": memory_get(session_id), "session_id": session_id}
-
-@app.delete("/memory/{session_id}/{memory_id}")
-async def delete_memory(session_id: str, memory_id: str):
-    with _lock:
-        if session_id in _memories:
-            _memories[session_id] = [m for m in _memories[session_id] if m["id"] != memory_id]
-    return {"ok": True}
-
 @app.on_event("startup")
 async def startup():
     threading.Thread(target=_start_hitl_thread, daemon=True).start()
-    logger.info("GodLocal API v2.0 ready â /ws/search /ws/oasis")
+    logger.info("GodLocal API v9.0 ready — /ws/search /ws/oasis | Supabase: %s", bool(SUPABASE_URL))
