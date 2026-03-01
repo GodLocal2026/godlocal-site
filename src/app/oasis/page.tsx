@@ -468,27 +468,8 @@ export default function OasisPage() {
           <span className="text-[#00FF9D] font-bold tracking-[0.2em] text-sm shrink-0">OASIS</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Status dot only — no text */}
+          {/* Status dot */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
-          {/* Services */}
-          <button onClick={() => { setShowSkills(s => !s); setShowAgents(false); setShowAccounts(false) }}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showSkills ? 'border-[#00FF9D]/50 bg-[#00FF9D]/10 text-[#00FF9D]' : 'border-[#1a2535] text-gray-600 hover:text-[#00FF9D]'}`}
-            title="Навыки агента"><span className="text-sm">⚡</span>
-          </button>
-          <button onClick={() => { setShowAccounts(a => !a); setShowAgents(false); setShowSkills(false) }}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showAccounts ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#1a2535] text-[#6C5CE7] opacity-60 active:opacity-100'}`}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-            </svg>
-          </button>
-          <button onClick={() => { setShowMemory(m => !m); if (!showMemory) fetchMemory() }}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showMemory ? 'border-[#00FF9D]/50 bg-[#00FF9D]/10 text-[#00FF9D]' : 'border-[#1a2535] text-gray-600 hover:text-gray-400'}`}
-            title="Память агента"><span className="text-sm">🧠</span>
-          </button>
-          <button onClick={() => setShowArtifacts(a => !a)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showArtifacts ? 'border-[#FDCB6E]/50 bg-[#FDCB6E]/10 text-[#FDCB6E]' : 'border-[#1a2535] text-gray-600 hover:text-gray-400'}`}
-            title="Галерея артефактов"><span className="text-sm">☆</span>
-          </button>
           {/* Agent selector — icon + name only, no XP clutter */}
           <button onClick={() => { setShowAgents(a => !a); setShowAccounts(false) }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
@@ -499,6 +480,7 @@ export default function OasisPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
+          </div>{/* end items-end row */}
         </div>
       </div>
 
@@ -837,8 +819,30 @@ export default function OasisPage() {
       {/* ── Input bar ───────────────────────────────────────────────────────── */}
       <div className="shrink-0 bg-[#030508] px-3 py-2.5"
         style={{paddingBottom:'max(env(safe-area-inset-bottom),10px)'}}>
-        <div className="flex items-end gap-2 bg-[#07090f] border border-[#111827] rounded-2xl px-2 py-2
+        <div className="flex flex-col bg-[#07090f] border border-[#111827] rounded-2xl overflow-hidden
                         focus-within:border-[#1a2535] transition-colors">
+
+          {/* ── Toolbar row ── */}
+          <div className="flex items-center gap-1.5 px-1 pt-1 pb-2 border-b border-[#0d1320] overflow-x-auto scrollbar-none w-full" style={{flexShrink:0}}>
+            {[
+              { id:'skills',    icon:'⚡', label:'Навыки',   color:'#00FF9D', active: showSkills,
+                onClick: () => { setShowSkills(s=>!s); setShowAccounts(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'accounts',  icon:'🔗', label:'Сервисы',  color:'#6C5CE7', active: showAccounts,
+                onClick: () => { setShowAccounts(a=>!a); setShowSkills(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'memory',    icon:'🧠', label:'Память',   color:'#00FF9D', active: showMemory,
+                onClick: () => { setShowMemory(m=>!m); setShowSkills(false); setShowAccounts(false); setShowArtifacts(false); if (!showMemory) fetchMemory() } },
+              { id:'artifacts', icon:'☆',  label:'Галерея',  color:'#FDCB6E', active: showArtifacts,
+                onClick: () => { setShowArtifacts(a=>!a); setShowSkills(false); setShowAccounts(false); setShowMemory(false) } },
+            ].map(b => (
+              <button key={b.id} onClick={b.onClick}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-all active:scale-95 ${b.active ? 'border-transparent text-[#030508]' : 'border-[#1a2535] text-gray-500 hover:text-gray-300'}`}
+                style={b.active ? {background: b.color} : {}}>
+                <span style={{fontSize:12}}>{b.icon}</span>
+                <span>{b.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2 w-full px-2 py-2">
 
           {/* Attach files */}
           <button onClick={() => fileRef.current?.click()}
