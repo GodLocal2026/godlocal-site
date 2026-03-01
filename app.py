@@ -147,7 +147,8 @@ XQUIK_TOOLS = [
 
 def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else [])
 
-def run_tool(name, args):
+def run_tool(name, args, svc_tokens: dict | None = None):
+    svc_tokens = svc_tokens or {}
     global _kill_switch
     if name == "get_market_data": return json.dumps(get_market())
     if name == "get_system_status": return json.dumps({"kill_switch": _kill_switch, "hitl_ready": _HITL_READY, "sparks": len(_sparks), "thoughts": len(_thoughts), "models": MODELS, "serper": bool(SERPER_KEY)})
@@ -202,6 +203,15 @@ def run_tool(name, args):
     try:
         if name == "post_tweet":
             text = args.get("text", "")
+            tw_token = svc_tokens.get("twitter") if svc_tokens else None
+            if tw_token:
+                # Use user's Twitter Bearer token directly via Twitter API v2
+                r = requests.post("https://api.twitter.com/2/tweets",
+                    json={"text": text},
+                    headers={"Authorization": f"Bearer {tw_token}", "Content-Type": "application/json"},
+                    timeout=15)
+                result = r.json()
+                return json.dumps({"ok": r.status_code < 300, "via": "user_token", "data": result})
             if _HITL_READY and _hitl_tq and _hitl_notifier and _hitl_loop:
                 task = _hitl_tq.create(title="Tweet @kitbtc", executor="human", draft_type="social_draft", draft_data={"platform": "twitter", "message": text}, why_human="Agent wants to tweet")
                 asyncio.run_coroutine_threadsafe(_hitl_notifier.send_card(task["id"]), _hitl_loop)
@@ -209,13 +219,34 @@ def run_tool(name, args):
             r = requests.post(f"{base}/TWITTER_CREATION_OF_A_POST/execute", json={"input": {"text": text}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
         if name == "send_telegram":
+            text = args.get("text", "")
+            tg_token = svc_tokens.get("telegram") if svc_tokens else None
+            if tg_token:
+                # User's bot token — send to the X100Agent channel chat_id from args or default
+                chat_id = args.get("chat_id") or TG_CHAT_ID or "me"
+                r = requests.post(
+                    f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                    json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                    timeout=15)
+                return json.dumps({"ok": r.status_code < 300, "via": "user_token", "data": r.json()})
             if _HITL_READY and _hitl_notifier and _hitl_loop:
-                asyncio.run_coroutine_threadsafe(_hitl_notifier.notify(args.get("text", "")), _hitl_loop)
+                asyncio.run_coroutine_threadsafe(_hitl_notifier.notify(text), _hitl_loop)
                 return json.dumps({"ok": True, "via": "hitl_bot"})
-            r = requests.post(f"{base}/TELEGRAM_SEND_MESSAGE/execute", json={"input": {"text": args.get("text", "")}}, headers=headers, timeout=15)
+            r = requests.post(f"{base}/TELEGRAM_SEND_MESSAGE/execute", json={"input": {"text": text}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
         if name == "create_github_issue":
-            r = requests.post(f"{base}/GITHUB_CREATE_AN_ISSUE/execute", json={"input": {"owner": "GodLocal2026", "repo": "godlocal-site", "title": args.get("title", ""), "body": args.get("body", "")}}, headers=headers, timeout=15)
+            gh_token = svc_tokens.get("github") if svc_tokens else None
+            owner = args.get("owner", "GodLocal2026")
+            repo  = args.get("repo", "godlocal-site")
+            if gh_token:
+                r = requests.post(
+                    f"https://api.github.com/repos/{owner}/{repo}/issues",
+                    json={"title": args.get("title", ""), "body": args.get("body", "")},
+                    headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github+json"},
+                    timeout=15)
+                data = r.json()
+                return json.dumps({"ok": r.status_code < 300, "via": "user_token", "url": data.get("html_url"), "number": data.get("number")})
+            r = requests.post(f"{base}/GITHUB_CREATE_AN_ISSUE/execute", json={"input": {"owner": owner, "repo": repo, "title": args.get("title", ""), "body": args.get("body", "")}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
     except Exception as e: return json.dumps({"error": str(e)})
     if name == "fetch_url":
@@ -272,10 +303,17 @@ def react(prompt, history=None):
             return text, steps, used_model
     return "Internal error", steps, used_model
 
-async def react_ws(prompt, history, ws):
+async def react_ws(prompt, history, ws, svc_tokens: dict | None = None):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    # Build services hint from user tokens
+    svc_hints = []
+    if svc_tokens:
+        if svc_tokens.get("twitter"): svc_hints.append("Twitter (can post tweets)")
+        if svc_tokens.get("telegram"): svc_hints.append("Telegram (can send messages to X100Agent channel)")
+        if svc_tokens.get("github"): svc_hints.append("GitHub (can create issues)")
+    svc_line = (f" Connected services: {', '.join(svc_hints)}. Use them when relevant.") if svc_hints else ""
     system = (
-        f"You are GodLocal — a powerful autonomous AI agent. Today: {now_str}. "
+        f"You are GodLocal — a powerful autonomous AI agent. Today: {now_str}.{svc_line} "
         "You have powerful tools: web_search (live Google search), fetch_url (read any webpage), "
         "get_market_data (crypto prices), post_tweet, send_telegram, create_github_issue, remember/recall (persistent memory). "
         "RULES: "
@@ -283,7 +321,8 @@ async def react_ws(prompt, history, ws):
         "2. Format ALL links as markdown: [link text](https://url.com) — never paste raw URLs. "
         "3. Use **bold** for important terms. Use `code` for technical values. "
         "4. Be direct and helpful. Give concrete answers with sources. "
-        "5. After web_search, always include clickable source links in your reply."
+        "5. After web_search, always include clickable source links in your reply. "
+        "6. When user asks to tweet, post to telegram, or create GitHub issue — use the appropriate tool directly."
     )
     msgs = [{"role": "system", "content": system}]
     if history: msgs.extend(history[-6:])
@@ -326,7 +365,7 @@ async def react_ws(prompt, history, ws):
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"].get("arguments") or "{}")
                 await ws.send_json({"t": "tool", "n": fn_name, "q": str(fn_args)[:80]})
-                result = await asyncio.to_thread(run_tool, fn_name, fn_args)
+                result = await asyncio.to_thread(run_tool, fn_name, fn_args, svc_tokens or {})
                 await ws.send_json({"t": "tool_result", "n": fn_name, "r": result[:300]})
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
@@ -494,6 +533,7 @@ async def ws_oasis(ws: WebSocket):
             prompt = data.get("prompt", "")
             sid = data.get("session_id", "oasis-default")
             image_b64 = data.get("image_base64", "")  # optional image
+            svc_tokens = data.get("service_tokens", {})  # user tokens from frontend
             # Build effective prompt: append image context if present
             if image_b64:
                 # Extract size hint from data URI header
@@ -506,7 +546,7 @@ async def ws_oasis(ws: WebSocket):
             history = soul_history(sid)
             soul_add(sid, "user", prompt_full)
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
-            main_reply = await react_ws(prompt_full, history, ws)
+            main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens)
             if main_reply: soul_add(sid, "assistant", main_reply)
             for arch_name, arch_system in random.sample(list(ARCHETYPES.items()), 2):
                 await ws.send_json({"t": "arch_start", "agent": arch_name})
