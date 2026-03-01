@@ -625,7 +625,7 @@ async function setupTg(){
 }
 
 // ── AI CHAT ───────────────────────────────────────────────────────────────────
-async async function askAI(question){
+async function askAI(question){
   const portCtx=portfolio.length?`\nПортфель: ${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.`:'';
   const prompt=`Ты AI крипто-стратег для флиппинга мемкойнов на Solana. Отвечай кратко на русском. Используй эмодзи умеренно.${portCtx}\n\n${question}`;
   const t=typing();
@@ -655,7 +655,7 @@ async async function askAI(question){
 // ── COMMAND ROUTER ────────────────────────────────────────────────────────────
 const SOL_RE=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-async async function cmd(text){
+async function cmd(text){
   text=text.trim();
   const tl=text.toLowerCase();
   if(SOL_RE.test(text)){await runAnalyze(text);return;}
