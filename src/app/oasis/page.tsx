@@ -852,6 +852,27 @@ export default function OasisPage() {
         <div className="flex flex-col bg-[#07090f] border border-[#111827] rounded-2xl overflow-hidden
                         focus-within:border-[#1a2535] transition-colors">
 
+          {/* ── Toolbar row ── */}
+          <div className="flex items-center gap-1.5 px-1 pt-1 pb-2 border-b border-[#0d1320] overflow-x-auto scrollbar-none w-full" style={{flexShrink:0}}>
+            {[
+              { id:'skills',    icon:'⚡', label:'Навыки',   color:'#00FF9D', active: showSkills,
+                onClick: () => { setShowSkills(s=>!s); setShowAccounts(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'accounts',  icon:'🔗', label:'Сервисы',  color:'#6C5CE7', active: showAccounts,
+                onClick: () => { setShowAccounts(a=>!a); setShowSkills(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'memory',    icon:'🧠', label:'Память',   color:'#00FF9D', active: showMemory,
+                onClick: () => { setShowMemory(m=>!m); setShowSkills(false); setShowAccounts(false); setShowArtifacts(false); if (!showMemory) fetchMemory() } },
+              { id:'artifacts', icon:'☆',  label:'Галерея',  color:'#FDCB6E', active: showArtifacts,
+                onClick: () => { setShowArtifacts(a=>!a); setShowSkills(false); setShowAccounts(false); setShowMemory(false) } },
+            ].map(b => (
+              <button key={b.id} onClick={b.onClick}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-all active:scale-95 ${b.active ? 'border-transparent text-[#030508]' : 'border-[#1a2535] text-gray-500 hover:text-gray-300'}`}
+                style={b.active ? {background: b.color} : {}}>
+                <span style={{fontSize:12}}>{b.icon}</span>
+                <span>{b.label}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-end gap-2 w-full px-2 py-2">
 
           {/* Attach files */}

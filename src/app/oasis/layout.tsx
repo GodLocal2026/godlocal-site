@@ -6,5 +6,15 @@ export const metadata: Metadata = {
 }
 
 export default function OasisLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      {/* Hide global site header & footer — Oasis is a full-screen app */}
+      <style dangerouslySetInnerHTML={{__html: `
+        body > header { display: none !important; }
+        body > footer { display: none !important; }
+        body > main  { padding: 0 !important; margin: 0 !important; }
+      `}} />
+      {children}
+    </>
+  )
 }
