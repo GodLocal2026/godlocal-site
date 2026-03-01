@@ -1,0 +1,488 @@
+import { NextResponse } from 'next/server'
+
+const HTML = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Тамагочи — GodLocal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0A0C0F;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ── Intro screen ── */
+  #intro {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 24px;
+    animation: fadeIn .5s ease;
+  }
+  #intro h1 { color: #00FF9D; font-size: 2rem; letter-spacing: 4px; }
+  #intro p  { color: #888; font-size: .85rem; }
+  #nameInput {
+    background: #111417; border: 1px solid #00FF9D44;
+    color: #00FF9D; font-family: inherit; font-size: 1rem;
+    padding: 10px 16px; border-radius: 8px; outline: none;
+    text-align: center; width: 220px;
+    transition: border-color .2s;
+  }
+  #nameInput:focus { border-color: #00FF9D; }
+  #startBtn {
+    background: #00FF9D22; border: 1px solid #00FF9D;
+    color: #00FF9D; font-family: inherit; font-size: 1rem;
+    padding: 10px 28px; border-radius: 8px; cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  #startBtn:hover  { background: #00FF9D33; }
+  #startBtn:active { transform: scale(.97); }
+
+  /* ── Game screen ── */
+  #game { display: none; width: 100%; max-width: 360px; padding: 16px; animation: fadeIn .4s ease; }
+
+  /* Header */
+  .game-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .pet-name { color: #00FF9D; font-size: 1.1rem; font-weight: bold; letter-spacing: 2px; }
+  .age-badge {
+    background: #6C5CE722; border: 1px solid #6C5CE7;
+    color: #6C5CE7; font-size: .75rem; padding: 3px 8px; border-radius: 20px;
+  }
+
+  /* Pet display */
+  .pet-stage {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 8px 0 16px;
+    position: relative;
+  }
+  #petEmoji {
+    font-size: 80px; line-height: 1;
+    transition: transform .15s ease;
+    cursor: default;
+    user-select: none;
+    filter: drop-shadow(0 0 16px #00FF9D44);
+  }
+  #petEmoji.bounce { animation: bounce .35s ease; }
+  #petEmoji.sad    { filter: drop-shadow(0 0 16px #ff444444); }
+  #petEmoji.dead   { filter: grayscale(1) drop-shadow(0 0 16px #888); }
+
+  #moodBubble {
+    position: absolute; top: -8px; right: 8px;
+    background: #111417; border: 1px solid #333;
+    border-radius: 12px; padding: 4px 10px;
+    font-size: .75rem; color: #aaa;
+    white-space: nowrap;
+    opacity: 0; transition: opacity .3s;
+    pointer-events: none;
+  }
+  #moodBubble.show { opacity: 1; }
+
+  /* Stats */
+  .stats { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+  .stat-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stat-label { font-size: .75rem; color: #666; width: 72px; text-align: right; }
+  .stat-bar-bg {
+    flex: 1; height: 6px; background: #1a1e24; border-radius: 3px; overflow: hidden;
+  }
+  .stat-bar {
+    height: 100%; border-radius: 3px;
+    transition: width .4s ease, background .4s;
+  }
+  .stat-val { font-size: .75rem; color: #555; width: 36px; text-align: right; }
+
+  /* Actions */
+  .actions {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-bottom: 12px;
+  }
+  .action-btn {
+    background: #111417; border: 1px solid #222;
+    color: #ccc; font-family: inherit; font-size: .9rem;
+    padding: 12px 8px; border-radius: 10px; cursor: pointer;
+    transition: all .15s; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .action-btn span.icon { font-size: 1.3rem; }
+  .action-btn span.lbl  { font-size: .7rem; color: #666; }
+  .action-btn:hover  { border-color: #00FF9D44; color: #00FF9D; background: #00FF9D0a; }
+  .action-btn:active { transform: scale(.96); }
+  .action-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+  /* Log */
+  #log {
+    background: #080a0d; border: 1px solid #1a1e24;
+    border-radius: 8px; padding: 8px 10px;
+    font-size: .72rem; color: #555;
+    height: 52px; overflow-y: auto;
+    line-height: 1.6;
+    scrollbar-width: none;
+  }
+  #log .entry { animation: fadeIn .3s ease; }
+  #log .entry.good { color: #00FF9D; }
+  #log .entry.warn { color: #f39c12; }
+  #log .entry.dead { color: #e74c3c; }
+
+  /* Ticker */
+  .ticker {
+    display: flex; justify-content: space-between;
+    font-size: .65rem; color: #333; margin-top: 6px;
+    padding: 0 2px;
+  }
+
+  /* Dead overlay */
+  #deadOverlay {
+    display: none; position: fixed; inset: 0;
+    background: #0A0C0Fcc; backdrop-filter: blur(4px);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; z-index: 10; animation: fadeIn .4s ease;
+  }
+  #deadOverlay h2 { color: #e74c3c; font-size: 1.5rem; letter-spacing: 3px; }
+  #deadOverlay p  { color: #666; font-size: .85rem; }
+  #restartBtn {
+    background: #e74c3c22; border: 1px solid #e74c3c;
+    color: #e74c3c; font-family: inherit; font-size: .9rem;
+    padding: 10px 24px; border-radius: 8px; cursor: pointer;
+    transition: background .2s;
+  }
+  #restartBtn:hover { background: #e74c3c33; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-18px); } 70% { transform: translateY(-8px); } }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+  <h1>TAMAGOTCHI</h1>
+  <p>Вырасти своего питомца</p>
+  <input id="nameInput" type="text" placeholder="Имя питомца" maxlength="12" autocomplete="off" spellcheck="false">
+  <button id="startBtn" onclick="startGame()">СОЗДАТЬ</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="game-header">
+    <span class="pet-name" id="petNameLabel">—</span>
+    <span class="age-badge">Возраст: <span id="ageVal">0</span></span>
+  </div>
+
+  <div class="pet-stage">
+    <div id="moodBubble"></div>
+    <div id="petEmoji">🥚</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-row">
+      <span class="stat-label">Голод</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="barHunger"></div></div>
+      <span class="stat-val" id="valHunger">5/10</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Счастье</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="barHappiness"></div></div>
+      <span class="stat-val" id="valHappiness">5/10</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Усталость</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="barTiredness"></div></div>
+      <span class="stat-val" id="valTiredness">5/10</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Здоровье</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="barHealth"></div></div>
+      <span class="stat-val" id="valHealth">10/10</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn" id="btnFeed"  onclick="act('feed')">
+      <span class="icon">🍖</span><span class="lbl">Покормить</span>
+    </button>
+    <button class="action-btn" id="btnPlay"  onclick="act('play')">
+      <span class="icon">⚡</span><span class="lbl">Играть</span>
+    </button>
+    <button class="action-btn" id="btnSleep" onclick="act('sleep')">
+      <span class="icon">💤</span><span class="lbl">Спать</span>
+    </button>
+    <button class="action-btn" id="btnIdle"  onclick="act('idle')">
+      <span class="icon">🌿</span><span class="lbl">Ничего</span>
+    </button>
+  </div>
+
+  <div id="log"><span class="entry">Питомец ждёт тебя...</span></div>
+  <div class="ticker">
+    <span id="tickInfo">⏱ тик через <span id="tickCountdown">5</span>с</span>
+    <span id="healthStatus">❤️ OK</span>
+  </div>
+</div>
+
+<!-- DEAD OVERLAY -->
+<div id="deadOverlay">
+  <div style="font-size:4rem">💀</div>
+  <h2>ПИТОМЕЦ УМЕР</h2>
+  <p id="deadPetName"></p>
+  <p>Прожил <span id="deadAge">0</span> лет</p>
+  <button id="restartBtn" onclick="restart()">НАЧАТЬ ЗАНОВО</button>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const pet = {
+  name: '',
+  hunger: 5, happiness: 5, tiredness: 5,
+  age: 0, health: 10, alive: true
+};
+
+const PET_STAGES = [
+  { age: 0, emoji: '🥚',  label: 'Яйцо' },
+  { age: 1, emoji: '🐣',  label: 'Птенец' },
+  { age: 3, emoji: '🐥',  label: 'Цыплёнок' },
+  { age: 6, emoji: '🐤',  label: 'Птица' },
+  { age: 10, emoji: '🦅', label: 'Орёл' },
+  { age: 15, emoji: '🐉', label: 'Дракон' },
+];
+
+const MOODS = {
+  great:   ['Мне хорошо!', 'Всё отлично!', 'Я счастлив!'],
+  hungry:  ['Хочу есть...', 'Голодаю!', 'Покорми меня!'],
+  tired:   ['Устал...', 'Хочу спать...', 'Вымотался'],
+  bored:   ['Скучно...', 'Поиграй со мной', 'Займи меня'],
+  sick:    ['Мне плохо...', 'Нужна помощь', 'Болею...'],
+};
+
+let tickTimer = null;
+let tickCd = 5;
+let cdInterval = null;
+let moodTimeout = null;
+
+// ── Logic (mirrors Python) ─────────────────────────────────────────────────
+function feed() {
+  if (!pet.alive) return;
+  pet.hunger = Math.max(0, pet.hunger - 3);
+  pet.health = Math.min(10, pet.health + 1);
+  log(\`\${pet.name} поел. Голод: \${pet.hunger}\`, 'good');
+  animatePet('bounce');
+  showMood(pick(MOODS.great));
+}
+
+function play() {
+  if (!pet.alive) return;
+  pet.happiness = Math.min(10, pet.happiness + 2);
+  pet.tiredness = Math.min(10, pet.tiredness + 2);
+  pet.hunger   = Math.min(10, pet.hunger + 1);
+  if (pet.tiredness > 8) { pet.health -= 2; }
+  log(\`\${pet.name} играл. Счастье: \${pet.happiness}, Усталость: \${pet.tiredness}\`, pet.tiredness > 8 ? 'warn' : 'good');
+  animatePet('bounce');
+  showMood(pet.tiredness > 7 ? pick(MOODS.tired) : pick(MOODS.great));
+}
+
+function sleep() {
+  if (!pet.alive) return;
+  pet.tiredness = Math.max(0, pet.tiredness - 4);
+  pet.health    = Math.min(10, pet.health + 2);
+  pet.age       += 1;
+  log(\`\${pet.name} поспал. Возраст: \${pet.age}\`, 'good');
+  animatePet('bounce');
+  showMood(pick(MOODS.great));
+}
+
+function idle() {
+  if (!pet.alive) return;
+  log(\`\${pet.name} просто живёт...\`, '');
+  showMood(pick(MOODS.bored));
+}
+
+function tick() {
+  if (!pet.alive) return;
+  pet.hunger    += 1;
+  pet.tiredness += 1;
+  if (pet.hunger > 8)   { pet.health -= 2; }
+  if (pet.happiness < 3){ pet.health -= 1; }
+  // clamp
+  pet.hunger    = Math.min(10, pet.hunger);
+  pet.tiredness = Math.min(10, pet.tiredness);
+  pet.health    = Math.max(0, pet.health);
+
+  if (pet.health <= 0) {
+    pet.alive = false;
+    die();
+  } else {
+    updateUI();
+    // mood hint after tick
+    if (pet.hunger >= 8)       showMood(pick(MOODS.hungry));
+    else if (pet.tiredness>=8) showMood(pick(MOODS.tired));
+    else if (pet.happiness<3)  showMood(pick(MOODS.bored));
+    else if (pet.health<5)     showMood(pick(MOODS.sick));
+  }
+}
+
+// ── Act dispatcher ──────────────────────────────────────────────────────────
+function act(action) {
+  if (!pet.alive) return;
+  ({ feed, play, sleep, idle })[action]();
+  tick(); // immediate tick after action
+  resetTickTimer();
+  updateUI();
+}
+
+// ── UI ──────────────────────────────────────────────────────────────────────
+function getEmoji() {
+  let stage = PET_STAGES[0];
+  for (const s of PET_STAGES) { if (pet.age >= s.age) stage = s; }
+  return stage.emoji;
+}
+
+function barColor(val, invert) {
+  // invert: higher = worse (hunger, tiredness)
+  const ratio = invert ? val / 10 : (10 - val) / 10;
+  if (ratio < 0.3) return '#00FF9D';
+  if (ratio < 0.6) return '#f39c12';
+  return '#e74c3c';
+}
+
+function updateUI() {
+  document.getElementById('petNameLabel').textContent = pet.name;
+  document.getElementById('ageVal').textContent = pet.age;
+
+  const emoji = document.getElementById('petEmoji');
+  emoji.textContent = pet.alive ? getEmoji() : '💀';
+
+  // Stats
+  setBar('barHunger',    'valHunger',    pet.hunger,    10, true);
+  setBar('barHappiness', 'valHappiness', pet.happiness, 10, false);
+  setBar('barTiredness', 'valTiredness', pet.tiredness, 10, true);
+  setBar('barHealth',    'valHealth',    pet.health,    10, false);
+
+  // Health status text
+  const hs = document.getElementById('healthStatus');
+  if (pet.health > 7)      hs.textContent = '❤️ Отлично';
+  else if (pet.health > 4) hs.textContent = '🟡 Норм';
+  else                     hs.textContent = '🔴 Плохо';
+
+  // Mood on emoji
+  const isSad = pet.hunger >= 8 || pet.happiness <= 2 || pet.health <= 4;
+  emoji.classList.toggle('sad', isSad && pet.alive);
+}
+
+function setBar(barId, valId, val, max, invert) {
+  const bar = document.getElementById(barId);
+  const pct = (val / max) * 100;
+  bar.style.width  = pct + '%';
+  bar.style.background = barColor(val, invert);
+  document.getElementById(valId).textContent = \`\${val}/\${max}\`;
+}
+
+function animatePet(cls) {
+  const el = document.getElementById('petEmoji');
+  el.classList.remove(cls);
+  void el.offsetWidth; // reflow
+  el.classList.add(cls);
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+}
+
+function showMood(text) {
+  const b = document.getElementById('moodBubble');
+  clearTimeout(moodTimeout);
+  b.textContent = text;
+  b.classList.add('show');
+  moodTimeout = setTimeout(() => b.classList.remove('show'), 2200);
+}
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'entry ' + (cls || '');
+  entry.textContent = msg;
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+  // keep last 20 entries
+  while (el.children.length > 20) el.removeChild(el.firstChild);
+}
+
+// ── Tick timer ─────────────────────────────────────────────────────────────
+function resetTickTimer() {
+  clearInterval(tickTimer);
+  clearInterval(cdInterval);
+  tickCd = 5;
+  document.getElementById('tickCountdown').textContent = tickCd;
+  cdInterval = setInterval(() => {
+    tickCd--;
+    document.getElementById('tickCountdown').textContent = tickCd;
+    if (tickCd <= 0) {
+      clearInterval(cdInterval);
+      tick();
+      updateUI();
+      resetTickTimer();
+    }
+  }, 1000);
+}
+
+// ── Start / Restart ─────────────────────────────────────────────────────────
+function startGame() {
+  const name = document.getElementById('nameInput').value.trim() || 'Питомец';
+  pet.name = name;
+  pet.hunger = 5; pet.happiness = 5; pet.tiredness = 5;
+  pet.age = 0; pet.health = 10; pet.alive = true;
+
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('game').style.display  = 'block';
+  document.getElementById('petNameLabel').textContent = name;
+
+  log(\`\${name} появился на свет!\`, 'good');
+  updateUI();
+  resetTickTimer();
+}
+
+function restart() {
+  clearInterval(cdInterval);
+  document.getElementById('deadOverlay').style.display = 'none';
+  document.getElementById('nameInput').value = '';
+  document.getElementById('intro').style.display = 'flex';
+  document.getElementById('game').style.display  = 'none';
+}
+
+function die() {
+  clearInterval(cdInterval);
+  document.getElementById('petEmoji').textContent = '💀';
+  document.getElementById('petEmoji').className   = 'dead';
+  log(\`💀 \${pet.name} умер...\`, 'dead');
+  updateUI();
+  setTimeout(() => {
+    document.getElementById('deadPetName').textContent = pet.name;
+    document.getElementById('deadAge').textContent = pet.age;
+    document.getElementById('deadOverlay').style.display = 'flex';
+  }, 1200);
+}
+
+// ── Utils ───────────────────────────────────────────────────────────────────
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// Enter key on name input
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startGame();
+});
+</script>
+</body>
+</html>`
+
+export function GET() {
+  return new NextResponse(HTML, {
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+    },
+  })
+}
