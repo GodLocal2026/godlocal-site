@@ -537,9 +537,7 @@ async def ws_oasis(ws: WebSocket):
             # Build effective prompt: append image context if present
             if image_b64:
                 # Extract size hint from data URI header
-                prompt_full = f"{prompt}
-
-[Пользователь прикрепил изображение. Опиши и прокомментируй его содержимое в контексте запроса.]" if prompt else "[Пользователь прикрепил изображение. Опиши что на нём изображено.]"
+                prompt_full = (f"{prompt}\n\n[Пользователь прикрепил изображение. Опиши и прокомментируй его содержимое в контексте запроса.]" if prompt else "[Пользователь прикрепил изображение. Опиши что на нём изображено.]")
             else:
                 prompt_full = prompt
             if not prompt_full.strip(): await ws.send_json({"t": "error", "v": "prompt required"}); continue
