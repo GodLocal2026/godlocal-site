@@ -908,28 +908,28 @@ function renderMarket(coins){
     const chg = c.price_change_percentage_24h || 0;
     const chgCls = chg >= 0 ? 'up' : 'dn';
     const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-    return \\\`<div class="mkt-row" onclick="mktOpenCoin('\\\${c.id}','\\\${c.symbol.toUpperCase()}','\\\${esc(c.name)}',\\\${c.current_price||0},\\\${chg})">
-      <span class="mkt-rank">\\\${c.market_cap_rank||i+1}</span>
-      <img class="mkt-icon" src="\\\${c.image||''}" alt="\\\${c.symbol}" onerror="this.style.display='none'">
+    return \`<div class="mkt-row" onclick="mktOpenCoin('\${c.id}','\${c.symbol.toUpperCase()}','\${esc(c.name)}',\${c.current_price||0},\${chg})">
+      <span class="mkt-rank">\${c.market_cap_rank||i+1}</span>
+      <img class="mkt-icon" src="\${c.image||''}" alt="\${c.symbol}" onerror="this.style.display='none'">
       <div class="mkt-info">
-        <div class="mkt-sym">\\\${c.symbol.toUpperCase()}</div>
-        <div class="mkt-name">\\\${esc(c.name)}</div>
+        <div class="mkt-sym">\${c.symbol.toUpperCase()}</div>
+        <div class="mkt-name">\${esc(c.name)}</div>
       </div>
       <div class="mkt-right">
-        <div class="mkt-price">\\\${fmtPrice(c.current_price)}</div>
-        <div class="mkt-chg \\\${chgCls}">\\\${chgStr}</div>
-        <div class="mkt-mcap">\\\${fmtMcap(c.market_cap)}</div>
+        <div class="mkt-price">\${fmtPrice(c.current_price)}</div>
+        <div class="mkt-chg \${chgCls}">\${chgStr}</div>
+        <div class="mkt-mcap">\${fmtMcap(c.market_cap)}</div>
       </div>
-    </div>\\\`;
+    </div>\`;
   }).join('');
 }
 
 async function mktOpenCoin(id, sym, name, price, chg){
   // Switch to WOLF tab and analyze
   switchTab('wolf');
-  const ctx = \\\`\\\${sym} (\\\${name}) | Цена: \\\${fmtPrice(price)} | 24h: \\\${chg>=0?'+':''}+\\\${chg.toFixed(2)}%\\\`;
+  const ctx = \`\${sym} (\${name}) | Цена: \${fmtPrice(price)} | 24h: \${chg>=0?'+':''}+\${chg.toFixed(2)}%\`;
   lastTokenCtx = ctx;
-  const q = \\\`Анализ \\\${sym}: цена \\\${fmtPrice(price)}, 24h \\\${chg>=0?'+':''}+\\\${chg.toFixed(2)}%. Стоит входить?\\\`;
+  const q = \`Анализ \${sym}: цена \${fmtPrice(price)}, 24h \${chg>=0?'+':''}+\${chg.toFixed(2)}%. Стоит входить?\`;
   userBubble(q);
   agentMode ? askAgents(q) : askAI(q);
 }
@@ -1008,14 +1008,14 @@ async function loadTokenAccounts(){
       const mint = a.mint;
       const amt = a.tokenAmount.uiAmount;
       const short = mint.slice(0,4)+'...'+mint.slice(-4);
-      return \\\`<div class="tok-row" onclick="fillSwapAddr('\\\${mint}')">
+      return \`<div class="tok-row" onclick="fillSwapAddr('\${mint}')">
         <div class="tok-ico">🪙</div>
         <div class="tok-info">
-          <div class="tok-sym">\\\${short}</div>
-          <div class="tok-amt">Mint: \\\${mint.slice(0,8)}…</div>
+          <div class="tok-sym">\${short}</div>
+          <div class="tok-amt">Mint: \${mint.slice(0,8)}…</div>
         </div>
-        <div class="tok-val">\\\${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
-      </div>\\\`;
+        <div class="tok-val">\${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
+      </div>\`;
     }).join('');
   }catch(e){}
 }
@@ -1051,7 +1051,7 @@ async function getSwapQuote(){
     const outputMint = swapMode==='buy' ? toAddr : WSOL_MINT;
     const decimals = swapMode==='buy' ? 9 : 6;
     const amtLamports = Math.round(amt * Math.pow(10, decimals));
-    const url = \\\`https://quote-api.jup.ag/v6/quote?inputMint=\\\${inputMint}&outputMint=\\\${outputMint}&amount=\\\${amtLamports}&slippageBps=300\\\`;
+    const url = \`https://quote-api.jup.ag/v6/quote?inputMint=\${inputMint}&outputMint=\${outputMint}&amount=\${amtLamports}&slippageBps=300\`;
     const r = await fetch(url);
     if(!r.ok) throw new Error('Jupiter API ' + r.status);
     const q = await r.json();
@@ -1061,7 +1061,7 @@ async function getSwapQuote(){
     const outFmt = (outAmt / Math.pow(10, outDecimals)).toFixed(swapMode==='buy'?4:6);
     const priceImpact = parseFloat(q.priceImpactPct || 0);
     const impactColor = priceImpact > 5 ? '#ff4d6d' : priceImpact > 2 ? '#FDCB6E' : '#00FF9D';
-    quoteEl.innerHTML = \\\`Получишь ≈ <b>\\\${outFmt}</b> | Проскальзывание: <span style="color:\\\${impactColor}">\\\${priceImpact.toFixed(2)}%</span>\\\`;
+    quoteEl.innerHTML = \`Получишь ≈ <b>\${outFmt}</b> | Проскальзывание: <span style="color:\${impactColor}">\${priceImpact.toFixed(2)}%</span>\`;
     quoteEl.dataset.quote = JSON.stringify(q);
   }catch(e){
     quoteEl.textContent = '⚠️ ' + e.message;
@@ -1106,7 +1106,7 @@ async function execSwap(){
       { serialize: () => txBuf }
     );
     btn.textContent = '✅ Успешно!';
-    botMsg(\\\`✅ <b>Своп выполнен!</b><br>TX: <a href="https://solscan.io/tx/\\\${signature}" target="_blank" style="color:var(--b)">\\\${signature.slice(0,16)}…</a>\\\`);
+    botMsg(\`✅ <b>Своп выполнен!</b><br>TX: <a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
     setTimeout(()=>{btn.disabled=false;btn.textContent='⚡ СВОП';},3000);
     setTimeout(refreshWallet, 5000);
   }catch(e){
