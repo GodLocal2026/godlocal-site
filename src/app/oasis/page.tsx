@@ -282,6 +282,7 @@ export default function OasisPage() {
     return Array.from(new Set(qs)).slice(0,3)
   }
   const [vvHeight,     setVvHeight]     = useState<number|null>(null)
+  const [listening,    setListening]    = useState(false)
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
   const [xpMap, setXpMap]             = useState<Record<string,number>>(Object.fromEntries(AGENTS.map(a=>[a.id,0])))
   const [sessionId]                   = useState(() => Math.random().toString(36).slice(2,10))
@@ -292,6 +293,7 @@ export default function OasisPage() {
   const atBottomRef    = useRef<boolean>(true)
   const inputRef       = useRef<HTMLTextAreaElement>(null)
   const fileRef        = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<any>(null)
   const reconnTimer    = useRef<ReturnType<typeof setTimeout>|null>(null)
 
   // ── CRITICAL FIX: handleMsg in a ref to prevent stale closures ──
@@ -410,6 +412,31 @@ export default function OasisPage() {
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+  }
+
+  // ── Voice input ──
+  const startVoice = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+    if (listening) {
+      recognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+    const rec = new SR()
+    rec.lang = 'ru-RU'
+    rec.continuous = false
+    rec.interimResults = false
+    rec.onresult = (e: any) => {
+      const text = e.results[0][0].transcript
+      setInput((prev: string) => prev ? prev + ' ' + text : text)
+      setListening(false)
+    }
+    rec.onerror = () => setListening(false)
+    rec.onend = () => setListening(false)
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
   }
 
   // ── File attach ──
@@ -820,31 +847,11 @@ export default function OasisPage() {
       </AnimatePresence>
 
       {/* ── Input bar ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 bg-[#030508] px-3 py-2.5"
-        style={{paddingBottom:'max(env(safe-area-inset-bottom),10px)'}}>
+      <div className="shrink-0 px-3 py-2.5"
+        style={{paddingBottom:'max(env(safe-area-inset-bottom),12px)', background:'rgba(3,5,8,0.85)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)'}}>
         <div className="flex flex-col bg-[#07090f] border border-[#111827] rounded-2xl overflow-hidden
                         focus-within:border-[#1a2535] transition-colors">
 
-          {/* ── Toolbar row ── */}
-          <div className="flex items-center gap-1.5 px-1 pt-1 pb-2 border-b border-[#0d1320] overflow-x-auto scrollbar-none w-full" style={{flexShrink:0}}>
-            {[
-              { id:'skills',    icon:'⚡', label:'Навыки',   color:'#00FF9D', active: showSkills,
-                onClick: () => { setShowSkills(s=>!s); setShowAccounts(false); setShowMemory(false); setShowArtifacts(false) } },
-              { id:'accounts',  icon:'🔗', label:'Сервисы',  color:'#6C5CE7', active: showAccounts,
-                onClick: () => { setShowAccounts(a=>!a); setShowSkills(false); setShowMemory(false); setShowArtifacts(false) } },
-              { id:'memory',    icon:'🧠', label:'Память',   color:'#00FF9D', active: showMemory,
-                onClick: () => { setShowMemory(m=>!m); setShowSkills(false); setShowAccounts(false); setShowArtifacts(false); if (!showMemory) fetchMemory() } },
-              { id:'artifacts', icon:'☆',  label:'Галерея',  color:'#FDCB6E', active: showArtifacts,
-                onClick: () => { setShowArtifacts(a=>!a); setShowSkills(false); setShowAccounts(false); setShowMemory(false) } },
-            ].map(b => (
-              <button key={b.id} onClick={b.onClick}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-all active:scale-95 ${b.active ? 'border-transparent text-[#030508]' : 'border-[#1a2535] text-gray-500 hover:text-gray-300'}`}
-                style={b.active ? {background: b.color} : {}}>
-                <span style={{fontSize:12}}>{b.icon}</span>
-                <span>{b.label}</span>
-              </button>
-            ))}
-          </div>
           <div className="flex items-end gap-2 w-full px-2 py-2">
 
           {/* Attach files */}
@@ -863,9 +870,19 @@ export default function OasisPage() {
             onKeyDown={onKey}
             onInput={e => resizeTA(e.currentTarget)}
             placeholder={`Спроси ${activeAgent.name}…`}
-            className="flex-1 bg-transparent resize-none outline-none text-sm text-gray-200 placeholder-gray-700 leading-relaxed py-1"
+            className="flex-1 bg-transparent resize-none outline-none text-gray-200 placeholder-gray-700 leading-relaxed py-1"
             rows={1}
-            style={{maxHeight:120, overflowY:'auto', minWidth:0}} />
+            style={{maxHeight:120, overflowY:'auto', minWidth:0, fontSize:'16px', lineHeight:'1.5'}} />
+
+          {/* Voice */}
+          <button onClick={startVoice}
+            className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 ${listening ? 'bg-red-900/40 text-red-400' : 'text-gray-600 hover:text-gray-400 hover:bg-[#0f1520]'}`}
+            style={listening ? {animation:'pulse 1s infinite'} : {}}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
+          </button>
 
           {/* Send */}
           <button onClick={send} disabled={!input.trim() && attachments.length === 0}
