@@ -869,15 +869,18 @@ async function loadMarket(){
     mktLoaded[mktCat] = Date.now();
     renderMarket(mktData);
   }catch(e){
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⚠️ ' + e.message + '<br><small>CoinGecko rate limit — подожди 60 сек</small></div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⚠️ ' + e.message + '<br><small>Rate limit — кликни снова через 10 сек</small></div>';
+    mktLoaded[mktCat] = Date.now() - 50000; // allow retry after 10s
   }
 }
 
+let _mktCatTimer=null;
 function mktSetCat(cat, el){
   mktCat = cat;
   document.querySelectorAll('.mkt-cat-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  loadMarket();
+  clearTimeout(_mktCatTimer);
+  _mktCatTimer = setTimeout(loadMarket, 300); // 300ms debounce
 }
 
 function mktFilter(q){
@@ -945,7 +948,14 @@ let quoteTimer = null;
 async function connectPhantom(){
   const phantom = window.solana || window.phantom?.solana;
   if(!phantom || !phantom.isPhantom){
-    botMsg('👻 Phantom не найден. Установи расширение на десктопе или открой в Phantom mobile browser.');
+    const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if(isMobile){
+      const u=encodeURIComponent(window.location.href);
+      botMsg('📱 Открываем в Phantom app...');
+      setTimeout(()=>{window.location.href='https://phantom.app/ul/browse/'+u+'?ref='+u;},300);
+    }else{
+      botMsg('👻 Phantom не найден. Установи расширение на десктопе.');
+    };
     return;
   }
   try{
@@ -1150,7 +1160,7 @@ async function toggleAgentMode(){
   );
 }
 
-async function agentBubble(agentName, html){
+function agentBubble(agentName, html){
   const color = AGENT_COLORS[agentName] || '#a79cf7';
   const icon = AGENT_ICONS[agentName] || '🤖';
   const d = document.createElement('div');
