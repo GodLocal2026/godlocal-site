@@ -261,6 +261,20 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 
 <script>
 'use strict';
+
+// Strip raw tool-call artifacts from agent output before rendering
+function stripFuncTags(txt) {
+  if(!txt) return '';
+  // Remove <function=name>{...}</function> blocks (multi-line)
+  txt = txt.replace(/<function=[^>]*>[\\s\\S]*?<\\/function>/gi, '');
+  // Remove leftover <function=...> open tags (unclosed)
+  txt = txt.replace(/<function=[^>]*>/gi, '');
+  // Remove </function> close tags
+  txt = txt.replace(/<\\/function>/gi, '');
+  // Trim leading/trailing whitespace after removal
+  return txt.trim();
+}
+
 const DEX = 'https://api.dexscreener.com';
 const PUMP = 'https://frontend-api.pump.fun';
 const SOL_RPC = 'https://api.mainnet-beta.solana.com';
@@ -1173,7 +1187,7 @@ async function askAgents(question){
             glReply += d.v;
             if(glEl){
               const body = glEl.querySelector('.agent-body');
-              if(body) body.innerHTML = glReply.replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
+              if(body) body.innerHTML = stripFuncTags(glReply).replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
             }
           }
           else if(d.t === 'arch_start'){
@@ -1183,7 +1197,7 @@ async function askAgents(question){
           else if(d.t === 'arch_reply'){
             if(currentArchEl){
               const body = currentArchEl.querySelector('.agent-body');
-              if(body) body.innerHTML = (d.v||'').replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
+              if(body) body.innerHTML = stripFuncTags(d.v||'').replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
             }
           }
           else if(d.t === 'error'){
