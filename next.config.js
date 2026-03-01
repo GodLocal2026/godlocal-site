@@ -12,5 +12,13 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: '/game',
+        destination: '/api/game',
+      },
+    ];
+  },
 };
 module.exports = nextConfig;
