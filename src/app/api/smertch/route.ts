@@ -14,8 +14,8 @@ const HTML = `<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#07090e;--bg1:#0a0c10;--bg2:#0d1118;--bg3:#131a24;--border:#1b2433;--g:#00FF9D;--p:#6C5CE7;--r:#FF4B6E;--y:#F9CA24;--b:#00FF9D;--o:#FF8C00;--txt:#c5cee0;--fg:#c5cee0;--dim:#4a5568}
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top)}
+html{height:100%}body{height:100dvh;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-top:env(safe-area-inset-top);overflow:hidden}
+
 
 /* ── TOP BAR ── */
 .top{display:flex;align-items:center;gap:8px;padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:200}
@@ -116,7 +116,7 @@ body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-in
 .rug-f{height:100%;border-radius:3px}
 
 /* ── INPUT ── */
-.input-wrap{position:fixed;bottom:calc(54px + env(safe-area-inset-bottom));left:0;right:0;background:var(--bg);border-top:1px solid var(--border);z-index:300;padding:8px 12px}
+.input-wrap{flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .input-row{display:flex;gap:7px;align-items:flex-end}
 .inp{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:9px 13px;color:#fff;font-size:14px;outline:none;resize:none;font-family:inherit;line-height:1.4;max-height:110px}
 .inp:focus{border-color:var(--p)}
@@ -130,13 +130,13 @@ body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-in
 .sec-lbl{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
 
 /* ── BOTTOM TAB BAR ── */
-.tab-bar{position:fixed;bottom:0;left:0;right:0;height:54px;background:var(--bg1);border-top:1px solid var(--border);display:flex;z-index:150;padding-bottom:env(safe-area-inset-bottom)}
+.tab-bar{flex-shrink:0;height:54px;background:var(--bg1);border-top:1px solid var(--border);display:flex;align-items:stretch;padding-bottom:env(safe-area-inset-bottom)}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--dim);font-size:9px;font-weight:700;letter-spacing:.5px;transition:color .15s;padding:4px 0}
 .tab.active{color:var(--b)}
 .tab .tab-ico{font-size:20px;line-height:1}
 
 /* ── MARKET PANEL ── */
-#marketPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;-webkit-overflow-scrolling:touch}
+#marketPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;-webkit-overflow-scrolling:touch;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 #marketPanel.active{display:flex}
 .mkt-search{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--fg);font-size:13px;width:100%;box-sizing:border-box;margin:8px 0}
 .mkt-search::placeholder{color:var(--dim)}
@@ -159,7 +159,7 @@ body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-in
 .mkt-cat-btn.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
 
 /* ── WALLET PANEL ── */
-#walletPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding:0 4px;-webkit-overflow-scrolling:touch}
+#walletPanel{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;padding:0 4px;-webkit-overflow-scrolling:touch;flex:1}
 #walletPanel.active{display:flex}
 .wallet-connect-btn{background:rgba(108,92,231,.2);border:2px solid #6C5CE7;border-radius:14px;padding:14px;text-align:center;cursor:pointer;margin:16px 0;font-weight:700;font-size:14px;color:#a79cf7;transition:all .2s}
 .wallet-connect-btn:active{background:rgba(108,92,231,.4)}
@@ -190,7 +190,7 @@ body{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-in
 .swap-tab.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
 
 
-.agent-mode-bar{position:fixed;bottom:calc(54px + 44px + env(safe-area-inset-bottom));left:0;right:0;z-index:300;background:var(--bg);border-top:1px solid var(--border);padding:4px 12px}
+.agent-mode-bar{flex-shrink:0;background:var(--bg);border-top:1px solid var(--border);padding:6px 12px;display:flex;align-items:center;gap:8px;font-size:11px}
 </style>
 </head>
 <body>
@@ -827,23 +827,26 @@ const wolfEls = ['chips','fltPanel','chat','input-wrap'];
 let currentTab = 'wolf';
 function switchTab(tab){
   currentTab = tab;
-  // Hide all panels
-  document.getElementById('marketPanel').classList.remove('active');
-  document.getElementById('walletPanel').classList.remove('active');
-  // Wolf elements - use IDs and proper show/hide
   const wolfVisible = tab === 'wolf';
+  const mktVisible  = tab === 'market';
+  const wltVisible  = tab === 'wallet';
+
+  // Show/hide main content areas
+  document.getElementById('chat').style.display         = wolfVisible ? 'flex'  : 'none';
+  document.getElementById('marketPanel').style.display  = mktVisible  ? 'flex'  : 'none';
+  document.getElementById('walletPanel').style.display  = wltVisible  ? 'flex'  : 'none';
+
+  // Wolf-only chrome
   document.querySelector('.chips').style.display = wolfVisible ? 'flex' : 'none';
-  // fltPanel: only show if it was open (has .open class)
   const fp = document.getElementById('fltPanel');
   if(fp) fp.style.display = wolfVisible ? (fp.classList.contains('open') ? 'block' : 'none') : 'none';
-  document.getElementById('chat').style.display = wolfVisible ? 'flex' : 'none';
-  document.querySelector('.input-wrap').style.display = wolfVisible ? '' : 'none';
-  // Activate correct panel
-  if(tab === 'market'){ document.getElementById('marketPanel').classList.add('active'); loadMarket(); }
-  if(tab === 'wallet'){ document.getElementById('walletPanel').classList.add('active'); }
-  // Tab bar active state
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  const amb = document.querySelector('.agent-mode-bar');
+  if(amb) amb.style.display = wolfVisible ? 'flex' : 'none';
+
+  // Tab highlight
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('tab-' + tab);
+  if(activeBtn) activeBtn.classList.add('active');
 }
 
 // ══ MARKET MODULE ══════════════════════════════════════════════════════════════
