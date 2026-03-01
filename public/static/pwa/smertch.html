@@ -184,6 +184,7 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
     <textarea class="inp" id="inp" rows="1" placeholder="Токен / адрес / вопрос…"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
+    <button class="mic" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">🎙</button>
     <button class="send" onclick="send()">↑</button>
   </div>
 </div>
@@ -732,6 +733,33 @@ ${getTg().ok?'📤 TG пуш: <span style="color:var(--g)">активен</span>
   setTimeout(()=>runScan(),700);
   startAutoLoops();
 })();
+
+// ── VOICE INPUT ───────────────────────────────────────────────────────────────
+let voiceRec=null,voiceActive=false;
+function toggleVoice(){
+  const btn=document.getElementById('micBtn');
+  if(voiceActive){stopVoice();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){botMsg('⚠️ Голосовой ввод не поддерживается в этом браузере');return;}
+  voiceRec=new SR();
+  voiceRec.lang='ru-RU';
+  voiceRec.continuous=false;
+  voiceRec.interimResults=true;
+  voiceRec.onstart=()=>{voiceActive=true;btn.classList.add('listening');};
+  voiceRec.onresult=(e)=>{
+    const t=Array.from(e.results).map(r=>r[0].transcript).join('');
+    const inp=document.getElementById('inp');
+    inp.value=t;inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,110)+'px';
+  };
+  voiceRec.onend=()=>{
+    voiceActive=false;btn.classList.remove('listening');
+    const inp=document.getElementById('inp');
+    if(inp.value.trim()) send();
+  };
+  voiceRec.onerror=(e)=>{voiceActive=false;btn.classList.remove('listening');if(e.error!=='aborted')botMsg('⚠️ Микрофон: '+e.error);};
+  voiceRec.start();
+}
+function stopVoice(){if(voiceRec){voiceRec.stop();voiceRec=null;}}
 </script>
 </body>
 </html>
