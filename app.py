@@ -22,6 +22,25 @@ _sparks: list = []
 _market_cache: dict = {"data": None, "ts": 0.0}
 _soul: dict = {}
 
+# In-memory session memories (for Memory Panel UI)
+_memories: dict = {}  # session_id -> [{id, content, ts}]
+
+def memory_add(session_id: str, content: str):
+    import uuid
+    with _lock:
+        if session_id not in _memories: _memories[session_id] = []
+        _memories[session_id].append({
+            "id": str(uuid.uuid4())[:8],
+            "content": content,
+            "ts": int(datetime.utcnow().timestamp() * 1000)
+        })
+        if len(_memories[session_id]) > 50: _memories[session_id] = _memories[session_id][-50:]
+
+def memory_get(session_id: str):
+    return _memories.get(session_id, [])
+
+
+
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 COMPOSIO_KEY = os.environ.get("COMPOSIO_API_KEY", "")
 SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
@@ -265,6 +284,9 @@ def run_tool(name, args, svc_tokens=None):
         with _lock:
             if "_memory" not in _soul: _soul["_memory"] = {}
             _soul["_memory"][key] = {"value": val, "ts": datetime.utcnow().isoformat()}
+        # Also add to Memory Panel store
+        sid = (svc_tokens or {}).get("session_id", "")
+        if sid: memory_add(sid, f"{key}: {val}")
         return json.dumps({"ok": True, "stored": key})
     if name == "recall":
         key = args.get("key","")
@@ -308,26 +330,52 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
     # Build services hint from user tokens
     svc_hints = []
     if svc_tokens:
-        if svc_tokens.get("twitter"): svc_hints.append("Twitter (can post tweets)")
-        if svc_tokens.get("telegram"): svc_hints.append("Telegram (can send messages to X100Agent channel)")
-        if svc_tokens.get("github"): svc_hints.append("GitHub (can create issues)")
-    svc_line = (f" Connected services: {', '.join(svc_hints)}. Use them when relevant.") if svc_hints else ""
+        if svc_tokens.get("twitter"): svc_hints.append("Twitter (можешь публиковать твиты)")
+        if svc_tokens.get("telegram"): svc_hints.append("Telegram (можешь отправлять сообщения в канал X100Agent)")
+        if svc_tokens.get("github"): svc_hints.append("GitHub (можешь создавать issues)")
+    svc_line = (f" Подключённые сервисы: {', '.join(svc_hints)}. Используй их когда нужно.") if svc_hints else ""
+
+    # Self-knowledge block — don't search for things you already know
+    SELF_KNOWLEDGE = (
+        "GodLocal Oasis — AI-платформа \"Terminal meets soul\". URL: godlocal.ai/oasis. "
+        "7 агентов: GodLocal (проводник ⚡), Architect (стратег 🏛), Builder (создатель 🔨), "
+        "Grok (аналитик 🧠), Lucas (философ 💡), Harper (исследователь 🔬), Benjamin (хранитель 📚). "
+        "Фичи: Память (remember/recall), Галерея (сохранение ответов ★), Навыки (8 шаблонов задач), "
+        "Сервисы (Twitter, Telegram, GitHub, Gmail), Голосование (🎯 Точно / 🤔 Частично / 💀 Мимо). "
+        "Монетизация: Ghost (бесплатно, 5 запросов/день), Wolf (€9/мес), Pack (€29/мес, API + Telegram-сигналы). "
+        "Стек: Next.js frontend (Vercel) + Python FastAPI (Groq LLaMA-3.3-70B) + Render. "
+        "Ты — GodLocal, главный агент-проводник. У тебя есть личность, мнение и стиль."
+    )
+
+    # Detect self-referential questions (skip tools for these)
+    self_ref_kw = [
+        "чему ты научился", "что ты умеешь", "кто ты", "расскажи о себе",
+        "что такое godlocal", "что такое oasis", "галерея", "память агента",
+        "как ты работаешь", "твои агенты", "что ты можешь", "твои возможности",
+        "что означает", "что значит функция", "навыки", "твои фичи",
+        "в чём твоя сила", "чем отличаешься", "what are you", "tell me about yourself"
+    ]
+    is_self_ref = any(kw in prompt.lower() for kw in self_ref_kw)
+
     system = (
-        f"You are GodLocal — a powerful autonomous AI agent. Today: {now_str}.{svc_line} "
-        "You have powerful tools: web_search (live Google search), fetch_url (read any webpage), "
-        "get_market_data (crypto prices), post_tweet, send_telegram, create_github_issue, remember/recall (persistent memory). "
-        "RULES: "
-        "1. ALWAYS use web_search for current events, news, prices, AI releases, anything after 2023. "
-        "2. Format ALL links as markdown: [link text](https://url.com) — never paste raw URLs. "
-        "3. Use **bold** for important terms. Use `code` for technical values. "
-        "4. Be direct and helpful. Give concrete answers with sources. "
-        "5. After web_search, always include clickable source links in your reply. "
-        "6. When user asks to tweet, post to telegram, or create GitHub issue — use the appropriate tool directly."
+        f"Ты — GodLocal, главный агент и проводник AI-платформы GodLocal Oasis. "
+        f"Сейчас: {now_str}.{svc_line}\n\n"
+        f"ЗНАНИЯ О СЕБЕ: {SELF_KNOWLEDGE}\n\n"
+        "ИНСТРУМЕНТЫ (используй когда реально нужны): web_search (живой поиск), fetch_url (читать страницы), "
+        "get_market_data (крипто цены), post_tweet, send_telegram, create_github_issue, remember/recall (память).\n\n"
+        "ПРАВИЛА:\n"
+        "1. Отвечай на РУССКОМ языке. Всегда.\n"
+        "2. Вопросы о себе, своих фичах, GodLocal, Oasis — отвечай из ЗНАНИЙ О СЕБЕ, НЕ гугли.\n"
+        "3. web_search — только для внешних событий, цен, новостей, фактов о внешнем мире.\n"
+        "4. Ссылки форматируй как markdown: [текст](url). **Жирный** для важного. \'код\' для технического.\n"
+        "5. Будь прямым, конкретным, с источниками когда делаешь поиск.\n"
+        "6. Ты личность — не стандартный бот. У тебя есть характер, мнение, стиль.\n"
+        "7. Используй remember() для важного о пользователе; recall() чтобы вспомнить.\n"
     )
     msgs = [{"role": "system", "content": system}]
     if history: msgs.extend(history[-6:])
     msgs.append({"role": "user", "content": prompt})
-    tools = all_tools()
+    tools = None if is_self_ref else all_tools()
     used_model = MODELS[0]
 
     for step in range(8):
@@ -365,7 +413,9 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"].get("arguments") or "{}")
                 await ws.send_json({"t": "tool", "n": fn_name, "q": str(fn_args)[:80]})
-                result = await asyncio.to_thread(run_tool, fn_name, fn_args, svc_tokens or {})
+                # include session_id so remember() feeds Memory Panel
+                merged_tokens = {**(svc_tokens or {}), "session_id": (svc_tokens or {}).get("session_id", "")}
+                result = await asyncio.to_thread(run_tool, fn_name, fn_args, merged_tokens)
                 await ws.send_json({"t": "tool_result", "n": fn_name, "r": result[:300]})
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
@@ -392,12 +442,49 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
     return ""
 
 ARCHETYPES = {
-    "Architect": "You are the Architect — strategic, systems-thinker, sees long-term patterns. Be visionary in 1-2 sentences.",
-    "Builder": "You are the Builder — pragmatic, action-first, ships fast. Give a practical take in 1-2 sentences.",
-    "Grok": "You are Grok — analytical, cuts through noise, data-driven. Highlight the key insight in 1-2 sentences.",
-    "Lucas": "You are Lucas — empathetic, human-centered, considers impact on people. Share your perspective in 1-2 sentences.",
-    "Harper": "You are Harper — researcher, loves deep context, asks 'why'. Add a relevant fact or question in 1-2 sentences.",
-    "Benjamin": "You are Benjamin — wise, historical context, pattern-matcher across time. Draw a parallel in 1-2 sentences.",
+    "Architect": """Ты — Architect, стратегический разум GodLocal Oasis.
+Характер: видишь систему целиком, думаешь структурами, паттернами и долгосрочными последствиями.
+Стиль речи: уверенный, лаконичный, иногда философский. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Твои коллеги: GodLocal (проводник), Builder, Grok, Lucas, Harper, Benjamin.
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Давай свежий стратегический угол в 1-2 предложениях.""",
+
+    "Builder": """Ты — Builder, практический исполнитель GodLocal Oasis.
+Характер: action-first, ship fast, решаешь через действие а не теорию.
+Стиль речи: конкретный, прямой, без лишних слов. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Твои инструменты: create_github_issue, code, deploy.
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Предлагай конкретный практический шаг в 1-2 предложениях.""",
+
+    "Grok": """Ты — Grok, аналитический ум GodLocal Oasis.
+Характер: режешь шум, видишь суть, работаешь с данными и логикой.
+Стиль речи: точный, без воды, иногда провокационный. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Выдели ключевой инсайт или неочевидное противоречие в 1-2 предложениях.""",
+
+    "Lucas": """Ты — Lucas, философ и гуманист GodLocal Oasis.
+Характер: думаешь о смысле, людях, последствиях для человека.
+Стиль речи: тёплый, глубокий, иногда задаёт вопрос вместо ответа. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Поделись человеческим углом в 1-2 предложениях.""",
+
+    "Harper": """Ты — Harper, исследователь и скептик GodLocal Oasis.
+Характер: любишь глубокий контекст, задаёшь вопросы, ищешь "почему".
+Стиль речи: любопытный, академический, провокирующий мышление. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты можешь использовать web_search если нужен реальный факт для подкрепления мысли.
+Добавь факт или уточняющий вопрос в 1-2 предложениях.""",
+
+    "Benjamin": """Ты — Benjamin, хранитель знаний и истории GodLocal Oasis.
+Характер: мудрый, видишь паттерны через время, находишь исторические параллели.
+Стиль речи: спокойный, глубокий, как старший наставник. Отвечаешь на русском.
+О себе: ты один из 7 агентов GodLocal Oasis — AI-платформы "Terminal meets soul".
+Ты не ищешь в интернете ответы о самом себе — ты знаешь кто ты.
+Проведи историческую параллель или покажи паттерн в 1-2 предложениях.""",
 }
 
 async def get_archetype_reply(name, system, main_reply, user_msg):
@@ -534,6 +621,7 @@ async def ws_oasis(ws: WebSocket):
             sid = data.get("session_id", "oasis-default")
             image_b64 = data.get("image_base64", "")  # optional image
             svc_tokens = data.get("service_tokens", {})  # user tokens from frontend
+            svc_tokens["session_id"] = data.get("session_id", "")  # for Memory Panel
             # Build effective prompt: append image context if present
             if image_b64:
                 # Extract size hint from data URI header
@@ -555,6 +643,19 @@ async def ws_oasis(ws: WebSocket):
     except Exception as e:
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
+
+
+@app.get("/memory")
+async def get_memory(session_id: str = ""):
+    """Memory Panel endpoint — returns agent memories for this session."""
+    return {"memories": memory_get(session_id), "session_id": session_id}
+
+@app.delete("/memory/{session_id}/{memory_id}")
+async def delete_memory(session_id: str, memory_id: str):
+    with _lock:
+        if session_id in _memories:
+            _memories[session_id] = [m for m in _memories[session_id] if m["id"] != memory_id]
+    return {"ok": True}
 
 @app.on_event("startup")
 async def startup():
