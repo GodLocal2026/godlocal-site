@@ -1,5 +1,5 @@
-# GodLocal API Backend v9 — FastAPI / Uvicorn
-# Improvements: Supabase persistent memory, context compression,
+# GodLocal API Backend v10 — FastAPI / Uvicorn
+# Improvements: Supabase persistent memory, compression cache (v10 perf fix),
 #               agent disagreement, user profile model, active mission
 # WebSocket: /ws/search /ws/oasis
 # REST: /api/health /api/soul/{sid} /think /market /status /hitl/* /memory /profile /mission
@@ -24,6 +24,7 @@ _market_cache: dict = {"data": None, "ts": 0.0}
 
 # ─── In-memory fallback (used when Supabase not configured) ───────────────────
 _soul: dict = {}         # session_id -> [{role, content, ts}]
+_compression_cache: dict = {}  # session_id -> {hash, result}  v10 perf fix
 _memories: dict = {}     # session_id -> [{id, content, ts}]
 _user_profiles: dict = {}  # session_id -> {name, goals, style, facts, mission}
 
@@ -425,12 +426,23 @@ def run_tool(name, args, svc_tokens=None):
 
 COMPRESSION_THRESHOLD = 10  # compress after every 10 turns
 
-def compress_history(history: list) -> list:
-    """Compress old history into a summary + keep last 4 turns verbatim."""
+def _history_hash(history: list) -> str:
+    """Lightweight fingerprint — count + last-msg content hash."""
+    import hashlib
+    last = history[-1]["content"][:80] if history else ""
+    return f"{len(history)}:{hashlib.md5(last.encode()).hexdigest()[:8]}"
+
+def compress_history(history: list, sid: str = "") -> list:
+    """Compress old history into a summary + keep last 4 turns verbatim.
+    v10: caches result per session; skips LLM call when history unchanged."""
     if len(history) <= COMPRESSION_THRESHOLD:
         return history
-    to_compress = history[:-4]  # everything except last 4
-    keep = history[-4:]          # always keep last 4 verbatim
+    h = _history_hash(history)
+    cached = _compression_cache.get(sid)
+    if cached and cached["hash"] == h:
+        return cached["result"]            # ← cache hit, zero LLM cost
+    to_compress = history[:-4]
+    keep = history[-4:]
     summary_prompt = [
         {"role": "system", "content": "Сожми диалог в 3-4 предложения. Сохрани: ключевые факты, решения, контекст пользователя. Только суть, без воды."},
         {"role": "user", "content": "Диалог:\n" + "\n".join(f"{m['role']}: {m['content'][:200]}" for m in to_compress)}
@@ -439,8 +451,10 @@ def compress_history(history: list) -> list:
     if err or not resp:
         return history[-8:]  # fallback: just trim
     summary_text = resp["choices"][0]["message"].get("content", "")
-    compressed = [{"role": "system", "content": f"[Контекст предыдущего разговора]: {summary_text}"}]
-    return compressed + keep
+    result = [{"role": "system", "content": f"[Контекст предыдущего разговора]: {summary_text}"}] + keep
+    if sid:
+        _compression_cache[sid] = {"hash": h, "result": result}
+    return result
 
 def soul_add(sid, role, content):
     with _lock:
@@ -450,7 +464,7 @@ def soul_add(sid, role, content):
 
 def soul_history(sid):
     raw = [{"role": t["role"], "content": t["content"]} for t in _soul.get(sid, [])]
-    return compress_history(raw)
+    return compress_history(raw, sid=sid)
 
 
 # ─── IMPROVEMENT 3: Agent Disagreement ───────────────────────────────────────
