@@ -128,6 +128,68 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);pad
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--g);border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:4px}
 .sec-lbl{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+
+/* ── BOTTOM TAB BAR ── */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;height:54px;background:var(--bg1);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--dim);font-size:9px;font-weight:700;letter-spacing:.5px;transition:color .15s;padding:4px 0}
+.tab.active{color:var(--b)}
+.tab .tab-ico{font-size:20px;line-height:1}
+body{padding-bottom:54px}
+
+/* ── MARKET PANEL ── */
+#marketPanel{display:none;flex-direction:column;height:calc(100vh - 100px - 54px);overflow:hidden}
+#marketPanel.active{display:flex}
+.mkt-search{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--fg);font-size:13px;width:100%;box-sizing:border-box;margin:8px 0}
+.mkt-search::placeholder{color:var(--dim)}
+.mkt-list{overflow-y:auto;flex:1}
+.mkt-row{display:flex;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;gap:10px;transition:background .1s}
+.mkt-row:active{background:var(--bg2)}
+.mkt-rank{font-size:10px;color:var(--dim);width:22px;flex-shrink:0;text-align:right}
+.mkt-icon{width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;background:var(--bg3)}
+.mkt-info{flex:1;min-width:0}
+.mkt-sym{font-size:13px;font-weight:700;color:var(--fg)}
+.mkt-name{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mkt-right{text-align:right;flex-shrink:0}
+.mkt-price{font-size:13px;font-weight:600;color:var(--fg)}
+.mkt-chg{font-size:11px;font-weight:700}
+.mkt-chg.up{color:#00FF9D}.mkt-chg.dn{color:#ff4d6d}
+.mkt-mcap{font-size:10px;color:var(--dim)}
+.mkt-cat{display:flex;gap:6px;overflow-x:auto;padding:4px 0;scrollbar-width:none}
+.mkt-cat::-webkit-scrollbar{display:none}
+.mkt-cat-btn{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--dim);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.mkt-cat-btn.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
+
+/* ── WALLET PANEL ── */
+#walletPanel{display:none;flex-direction:column;height:calc(100vh - 100px - 54px);overflow-y:auto;padding:0 4px}
+#walletPanel.active{display:flex}
+.wallet-connect-btn{background:rgba(108,92,231,.2);border:2px solid #6C5CE7;border-radius:14px;padding:14px;text-align:center;cursor:pointer;margin:16px 0;font-weight:700;font-size:14px;color:#a79cf7;transition:all .2s}
+.wallet-connect-btn:active{background:rgba(108,92,231,.4)}
+.wallet-addr{font-size:11px;color:var(--dim);text-align:center;margin-bottom:12px;font-family:monospace}
+.wallet-bal{display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.wallet-bal-label{font-size:11px;color:var(--dim)}
+.wallet-bal-val{font-size:16px;font-weight:700;color:var(--fg)}
+.wallet-bal-usd{font-size:11px;color:var(--dim)}
+.tok-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:12px;margin-bottom:6px}
+.tok-ico{width:32px;height:32px;border-radius:50%;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px}
+.tok-info{flex:1}
+.tok-sym{font-size:13px;font-weight:700;color:var(--fg)}
+.tok-amt{font-size:11px;color:var(--dim)}
+.tok-val{text-align:right;font-size:13px;font-weight:600;color:var(--fg)}
+
+/* ── SWAP TERMINAL ── */
+.swap-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
+.swap-title{font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase}
+.swap-row{display:flex;gap:8px;margin-bottom:8px}
+.swap-inp{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--fg);font-size:14px;font-weight:600}
+.swap-inp::placeholder{color:var(--dim);font-weight:400}
+.swap-sel{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--fg);font-size:13px;font-weight:600;cursor:pointer;min-width:80px}
+.swap-btn{width:100%;background:var(--b);color:#000;font-weight:800;font-size:14px;letter-spacing:.5px;border:none;border-radius:12px;padding:13px;cursor:pointer;transition:opacity .15s}
+.swap-btn:disabled{opacity:.4;cursor:not-allowed}
+.swap-quote{font-size:11px;color:var(--dim);text-align:center;min-height:16px;margin-bottom:8px}
+.swap-tabs{display:flex;gap:6px;margin-bottom:10px}
+.swap-tab{flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;background:var(--bg3);color:var(--dim);border:1px solid var(--border)}
+.swap-tab.active{background:rgba(0,255,157,.15);border-color:var(--b);color:var(--b)}
+
 </style>
 </head>
 <body>
@@ -744,6 +806,297 @@ function startAutoLoops(){
 })();
 
 
+
+// ══ TAB NAVIGATION ═════════════════════════════════════════════════════════════
+const wolfEls = ['chips','fltPanel','chat','input-wrap'];
+let currentTab = 'wolf';
+function switchTab(tab){
+  currentTab = tab;
+  // Hide all panels
+  document.getElementById('marketPanel').classList.remove('active');
+  document.getElementById('walletPanel').classList.remove('active');
+  // Wolf elements
+  const wolfVisible = tab === 'wolf';
+  document.querySelector('.chips').style.display   = wolfVisible ? '' : 'none';
+  document.querySelector('.flt-panel').style.display = wolfVisible ? '' : 'none';
+  document.querySelector('.chat').style.display    = wolfVisible ? '' : 'none';
+  document.querySelector('.input-wrap').style.display = wolfVisible ? '' : 'none';
+  // Activate correct panel
+  if(tab === 'market'){ document.getElementById('marketPanel').classList.add('active'); loadMarket(); }
+  if(tab === 'wallet'){ document.getElementById('walletPanel').classList.add('active'); }
+  // Tab bar active state
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// ══ MARKET MODULE ══════════════════════════════════════════════════════════════
+let mktData = [], mktCat = 'top', mktLoaded = {};
+const COINGECKO = 'https://api.coingecko.com/api/v3';
+
+async function loadMarket(){
+  if(mktLoaded[mktCat] && Date.now() - mktLoaded[mktCat] < 60000) return; // 1min cache
+  const list = document.getElementById('mktList');
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⏳ Загрузка…</div>';
+  try{
+    let url;
+    if(mktCat === 'top'){
+      url = COINGECKO + '/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&price_change_percentage=1h,24h&sparkline=false';
+    } else {
+      url = COINGECKO + '/coins/markets?vs_currency=usd&category=' + mktCat + '&order=market_cap_desc&per_page=100&page=1&price_change_percentage=1h,24h&sparkline=false';
+    }
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('CoinGecko ' + r.status);
+    mktData = await r.json();
+    mktLoaded[mktCat] = Date.now();
+    renderMarket(mktData);
+  }catch(e){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⚠️ ' + e.message + '<br><small>CoinGecko rate limit — подожди 60 сек</small></div>';
+  }
+}
+
+function mktSetCat(cat, el){
+  mktCat = cat;
+  document.querySelectorAll('.mkt-cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadMarket();
+}
+
+function mktFilter(q){
+  if(!q) { renderMarket(mktData); return; }
+  const ql = q.toLowerCase();
+  renderMarket(mktData.filter(c => c.symbol.toLowerCase().includes(ql) || c.name.toLowerCase().includes(ql)));
+}
+
+function fmtPrice(p){
+  if(!p && p!==0) return '—';
+  if(p >= 1000) return '$' + p.toLocaleString('en-US', {maximumFractionDigits:0});
+  if(p >= 1) return '$' + p.toLocaleString('en-US', {maximumFractionDigits:2});
+  if(p >= 0.01) return '$' + p.toFixed(4);
+  return '$' + p.toFixed(8);
+}
+function fmtMcap(v){
+  if(!v) return '';
+  if(v >= 1e12) return '$' + (v/1e12).toFixed(2)+'T';
+  if(v >= 1e9) return '$' + (v/1e9).toFixed(2)+'B';
+  if(v >= 1e6) return '$' + (v/1e6).toFixed(1)+'M';
+  return '$' + (v/1e3).toFixed(0)+'K';
+}
+
+function renderMarket(coins){
+  const list = document.getElementById('mktList');
+  if(!coins.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--dim)">Ничего не найдено</div>';return;}
+  list.innerHTML = coins.map((c,i) => {
+    const chg = c.price_change_percentage_24h || 0;
+    const chgCls = chg >= 0 ? 'up' : 'dn';
+    const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+    return \\\`<div class="mkt-row" onclick="mktOpenCoin('\\\${c.id}','\\\${c.symbol.toUpperCase()}','\\\${esc(c.name)}',\\\${c.current_price||0},\\\${chg})">
+      <span class="mkt-rank">\\\${c.market_cap_rank||i+1}</span>
+      <img class="mkt-icon" src="\\\${c.image||''}" alt="\\\${c.symbol}" onerror="this.style.display='none'">
+      <div class="mkt-info">
+        <div class="mkt-sym">\\\${c.symbol.toUpperCase()}</div>
+        <div class="mkt-name">\\\${esc(c.name)}</div>
+      </div>
+      <div class="mkt-right">
+        <div class="mkt-price">\\\${fmtPrice(c.current_price)}</div>
+        <div class="mkt-chg \\\${chgCls}">\\\${chgStr}</div>
+        <div class="mkt-mcap">\\\${fmtMcap(c.market_cap)}</div>
+      </div>
+    </div>\\\`;
+  }).join('');
+}
+
+function mktOpenCoin(id, sym, name, price, chg){
+  // Switch to WOLF tab and analyze
+  switchTab('wolf');
+  const ctx = \\\`\\\${sym} (\\\${name}) | Цена: \\\${fmtPrice(price)} | 24h: \\\${chg>=0?'+':''}+\\\${chg.toFixed(2)}%\\\`;
+  lastTokenCtx = ctx;
+  const q = \\\`Анализ \\\${sym}: цена \\\${fmtPrice(price)}, 24h \\\${chg>=0?'+':''}+\\\${chg.toFixed(2)}%. Стоит входить?\\\`;
+  userBubble(q);
+  agentMode ? askAgents(q) : askAI(q);
+}
+
+// ══ PHANTOM WALLET MODULE ═══════════════════════════════════════════════════════
+let phantomPubkey = null;
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+let solPrice = 0;
+let swapMode = 'buy'; // buy = SOL→TOKEN, sell = TOKEN→SOL
+let quoteTimer = null;
+
+async function connectPhantom(){
+  const phantom = window.solana || window.phantom?.solana;
+  if(!phantom || !phantom.isPhantom){
+    botMsg('👻 Phantom не найден. Установи расширение на десктопе или открой в Phantom mobile browser.');
+    return;
+  }
+  try{
+    const resp = await phantom.connect();
+    phantomPubkey = resp.publicKey.toString();
+    document.getElementById('walletDisconnected').style.display = 'none';
+    document.getElementById('walletConnected').style.display = 'block';
+    document.getElementById('walletAddr').textContent = phantomPubkey.slice(0,6) + '...' + phantomPubkey.slice(-4) + ' 📋';
+    document.getElementById('walletAddr').onclick = () => {navigator.clipboard.writeText(phantomPubkey); document.getElementById('walletAddr').textContent = '✅ Скопировано!'; setTimeout(() => document.getElementById('walletAddr').textContent = phantomPubkey.slice(0,6)+'...'+phantomPubkey.slice(-4)+' 📋', 1500);};
+    refreshWallet();
+  }catch(e){
+    botMsg('⚠️ Ошибка подключения: ' + e.message);
+  }
+}
+
+async function refreshWallet(){
+  if(!phantomPubkey) return;
+  // SOL balance
+  try{
+    const r = await fetch(SOL_RPC, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[phantomPubkey]})
+    });
+    const d = await r.json();
+    const sol = (d.result?.value || 0) / 1e9;
+    document.getElementById('solBal').textContent = sol.toFixed(4) + ' SOL';
+    // Get SOL price
+    const pr = await fetch(COINGECKO + '/simple/price?ids=solana&vs_currencies=usd');
+    const pd = await pr.json();
+    solPrice = pd.solana?.usd || 0;
+    document.getElementById('solUsd').textContent = '$' + (sol * solPrice).toFixed(2);
+  }catch(e){}
+  // SPL token accounts
+  loadTokenAccounts();
+}
+
+async function loadTokenAccounts(){
+  if(!phantomPubkey) return;
+  try{
+    const r = await fetch(SOL_RPC, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        jsonrpc:'2.0', id:1, method:'getTokenAccountsByOwner',
+        params:[phantomPubkey,
+          {programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},
+          {encoding:'jsonParsed', commitment:'confirmed'}
+        ]
+      })
+    });
+    const d = await r.json();
+    const accounts = (d.result?.value || [])
+      .map(a => a.account.data.parsed.info)
+      .filter(a => a.tokenAmount.uiAmount > 0)
+      .sort((a,b) => b.tokenAmount.uiAmount - a.tokenAmount.uiAmount)
+      .slice(0, 20);
+
+    const list = document.getElementById('tokenList');
+    if(!accounts.length){ list.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center;padding:16px">Нет токенов в кошельке</div>'; return; }
+    list.innerHTML = accounts.map(a => {
+      const mint = a.mint;
+      const amt = a.tokenAmount.uiAmount;
+      const short = mint.slice(0,4)+'...'+mint.slice(-4);
+      return \\\`<div class="tok-row" onclick="fillSwapAddr('\\\${mint}')">
+        <div class="tok-ico">🪙</div>
+        <div class="tok-info">
+          <div class="tok-sym">\\\${short}</div>
+          <div class="tok-amt">Mint: \\\${mint.slice(0,8)}…</div>
+        </div>
+        <div class="tok-val">\\\${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
+      </div>\\\`;
+    }).join('');
+  }catch(e){}
+}
+
+function fillSwapAddr(mint){
+  document.getElementById('swapToAddr').value = mint;
+  document.getElementById('swapToLabel').textContent = mint.slice(0,4)+'...';
+  debounceQuote();
+}
+
+function setSwapMode(mode){
+  swapMode = mode;
+  document.getElementById('swapTabBuy').classList.toggle('active', mode==='buy');
+  document.getElementById('swapTabSell').classList.toggle('active', mode==='sell');
+  document.getElementById('swapFromLabel').textContent = mode==='buy' ? 'SOL' : 'TOKEN';
+  document.getElementById('swapAmt').placeholder = mode==='buy' ? 'Кол-во SOL' : 'Кол-во токенов';
+  document.getElementById('swapQuote').textContent = '';
+}
+
+function debounceQuote(){
+  clearTimeout(quoteTimer);
+  quoteTimer = setTimeout(getSwapQuote, 600);
+}
+
+async function getSwapQuote(){
+  const amt = parseFloat(document.getElementById('swapAmt').value);
+  const toAddr = document.getElementById('swapToAddr').value.trim();
+  if(!amt || !toAddr) return;
+  const quoteEl = document.getElementById('swapQuote');
+  quoteEl.textContent = '⏳ Получаю котировку…';
+  try{
+    const inputMint = swapMode==='buy' ? WSOL_MINT : toAddr;
+    const outputMint = swapMode==='buy' ? toAddr : WSOL_MINT;
+    const decimals = swapMode==='buy' ? 9 : 6;
+    const amtLamports = Math.round(amt * Math.pow(10, decimals));
+    const url = \\\`https://quote-api.jup.ag/v6/quote?inputMint=\\\${inputMint}&outputMint=\\\${outputMint}&amount=\\\${amtLamports}&slippageBps=300\\\`;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('Jupiter API ' + r.status);
+    const q = await r.json();
+    if(q.error) throw new Error(q.error);
+    const outAmt = parseInt(q.outAmount);
+    const outDecimals = swapMode==='buy' ? 6 : 9;
+    const outFmt = (outAmt / Math.pow(10, outDecimals)).toFixed(swapMode==='buy'?4:6);
+    const priceImpact = parseFloat(q.priceImpactPct || 0);
+    const impactColor = priceImpact > 5 ? '#ff4d6d' : priceImpact > 2 ? '#FDCB6E' : '#00FF9D';
+    quoteEl.innerHTML = \\\`Получишь ≈ <b>\\\${outFmt}</b> | Проскальзывание: <span style="color:\\\${impactColor}">\\\${priceImpact.toFixed(2)}%</span>\\\`;
+    quoteEl.dataset.quote = JSON.stringify(q);
+  }catch(e){
+    quoteEl.textContent = '⚠️ ' + e.message;
+  }
+}
+
+async function execSwap(){
+  if(!phantomPubkey){ botMsg('👻 Сначала подключи Phantom кошелёк'); switchTab('wallet'); return; }
+  const quoteEl = document.getElementById('swapQuote');
+  const quoteData = quoteEl.dataset.quote;
+  if(!quoteData){ botMsg('⚠️ Сначала получи котировку'); return; }
+  const btn = document.getElementById('swapBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Подготовка транзакции…';
+  try{
+    const q = JSON.parse(quoteData);
+    // Get swap transaction from Jupiter
+    const swapResp = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        quoteResponse: q,
+        userPublicKey: phantomPubkey,
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto'
+      })
+    });
+    if(!swapResp.ok) throw new Error('Jupiter swap API ' + swapResp.status);
+    const { swapTransaction } = await swapResp.json();
+    // Decode + sign with Phantom
+    btn.textContent = '✍️ Подпиши в Phantom…';
+    const phantom = window.solana || window.phantom?.solana;
+    const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+    const signed = await phantom.signTransaction({
+      serialize: () => txBuf,
+      deserialize: (b) => b
+    });
+    // Actually use signAndSendTransaction for simplicity
+    btn.textContent = '📡 Отправка…';
+    const {signature} = await phantom.signAndSendTransaction(
+      { serialize: () => txBuf }
+    );
+    btn.textContent = '✅ Успешно!';
+    botMsg(\\\`✅ <b>Своп выполнен!</b><br>TX: <a href="https://solscan.io/tx/\\\${signature}" target="_blank" style="color:var(--b)">\\\${signature.slice(0,16)}…</a>\\\`);
+    setTimeout(()=>{btn.disabled=false;btn.textContent='⚡ СВОП';},3000);
+    setTimeout(refreshWallet, 5000);
+  }catch(e){
+    btn.disabled=false;
+    btn.textContent='⚡ СВОП';
+    botMsg('⚠️ Ошибка свопа: ' + e.message);
+  }
+}
+
 // ── OASIS AGENT MODE ──────────────────────────────────────────────────────────
 const AGENT_COLORS = {
   'GodLocal': '#00FF9D',
@@ -871,6 +1224,91 @@ function toggleVoice(){
 }
 function stopVoice(){if(voiceRec){voiceRec.stop();voiceRec=null;}}
 </script>
+
+<!-- ══ MARKET PANEL ══════════════════════════════════════════════ -->
+<div id="marketPanel">
+  <div class="mkt-cat" id="mktCat">
+    <div class="mkt-cat-btn active" onclick="mktSetCat('top',this)">🌐 Все</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('layer-1',this)">⛓ L1</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('defi',this)">🏦 DeFi</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('meme-token',this)">🐸 Мем</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('ai-big-data',this)">🤖 AI</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('gaming',this)">🎮 Gaming</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('solana-ecosystem',this)">◎ Solana</div>
+  </div>
+  <input class="mkt-search" id="mktSearch" placeholder="🔍 BTC, ETH, SOL..." oninput="mktFilter(this.value)">
+  <div class="mkt-list" id="mktList"><div style="text-align:center;padding:40px;color:var(--dim)">Загрузка рынка…</div></div>
+</div>
+
+<!-- ══ WALLET PANEL ══════════════════════════════════════════════ -->
+<div id="walletPanel">
+  <div id="walletDisconnected">
+    <div style="text-align:center;padding:24px 16px 8px">
+      <div style="font-size:36px;margin-bottom:8px">👻</div>
+      <div style="font-size:16px;font-weight:700;color:var(--fg);margin-bottom:6px">Phantom Wallet</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">Подключи кошелёк чтобы видеть баланс и торговать прямо здесь</div>
+    </div>
+    <div class="wallet-connect-btn" onclick="connectPhantom()">👻 Подключить Phantom</div>
+    <div style="font-size:11px;color:var(--dim);text-align:center">Нет Phantom? <a href="https://phantom.app" target="_blank" style="color:var(--b)">phantom.app</a></div>
+  </div>
+  <div id="walletConnected" style="display:none">
+    <div class="wallet-addr" id="walletAddr"></div>
+    <div class="wallet-bal">
+      <div>
+        <div class="wallet-bal-label">SOL Balance</div>
+        <div class="wallet-bal-val" id="solBal">—</div>
+      </div>
+      <div style="text-align:right">
+        <div class="wallet-bal-label">USD Value</div>
+        <div class="wallet-bal-usd" id="solUsd">—</div>
+      </div>
+      <button onclick="refreshWallet()" style="background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer">⟳</button>
+    </div>
+
+    <!-- SWAP TERMINAL -->
+    <div class="swap-box">
+      <div class="swap-title">⚡ Торговый терминал</div>
+      <div class="swap-tabs">
+        <div class="swap-tab active" id="swapTabBuy" onclick="setSwapMode('buy')">🟢 КУПИТЬ</div>
+        <div class="swap-tab" id="swapTabSell" onclick="setSwapMode('sell')">🔴 ПРОДАТЬ</div>
+      </div>
+      <div class="swap-row">
+        <input class="swap-inp" id="swapAmt" type="number" placeholder="0.0" step="any" oninput="debounceQuote()">
+        <select class="swap-sel" id="swapSolAmt" style="display:none">
+          <option value="0.1">0.1 SOL</option>
+          <option value="0.5">0.5 SOL</option>
+          <option value="1">1 SOL</option>
+          <option value="custom">Своё</option>
+        </select>
+        <div class="swap-sel" id="swapFromLabel">SOL</div>
+      </div>
+      <div class="swap-row">
+        <input class="swap-inp" id="swapToAddr" placeholder="Адрес токена (mint)..." style="font-size:11px;font-family:monospace">
+        <div class="swap-sel" id="swapToLabel">TOKEN</div>
+      </div>
+      <div class="swap-quote" id="swapQuote"></div>
+      <button class="swap-btn" id="swapBtn" onclick="execSwap()">⚡ СВОП</button>
+    </div>
+
+    <!-- TOKEN HOLDINGS -->
+    <div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Токены в кошельке</div>
+    <div id="tokenList"><div style="color:var(--dim);font-size:12px">Загрузка…</div></div>
+  </div>
+</div>
+
+<!-- ══ BOTTOM TAB BAR ══════════════════════════════════════════════ -->
+<div class="tab-bar">
+  <div class="tab active" id="tabWolf" onclick="switchTab('wolf')">
+    <span class="tab-ico">⚡</span>WOLF
+  </div>
+  <div class="tab" id="tabMarket" onclick="switchTab('market')">
+    <span class="tab-ico">📊</span>РЫНОК
+  </div>
+  <div class="tab" id="tabWallet" onclick="switchTab('wallet')">
+    <span class="tab-ico">💼</span>КОШЕЛЁК
+  </div>
+</div>
+
 </body>
 </html>`;
 
