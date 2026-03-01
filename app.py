@@ -147,7 +147,7 @@ XQUIK_TOOLS = [
 
 def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else [])
 
-def run_tool(name, args, svc_tokens: dict | None = None):
+def run_tool(name, args, svc_tokens=None):
     svc_tokens = svc_tokens or {}
     global _kill_switch
     if name == "get_market_data": return json.dumps(get_market())
@@ -303,7 +303,7 @@ def react(prompt, history=None):
             return text, steps, used_model
     return "Internal error", steps, used_model
 
-async def react_ws(prompt, history, ws, svc_tokens: dict | None = None):
+async def react_ws(prompt, history, ws, svc_tokens=None):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     # Build services hint from user tokens
     svc_hints = []
