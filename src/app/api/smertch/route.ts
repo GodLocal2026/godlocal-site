@@ -171,6 +171,9 @@ html{height:100%}body{height:100dvh;height:100vh;display:flex;flex-direction:col
 .tok-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:12px;margin-bottom:6px}
 .tok-ico{width:32px;height:32px;border-radius:50%;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px}
 .tok-info{flex:1}
+.qk-row{display:flex;align-items:center;gap:6px;padding:6px 0;flex-wrap:wrap}
+.qk-btn{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--dim);cursor:pointer}
+.qk-btn.active{background:rgba(0,255,157,.12);border-color:var(--b);color:var(--b)}
 .tok-sym{font-size:13px;font-weight:700;color:var(--fg)}
 .tok-amt{font-size:11px;color:var(--dim)}
 .tok-val{text-align:right;font-size:13px;font-weight:600;color:var(--fg)}
@@ -401,7 +404,7 @@ function tokenCard(p,opts={}){
     </div>
     <div class="conv"><div class="conv-f" style="width:\${conv}%;background:\${sigClr}"></div></div>
     <div class="cbs">
-      <button class="cb cb-g" onclick="quickEnter('\${esc(addr)}','\${esc(sym)}')">+Войти</button>
+      <button class="cb cb-g" onclick="quickBuyNow('\${esc(addr)}','\${esc(sym)}')">⚡ Купить</button>
       <button class="cb cb-p" onclick="cmd('анализ \${esc(addr)}')">Анализ</button>
       \${opts.pushTg?\`<button class="cb cb-o" onclick="pushOneTg('\${esc(sym)}','\${esc(addr)}',\${c1},\${vol1},\${liq},\${buys},\${sells},\${age||0})">📤 TG</button>\`:''}
       <a href="\${dexUrl}" target="_blank" style="text-decoration:none"><button class="cb cb-p">DEX ↗</button></a>
@@ -559,6 +562,67 @@ async function closePos(i){
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
   botMsg(\`❌ Позиция <b>\${esc(sym)}</b> закрыта\`);
 }
+// ── QUICK BUY / SELL ───────────────────────────────────────────────────────────
+let qkSol = 0.1; // preset SOL amount for quick buy
+
+function setQkSol(amt, el) {
+  qkSol = amt;
+  document.querySelectorAll('.qk-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function quickBuyNow(mint, sym) {
+  if(!phantomPubkey) { await connectPhantom(); if(!phantomPubkey) return; }
+  botMsg(\`⚡ Покупка <b>\${esc(sym)}</b> за \${qkSol} SOL…\`);
+  try {
+    const lamports = Math.round(qkSol * 1e9);
+    const q = await fetch(\`https://quote-api.jup.ag/v6/quote?inputMint=\${WSOL_MINT}&outputMint=\${mint}&amount=\${lamports}&slippageBps=300\`)
+      .then(r => { if(!r.ok) throw new Error('Jupiter quote ' + r.status); return r.json(); });
+    if(q.error) throw new Error(q.error);
+    const swapR = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ quoteResponse:q, userPublicKey:phantomPubkey, wrapAndUnwrapSol:true, dynamicComputeUnitLimit:true, prioritizationFeeLamports:'auto' })
+    });
+    if(!swapR.ok) throw new Error('Jupiter swap ' + swapR.status);
+    const { swapTransaction } = await swapR.json();
+    const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+    botMsg('✍️ Подпиши в Phantom…');
+    const phantom = window.solana || window.phantom?.solana;
+    const { signature } = await phantom.signAndSendTransaction({ serialize: () => txBuf });
+    const outAmt = (parseInt(q.outAmount) / 1e6).toLocaleString('en-US', {maximumFractionDigits:2});
+    botMsg(\`✅ <b>Куплено \${esc(sym)}</b> × \${outAmt}<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
+    portfolio.push({id:Date.now(),addr:mint,sym,entry:qkSol,sol:qkSol,ts:Date.now()});
+    localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
+    setTimeout(refreshWallet, 5000);
+  } catch(e) { botMsg('⚠️ ' + e.message); }
+}
+
+async function quickSellNow(mint, sym, amt, dec) {
+  if(!phantomPubkey) { await connectPhantom(); if(!phantomPubkey) return; }
+  botMsg(\`⚡ Продажа <b>\${esc(sym)}</b>…\`);
+  try {
+    const lamports = Math.round(amt * Math.pow(10, dec||6));
+    const q = await fetch(\`https://quote-api.jup.ag/v6/quote?inputMint=\${mint}&outputMint=\${WSOL_MINT}&amount=\${lamports}&slippageBps=300\`)
+      .then(r => { if(!r.ok) throw new Error('Jupiter quote ' + r.status); return r.json(); });
+    if(q.error) throw new Error(q.error);
+    const swapR = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ quoteResponse:q, userPublicKey:phantomPubkey, wrapAndUnwrapSol:true, dynamicComputeUnitLimit:true, prioritizationFeeLamports:'auto' })
+    });
+    if(!swapR.ok) throw new Error('Jupiter swap ' + swapR.status);
+    const { swapTransaction } = await swapR.json();
+    const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+    botMsg('✍️ Подпиши продажу в Phantom…');
+    const phantom = window.solana || window.phantom?.solana;
+    const { signature } = await phantom.signAndSendTransaction({ serialize: () => txBuf });
+    const solReceived = (parseInt(q.outAmount) / 1e9).toFixed(4);
+    botMsg(\`✅ <b>Продано \${esc(sym)}</b>, получено ~\${solReceived} SOL<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
+    const {ok} = getTg();
+    if(ok) sendTg(\`🔴 ПРОДАНО: \${sym}\\nПолучено: ~\${solReceived} SOL\\nhttps://dexscreener.com/solana/\${mint}\`);
+    setTimeout(refreshWallet, 5000);
+  } catch(e) { botMsg('⚠️ ' + e.message); }
+}
+
 
 // ── DIVE ANALYZER ─────────────────────────────────────────────────────────────
 async function runAnalyze(addr){
@@ -1018,13 +1082,15 @@ async function loadTokenAccounts(){
       const mint = a.mint;
       const amt = a.tokenAmount.uiAmount;
       const short = mint.slice(0,4)+'...'+mint.slice(-4);
-      return \`<div class="tok-row" onclick="fillSwapAddr('\${mint}')">
-        <div class="tok-ico">🪙</div>
-        <div class="tok-info">
-          <div class="tok-sym">\${short}</div>
-          <div class="tok-amt">Mint: \${mint.slice(0,8)}…</div>
+      return \`<div class="tok-row" style="cursor:default">
+        <div style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="fillSwapAddr('\${mint}')">
+          <div class="tok-ico">🪙</div>
+          <div class="tok-info">
+            <div class="tok-sym">\${short}</div>
+            <div class="tok-amt">Bal: \${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
+          </div>
         </div>
-        <div class="tok-val">\${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
+        <button class="cb cb-r" style="font-size:10px;padding:3px 10px;flex-shrink:0" onclick="quickSellNow('\${mint}','\${short}',\${amt},6)">💰 Продать</button>
       </div>\`;
     }).join('');
   }catch(e){}
@@ -1299,6 +1365,13 @@ window.addEventListener('DOMContentLoaded', () => {
         <div class="wallet-bal-usd" id="solUsd">—</div>
       </div>
       <button onclick="refreshWallet()" style="background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer">⟳</button>
+    </div>
+    <div class="qk-row">
+      <span style="font-size:10px;color:var(--dim);margin-right:2px">⚡</span>
+      <button class="qk-btn" onclick="setQkSol(0.05,this)">0.05</button>
+      <button class="qk-btn active" onclick="setQkSol(0.1,this)">0.1</button>
+      <button class="qk-btn" onclick="setQkSol(0.5,this)">0.5</button>
+      <button class="qk-btn" onclick="setQkSol(1,this)">1 SOL</button>
     </div>
 
     <!-- SWAP TERMINAL -->
