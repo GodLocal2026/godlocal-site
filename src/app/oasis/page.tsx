@@ -42,6 +42,30 @@ const SVC_FIELDS: Record<string, { label: string; placeholder: string; hint: str
 
 
 // Sub-component for account connection card (needs hooks)
+const TASK_TEMPLATES = [
+  // Social
+  { id:'tweet',  icon:'𝕏',  label:'Опубликовать твит', desc:'Публикует пост в X/Twitter', svc:'twitter',
+    color:'#1DA1F2', prompt:'Опубликуй твит: ' },
+  { id:'tg',    icon:'✈️', label:'Отправить в Telegram', desc:'Сообщение в X100Agent', svc:'telegram',
+    color:'#0088cc', prompt:'Отправь в Telegram: ' },
+  // Dev
+  { id:'issue', icon:'🐙', label:'Создать GitHub Issue', desc:'Новый issue в репозитории', svc:'github',
+    color:'#6e40c9', prompt:'Создай GitHub issue с заголовком "" и описанием: ' },
+  { id:'code',  icon:'💻', label:'Написать код', desc:'Генерация, рефакторинг, отладка', svc:null,
+    color:'#00FF9D', prompt:'Напиши код: ' },
+  // Research
+  { id:'search', icon:'🌐', label:'Поиск в интернете', desc:'Актуальная информация из сети', svc:null,
+    color:'#FDCB6E', prompt:'Найди в интернете: ' },
+  { id:'market', icon:'📊', label:'Данные рынка', desc:'Криптo, акции, токены', svc:null,
+    color:'#E17055', prompt:'Покажи данные рынка по: ' },
+  // Memory
+  { id:'remember', icon:'🧠', label:'Запомнить',  desc:'Сохранить в долгосрочную память', svc:null,
+    color:'#A29BFE', prompt:'Запомни это: ' },
+  { id:'recall',   icon:'🔍', label:'Вспомнить',  desc:'Что я тебе говорил о', svc:null,
+    color:'#A29BFE', prompt:'Что ты знаешь о ' },
+]
+
+
 function SvcCard({ svc, onDone }: { svc: ServiceStatus & { color: string }; onDone: () => void }) {
   const stored = typeof window !== 'undefined' ? localStorage.getItem(`gl_${svc.id}`) : null
   const [isConnected, setIsConnected] = useState(!!stored)
@@ -239,6 +263,7 @@ export default function OasisPage() {
   const [showMemory, setShowMemory] = useState(false)
   const [memory, setMemory] = useState<string[]>([])
   const [showArtifacts, setShowArtifacts] = useState(false)
+  const [showSkills, setShowSkills] = useState(false)
 
   const fetchMemory = useCallback(async () => {
     try {
@@ -356,7 +381,13 @@ export default function OasisPage() {
     setAttachments([])
     if (inputRef.current) { inputRef.current.style.height = 'auto'; inputRef.current.blur() }
 
-    const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id }
+    // Collect stored service tokens for backend tool use
+    const svcTokens: Record<string,string> = {}
+    if (typeof window !== 'undefined') {
+      const keys = ['twitter','telegram','gmail','github']
+      keys.forEach(k => { const v = localStorage.getItem(`gl_${k}`); if (v) svcTokens[k] = v })
+    }
+    const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id, ...(Object.keys(svcTokens).length ? { service_tokens: svcTokens } : {}) }
     if (attachments.length) {
       const imgs = attachments.filter(f => f.type.startsWith('image/') && f.base64)
       if (imgs.length) payload.image_base64 = imgs[0].base64   // first image → vision
@@ -440,7 +471,11 @@ export default function OasisPage() {
           {/* Status dot only — no text */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
           {/* Services */}
-          <button onClick={() => { setShowAccounts(a => !a); setShowAgents(false) }}
+          <button onClick={() => { setShowSkills(s => !s); setShowAgents(false); setShowAccounts(false) }}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showSkills ? 'border-[#00FF9D]/50 bg-[#00FF9D]/10 text-[#00FF9D]' : 'border-[#1a2535] text-gray-600 hover:text-[#00FF9D]'}`}
+            title="Навыки агента"><span className="text-sm">⚡</span>
+          </button>
+          <button onClick={() => { setShowAccounts(a => !a); setShowAgents(false); setShowSkills(false) }}
             className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all shrink-0 ${showAccounts ? 'border-[#6C5CE7]/50 bg-[#6C5CE7]/15 text-[#6C5CE7]' : 'border-[#1a2535] text-[#6C5CE7] opacity-60 active:opacity-100'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -665,6 +700,64 @@ export default function OasisPage() {
       </div>
 
 
+
+      {/* ── Skills / Task Launcher ─────────────────────────────────────────── */}
+      <AnimatePresence>
+      {showSkills && (
+        <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:30,stiffness:300}}
+          className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl z-40 pb-safe">
+          <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#0f1820]">
+            <div>
+              <span className="text-sm font-semibold text-[#00FF9D]">⚡ Навыки агента</span>
+              <p className="text-xs text-gray-600 mt-0.5">Нажми — задача попадёт в чат</p>
+            </div>
+            <button onClick={() => setShowSkills(false)} className="text-gray-600 hover:text-gray-400 text-lg leading-none">✕</button>
+          </div>
+
+          {/* Service status bar */}
+          <div className="flex gap-2 px-4 pt-3 pb-2 overflow-x-auto scrollbar-none">
+            {SERVICES.map(svc => {
+              const ok = typeof window !== 'undefined' && !!localStorage.getItem(`gl_${svc.id}`)
+              return (
+                <button key={svc.id} onClick={() => { setShowSkills(false); setShowAccounts(true) }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs whitespace-nowrap border transition-all ${ok ? 'border-green-900/50 bg-green-900/10 text-green-400' : 'border-[#1a2535] text-gray-600 hover:border-[#2a3545]'}`}>
+                  <span>{svc.icon}</span>
+                  <span>{svc.name}</span>
+                  {ok ? <span className="text-green-500">✓</span> : <span className="text-gray-700">+</span>}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Task grid */}
+          <div className="px-4 pb-5 pt-1 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
+            {TASK_TEMPLATES.map(t => {
+              const svcOk = !t.svc || (typeof window !== 'undefined' && !!localStorage.getItem(`gl_${t.svc}`))
+              return (
+                <button key={t.id}
+                  onClick={() => {
+                    setInput(t.prompt)
+                    setShowSkills(false)
+                    setTimeout(() => {
+                      inputRef.current?.focus()
+                      const len = t.prompt.length
+                      inputRef.current?.setSelectionRange(len, len)
+                    }, 80)
+                  }}
+                  className={`relative text-left rounded-2xl p-3 border transition-all active:scale-95 ${svcOk ? 'bg-[#0a0e14] border-[#1a2535] hover:border-[#2a3545]' : 'bg-[#080a10] border-[#0f1015] opacity-50'}`}>
+                  {!svcOk && (
+                    <span className="absolute top-2 right-2 text-[10px] text-gray-700 bg-[#060810] px-1.5 py-0.5 rounded-full border border-[#0f1015]">подключи</span>
+                  )}
+                  <div className="text-lg mb-1">{t.icon}</div>
+                  <div className="text-xs font-semibold text-gray-300 leading-tight">{t.label}</div>
+                  <div className="text-[11px] text-gray-600 mt-0.5 leading-tight">{t.desc}</div>
+                </button>
+              )
+            })}
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
 
       {/* ── Memory Panel ──────────────────────────────────────────────────────── */}
       <AnimatePresence>
