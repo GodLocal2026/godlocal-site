@@ -453,12 +453,12 @@ export default function OasisPage() {
   }
 
   return (
-    <div className="relative flex flex-col bg-[#030508] text-gray-200 overflow-hidden"
-      style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
+    <div className="relative flex flex-col text-gray-200 overflow-hidden"
+      style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif', backgroundImage:'linear-gradient(rgba(3,5,8,0.78),rgba(3,5,8,0.78)),url(/oasis-bg.jpg)', backgroundSize:'cover', backgroundPosition:'center top', backgroundAttachment:'fixed' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center justify-between px-4 border-b border-[#0d131e] bg-[#030508]"
-        style={{ paddingTop:'max(env(safe-area-inset-top),12px)', paddingBottom:'10px' }}>
+      <div className="shrink-0 flex items-center justify-between px-4 border-b border-[#0d131e]"
+        style={{ paddingTop:'max(env(safe-area-inset-top),12px)', paddingBottom:'10px', background:'rgba(3,5,8,0.80)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)' }}>
         <div className="flex items-center gap-2.5 min-w-0">
           <a href="/" className="text-gray-600 hover:text-gray-300 p-1 -ml-1 shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
