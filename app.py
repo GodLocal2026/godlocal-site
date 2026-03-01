@@ -110,14 +110,19 @@ def get_market():
 def groq_call(messages, tools=None, idx=0):
     if idx >= len(MODELS): return None, "all models exhausted"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json", "User-Agent": "groq-python/0.21.0"}
-    body = {"model": MODELS[idx], "messages": messages, "max_tokens": 512, "temperature": 0.6}
+    body = {"model": MODELS[idx], "messages": messages, "max_tokens": 900, "temperature": 0.7}
     if tools: body["tools"] = tools; body["tool_choice"] = "auto"
     try:
         r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=30)
-        if r.status_code == 429: return groq_call(messages, tools, idx + 1)
+        if r.status_code == 429:
+            time.sleep(1.5)  # brief wait before fallback model
+            return groq_call(messages, tools, idx + 1)
         r.raise_for_status(); return r.json(), None
     except Exception as e:
-        return groq_call(messages, tools, idx + 1) if idx < len(MODELS) - 1 else (None, str(e))
+        if idx < len(MODELS) - 1:
+            time.sleep(0.5)
+            return groq_call(messages, tools, idx + 1)
+        return None, str(e)
 
 async def groq_stream(messages, idx=0):
     if not GROQ_KEY or idx >= len(MODELS): return
@@ -318,7 +323,9 @@ def react(prompt, history=None):
                 steps.append({"tool": fn_name, "result": result[:300]})
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
         else:
-            text = msg.get("content") or ""
+            text = (msg.get("content") or "").strip()
+            if not text and not force_text:
+                continue  # empty content on non-final step — keep looping
             with _lock:
                 _thoughts.append({"text": text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
                 if len(_thoughts) > 20: _thoughts.pop(0)
