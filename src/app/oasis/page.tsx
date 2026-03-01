@@ -454,7 +454,11 @@ export default function OasisPage() {
 
   return (
     <div className="relative flex flex-col text-gray-200 overflow-hidden"
-      style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif', backgroundImage:'linear-gradient(rgba(3,5,8,0.78),rgba(3,5,8,0.78)),url(/oasis-bg.jpg)', backgroundSize:'cover', backgroundPosition:'center top', backgroundAttachment:'fixed' }}>
+      style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
+
+      {/* ── Background layers ─────────────────────────────────────────────── */}
+      <div style={{position:'absolute',inset:0,backgroundImage:'url(/oasis-bg.jpg)',backgroundSize:'cover',backgroundPosition:'center top',filter:'saturate(1.5) brightness(1.15)',zIndex:-2,pointerEvents:'none'}} />
+      <div style={{position:'absolute',inset:0,background:'rgba(3,5,8,0.55)',zIndex:-1,pointerEvents:'none'}} />
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 border-b border-[#0d131e]"
