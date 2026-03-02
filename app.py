@@ -513,7 +513,8 @@ async def get_archetype_reply(
             content = r.json()["choices"][0]["message"].get("content", "").strip()
             if content.upper() == "SKIP":
                 return ""
-            if any(p and p in content for p in mem["points_made"]):
+            # Dedup: reject only exact duplicate (not substring match)
+            if any(p and p == content[:100] for p in mem["points_made"]):
                 return ""
             mem["points_made"].append(content[:100])
             return content
@@ -653,6 +654,16 @@ ARCHETYPES = {
 
 
 MAX_SOUL = 50
+
+# Maps archetype key → frontend agent id (must match AGENTS array in page.tsx)
+ARCH_TO_AGENT_ID = {
+    "skeptic": "grok",
+    "creative": "lucas",
+    "empath": "harper",
+    "strategist": "architect",
+    "technologist": "builder",
+    "advisor": "godlocal",
+}
 
 SELF_REF_KW = [
     "чему ты научился", "что ты умеешь", "кто ты", "расскажи о себе",
@@ -1063,9 +1074,10 @@ async def ws_oasis(ws: WebSocket):
             if main_reply: soul_add(sid, "assistant", main_reply)
             # ─── Council Mode v2: smart selection, semaphore, dedup, synthesis ───
             if main_reply:
-                selected = select_archetypes(prompt_full, main_reply, k=2)
+                selected = select_archetypes(prompt_full, main_reply, k=3)
                 for arch_name, _ in selected:
-                    await ws.send_json({"t": "arch_start", "agent": arch_name})
+                    agent_id = ARCH_TO_AGENT_ID.get(arch_name, arch_name)
+                    await ws.send_json({"t": "arch_start", "agent": agent_id})
                 semaphore = asyncio.Semaphore(3)
                 async def bounded_call(name, data):
                     async with semaphore:
@@ -1087,7 +1099,8 @@ async def ws_oasis(ws: WebSocket):
                     if isinstance(arch_reply, Exception) or not arch_reply or len(arch_reply) < 10:
                         continue
                     valid_replies.append((arch_name, arch_reply))
-                    await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
+                    agent_id = ARCH_TO_AGENT_ID.get(arch_name, arch_name)
+                    await ws.send_json({"t": "arch_reply", "agent": agent_id, "v": arch_reply})
                 # Fallback if all failed
                 if not valid_replies:
                     fb = await quick_llm_call(
