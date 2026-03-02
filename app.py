@@ -1,4 +1,4 @@
-# GodLocal API Backend v11 — ECC agent patterns — FastAPI / Uvicorn
+# GodLocal API Backend v12 — ReAct Self-Task Generation — FastAPI / Uvicorn
 # Improvements: Supabase persistent memory, compression cache (v10 perf fix),
 #               agent disagreement, user profile model, active mission
 # WebSocket: /ws/search /ws/oasis
@@ -938,6 +938,41 @@ async def ws_search(ws: WebSocket):
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
+async def self_generate_next_task(main_reply: str, user_msg: str) -> dict | None:
+    """Ask fast model: is there an autonomous next step worth doing?
+    Returns {task, action, rationale} or None."""
+    msgs = [
+        {"role": "system", "content": (
+            "Ты — AutoPlanner GodLocal. Анализируй ответ агента и реши: "
+            "есть ли автономный следующий шаг который агент ДОЛЖЕН сделать без участия пользователя? "
+            "Только конкретные действия: поиск, анализ данных, генерация контента. "
+            "Если ничего конкретного — верни null."
+        )},
+        {"role": "user", "content": (
+            f"Запрос пользователя: {user_msg[:200]}\n"
+            f"Ответ агента: {main_reply[:300]}\n\n"
+            "Верни JSON или null:\n"
+            '{"task": "конкретная задача", "action": "search|analyze|generate", "rationale": "почему"}'
+        )}
+    ]
+    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    body = {"model": MODELS[2], "messages": msgs, "max_tokens": 150, "temperature": 0.3}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
+            if r.status_code == 200:
+                raw = r.json()["choices"][0]["message"].get("content", "").strip()
+                if raw.lower() == "null" or not raw.startswith("{"):
+                    return None
+                import re as _re
+                m = _re.search(r'\{.*?\}', raw, _re.DOTALL)
+                if m:
+                    return json.loads(m.group())
+    except Exception as e:
+        logger.warning("self_generate error: %s", e)
+    return None
+
+
 @app.websocket("/ws/oasis")
 async def ws_oasis(ws: WebSocket):
     await ws.accept()
@@ -968,6 +1003,19 @@ async def ws_oasis(ws: WebSocket):
             for (arch_name, _), arch_reply in zip(pairs, arch_replies):
                 if arch_reply and not isinstance(arch_reply, Exception):
                     await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
+            # ─── Self-Task Generation ────────────────────────────────
+            if main_reply:
+                next_task = await self_generate_next_task(main_reply, prompt_full)
+                if next_task and next_task.get("task"):
+                    await ws.send_json({"t": "auto_task", "task": next_task["task"], "action": next_task["action"]})
+                    logger.info("AutoTask: %s [%s]", next_task["task"][:80], next_task["action"])
+                    # Execute: if search action, run web_search tool
+                    if next_task["action"] == "search":
+                        svc_tokens_auto = {"session_id": sid}
+                        result = await asyncio.to_thread(run_tool, "web_search", {"query": next_task["task"]}, svc_tokens_auto)
+                        if result and len(result) > 10:
+                            await ws.send_json({"t": "auto_result", "v": result[:600]})
+                            memory.save("auto_search", {"task": next_task["task"], "result": result[:300]}) if False else None
             await ws.send_json({"t": "session_done"})
     except WebSocketDisconnect: pass
     except Exception as e:
