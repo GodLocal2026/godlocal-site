@@ -15,6 +15,7 @@ const nextConfig = {
   async rewrites() {
     return [
       { source: '/game', destination: '/api/game' },
+      { source: '/flipper', destination: '/api/flipper' },
       { source: '/static/pwa/voice.html', destination: '/api/voice' },
       { source: '/voice', destination: '/api/voice' },
       { source: '/static/pwa/smertch.html', destination: '/api/smertch' },
