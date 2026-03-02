@@ -482,6 +482,11 @@ export default function OasisPage() {
   return (
     <div className="relative flex flex-col text-gray-200 overflow-hidden"
       style={{ height: vvHeight ? `${vvHeight}px` : '100dvh', fontFamily:'-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif' }}>
+      <style dangerouslySetInnerHTML={{__html:`
+        @keyframes siriSpin { from{transform:rotate(0deg) scale(1)} 33%{transform:rotate(120deg) scale(1.06)} 66%{transform:rotate(240deg) scale(0.96)} to{transform:rotate(360deg) scale(1)} }
+        @keyframes siriPulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
+        @keyframes siriGlow { 0%,100%{box-shadow:0 0 14px 3px rgba(0,122,255,0.55),0 0 28px 6px rgba(88,86,214,0.28)} 50%{box-shadow:0 0 22px 6px rgba(255,45,85,0.5),0 0 44px 12px rgba(0,122,255,0.22)} }
+      `}} />
 
       {/* ── Background layers ─────────────────────────────────────────────── */}
       <div style={{position:'absolute',inset:0,backgroundImage:'url(/oasis-bg.jpg)',backgroundSize:'cover',backgroundPosition:'center top',filter:'saturate(1.5) brightness(1.15)',zIndex:-2,pointerEvents:'none'}} />
@@ -852,67 +857,102 @@ export default function OasisPage() {
         <div className="flex flex-col bg-[#07090f] border border-[#111827] rounded-2xl overflow-hidden
                         focus-within:border-[#1a2535] transition-colors">
 
-          {/* ── Toolbar row ── */}
-          <div className="flex items-center gap-1.5 px-1 pt-1 pb-2 border-b border-[#0d1320] overflow-x-auto scrollbar-none w-full" style={{flexShrink:0}}>
-            {[
-              { id:'skills',    icon:'⚡', label:'Навыки',   color:'#00FF9D', active: showSkills,
-                onClick: () => { setShowSkills(s=>!s); setShowAccounts(false); setShowMemory(false); setShowArtifacts(false) } },
-              { id:'accounts',  icon:'🔗', label:'Сервисы',  color:'#6C5CE7', active: showAccounts,
-                onClick: () => { setShowAccounts(a=>!a); setShowSkills(false); setShowMemory(false); setShowArtifacts(false) } },
-              { id:'memory',    icon:'🧠', label:'Память',   color:'#00FF9D', active: showMemory,
-                onClick: () => { setShowMemory(m=>!m); setShowSkills(false); setShowAccounts(false); setShowArtifacts(false); if (!showMemory) fetchMemory() } },
-              { id:'artifacts', icon:'☆',  label:'Галерея',  color:'#FDCB6E', active: showArtifacts,
-                onClick: () => { setShowArtifacts(a=>!a); setShowSkills(false); setShowAccounts(false); setShowMemory(false) } },
-            ].map(b => (
+          {/* ── Toolbar row – iOS SF-symbol style ── */}
+          <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 overflow-x-auto scrollbar-none" style={{flexShrink:0}}>
+            {([
+              { id:'skills',    label:'Навыки',   color:'#34C759', active: showSkills,
+                onClick: () => { setShowSkills((s:boolean)=>!s); setShowAccounts(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'accounts',  label:'Сервисы',  color:'#5856D6', active: showAccounts,
+                onClick: () => { setShowAccounts((a:boolean)=>!a); setShowSkills(false); setShowMemory(false); setShowArtifacts(false) } },
+              { id:'memory',    label:'Память',   color:'#007AFF', active: showMemory,
+                onClick: () => { setShowMemory((m:boolean)=>!m); setShowSkills(false); setShowAccounts(false); setShowArtifacts(false); if (!showMemory) fetchMemory() } },
+              { id:'artifacts', label:'Галерея',  color:'#FF9F0A', active: showArtifacts,
+                onClick: () => { setShowArtifacts((a:boolean)=>!a); setShowSkills(false); setShowAccounts(false); setShowMemory(false) } },
+            ] as {id:string,label:string,color:string,active:boolean,onClick:()=>void}[]).map(b => (
               <button key={b.id} onClick={b.onClick}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-all active:scale-95 ${b.active ? 'border-transparent text-[#030508]' : 'border-[#1a2535] text-gray-500 hover:text-gray-300'}`}
-                style={b.active ? {background: b.color} : {}}>
-                <span style={{fontSize:12}}>{b.icon}</span>
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95"
+                style={b.active
+                  ? {background: b.color, color:'#000', fontWeight:600}
+                  : {background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.08)'}}>
+                {b.id==='skills'    && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>}
+                {b.id==='accounts'  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}
+                {b.id==='memory'    && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>}
+                {b.id==='artifacts' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
                 <span>{b.label}</span>
               </button>
             ))}
           </div>
 
-          <div className="flex items-end gap-2 w-full px-2 py-2">
+          {/* ── iOS-style input row ── */}
+          <div className="flex items-center gap-2 w-full px-3 py-2">
 
-          {/* Attach files */}
-          <button onClick={() => fileRef.current?.click()}
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-gray-600 hover:text-gray-400 hover:bg-[#0f1520] transition-all active:scale-95">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-            </svg>
-          </button>
-          <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.md,.json,.csv"
-            className="hidden" onChange={onFileChange} />
+            {/* Attach – thin SF paperclip */}
+            <button onClick={() => fileRef.current?.click()}
+              className="shrink-0 flex items-center justify-center w-7 h-7 text-gray-500 active:opacity-50 transition-all">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+            <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.md,.json,.csv"
+              className="hidden" onChange={onFileChange} />
 
-          {/* Textarea */}
-          <textarea ref={inputRef} value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={onKey}
-            onInput={e => resizeTA(e.currentTarget)}
-            placeholder={`Спроси ${activeAgent.name}…`}
-            className="flex-1 bg-transparent resize-none outline-none text-gray-200 placeholder-gray-700 leading-relaxed py-1"
-            rows={1}
-            style={{maxHeight:120, overflowY:'auto', minWidth:0, fontSize:'16px', lineHeight:'1.5'}} />
+            {/* Textarea */}
+            <textarea ref={inputRef} value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKey}
+              onInput={e => resizeTA(e.currentTarget)}
+              placeholder={`Спроси ${activeAgent.name}…`}
+              className="flex-1 bg-transparent resize-none outline-none text-gray-100 placeholder-gray-600 py-0.5"
+              rows={1}
+              style={{maxHeight:120, overflowY:'auto', minWidth:0, fontSize:'16px', lineHeight:'1.5'}} />
 
-          {/* Voice */}
-          <button onClick={startVoice}
-            className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-95 ${listening ? 'bg-red-900/40 text-red-400' : 'text-gray-600 hover:text-gray-400 hover:bg-[#0f1520]'}`}
-            style={listening ? {animation:'pulse 1s infinite'} : {}}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-            </svg>
-          </button>
-
-          {/* Send */}
-          <button onClick={send} disabled={!input.trim() && attachments.length === 0}
-            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed"
-            style={{background: (input.trim() || attachments.length) ? activeAgent.color : '#1a2535'}}>
-            <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-          </button>
+            {/* Voice (Siri orb) OR Send (iOS blue) */}
+            {(input.trim() || attachments.length > 0) ? (
+              /* iOS Send — blue circle, up arrow */
+              <button onClick={send}
+                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
+                style={{background:'#007AFF', boxShadow:'0 2px 12px rgba(0,122,255,0.45)'}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                </svg>
+              </button>
+            ) : (
+              /* Siri-style voice button */
+              <button onClick={startVoice}
+                className="shrink-0 relative flex items-center justify-center active:scale-90 transition-transform"
+                style={{width:36, height:36}}>
+                {/* Animated orb when listening */}
+                {listening && (
+                  <div style={{
+                    position:'absolute', inset:0, borderRadius:'50%',
+                    background:'conic-gradient(#007AFF,#5856D6,#FF2D55,#FF9F0A,#34C759,#007AFF)',
+                    animation:'siriSpin 2.5s linear infinite, siriGlow 1.8s ease-in-out infinite',
+                    filter:'blur(0.5px) saturate(1.4)'
+                  }} />
+                )}
+                {/* Inner circle */}
+                <div style={{
+                  position:'relative', zIndex:1,
+                  width: listening ? 28 : 32,
+                  height: listening ? 28 : 32,
+                  borderRadius:'50%',
+                  background: listening ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.08)',
+                  border: listening ? 'none' : '1px solid rgba(255,255,255,0.12)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  backdropFilter: listening ? 'blur(4px)' : 'none',
+                  transition:'all 0.25s ease'
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke={listening ? 'white' : 'rgba(255,255,255,0.55)'}
+                    strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                </div>
+              </button>
+            )}
           </div>{/* end items-end row */}
         </div>
       </div>
