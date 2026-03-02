@@ -231,6 +231,8 @@ export default function OasisPage() {
   const [activeAgent, setActiveAgent] = useState<Agent>(AGENTS[0])
   const [connected, setConnected]     = useState(false)
   const [connecting, setConnecting]   = useState(false)
+  const [isWaiting, setIsWaiting]     = useState(false)   // waiting for first token
+  const [activeArchetypes, setActiveArchetypes] = useState<string[]>([]) // archetypes currently computing
   const [showAgents, setShowAgents]   = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
   const [feedback, setFeedback] = useState<Record<string,'exact'|'partial'|'miss'>>(() => {
@@ -302,6 +304,7 @@ export default function OasisPage() {
   const handleMsg = useCallback((data: any) => {
     const t = data.t || data.type
     if (t === 'token') {
+      setIsWaiting(false)  // first token arrived — stop spinner
       setMessages(prev => {
         const last = prev[prev.length - 1]
         if (last?.streaming && last.role === 'agent' && last.agentId === 'godlocal')
@@ -310,14 +313,27 @@ export default function OasisPage() {
       })
       return
     }
+    if (t === 'arch_start') {
+      // backend signals which archetype is about to compute
+      setActiveArchetypes(prev => Array.from(new Set([...prev, data.agent || ''])).filter(Boolean))
+      return
+    }
     if (t === 'arch_reply' || t === 'agent_reply') {
       const aid  = (data.agent||'godlocal').toLowerCase()
       const agent = AGENTS.find(a=>a.id===aid) || AGENTS[0]
+      setActiveArchetypes(prev => prev.filter(a => a !== aid))  // done
       setMessages(prev => [...prev, { id:rnd(), role:'agent', agentId:aid, agentName:agent.name, content:data.v||data.reply||'', streaming:false, ts:Date.now() }])
       setXpMap(p => ({ ...p, [aid]: (p[aid]||0)+1 }))
       return
     }
+    if (t === 'synthesis') {
+      // Council synthesis — show as special message
+      setMessages(prev => [...prev, { id:rnd(), role:'agent', agentId:'godlocal', agentName:'⚡ Синтез', content: data.v || '', streaming:false, ts:Date.now() }])
+      return
+    }
     if (t === 'done' || t === 'session_done') {
+      setIsWaiting(false)
+      setActiveArchetypes([])
       setMessages(prev => prev.map(m => ({ ...m, streaming:false })))
       return
     }
@@ -328,6 +344,8 @@ export default function OasisPage() {
       return
     }
     if (t === 'error') {
+      setIsWaiting(false)
+      setActiveArchetypes([])
       setMessages(prev => [...prev, { id:rnd(), role:'tool', content:`❌ ${data.v||'error'}`, ts:Date.now() }])
     }
   }, [])
@@ -397,6 +415,8 @@ export default function OasisPage() {
       if (docs.length) payload.files = docs.map(f => f.name)
     }
 
+    setIsWaiting(true)
+    setActiveArchetypes([])
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload))
     } else {
@@ -501,7 +521,16 @@ export default function OasisPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
           </a>
-          <span className="text-[#00FF9D] font-bold tracking-[0.2em] text-sm shrink-0">OASIS</span>
+          <svg width="62" height="20" viewBox="0 0 62 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+            <defs>
+              <linearGradient id="og1" x1="0" y1="0" x2="62" y2="20" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#00FF9D"/>
+                <stop offset="60%" stopColor="#00C8FF"/>
+                <stop offset="100%" stopColor="#6C5CE7"/>
+              </linearGradient>
+            </defs>
+            <text x="0" y="16" fontFamily="-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif" fontSize="16" fontWeight="800" letterSpacing="3" fill="url(#og1)">OASIS</text>
+          </svg>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* Status dot */}
@@ -587,9 +616,46 @@ export default function OasisPage() {
           {/* Empty state */}
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center min-h-[50vh] gap-5 py-8">
-              <div className="text-5xl">⚡</div>
+              <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="oc1" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#00FF9D" stopOpacity="0.18"/>
+                    <stop offset="100%" stopColor="#6C5CE7" stopOpacity="0"/>
+                  </radialGradient>
+                  <linearGradient id="oc2" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#00FF9D"/>
+                    <stop offset="50%" stopColor="#00C8FF"/>
+                    <stop offset="100%" stopColor="#6C5CE7"/>
+                  </linearGradient>
+                </defs>
+                {/* Glow bg */}
+                <circle cx="40" cy="40" r="38" fill="url(#oc1)"/>
+                {/* Outer ring */}
+                <circle cx="40" cy="40" r="35" stroke="url(#oc2)" strokeWidth="1.2" strokeOpacity="0.5" strokeDasharray="4 3"/>
+                {/* Inner ring */}
+                <circle cx="40" cy="40" r="26" stroke="url(#oc2)" strokeWidth="1" strokeOpacity="0.35"/>
+                {/* Horizon line - oasis water */}
+                <path d="M18 48 Q30 42 40 48 Q50 54 62 48" stroke="url(#oc2)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                {/* Sun rising */}
+                <circle cx="40" cy="36" r="8" fill="url(#oc2)" opacity="0.9"/>
+                {/* Sun rays */}
+                <line x1="40" y1="24" x2="40" y2="20" stroke="url(#oc2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="52" y1="28" x2="55" y2="25" stroke="url(#oc2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="28" y1="28" x2="25" y2="25" stroke="url(#oc2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="56" y1="36" x2="60" y2="36" stroke="url(#oc2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="24" y1="36" x2="20" y2="36" stroke="url(#oc2)" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
               <div className="text-center">
-                <div className="text-[#00FF9D] font-bold text-lg tracking-widest mb-1">OASIS</div>
+                <svg width="90" height="24" viewBox="0 0 90 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-2">
+                  <defs>
+                    <linearGradient id="ot1" x1="0" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#00FF9D"/>
+                      <stop offset="50%" stopColor="#00C8FF"/>
+                      <stop offset="100%" stopColor="#6C5CE7"/>
+                    </linearGradient>
+                  </defs>
+                  <text x="4" y="20" fontFamily="-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif" fontSize="20" fontWeight="800" letterSpacing="4" fill="url(#ot1)">OASIS</text>
+                </svg>
                 <div className="text-gray-600 text-sm">7 агентов · живой поиск · память</div>
               </div>
               <div className="w-full max-w-xs space-y-2">
@@ -712,6 +778,41 @@ export default function OasisPage() {
               )
             })}
           </AnimatePresence>
+          {/* ── Waiting / Process indicator ──────────────────────────────────── */}
+          {isWaiting && (
+            <div className="flex gap-2.5 mb-4 items-start">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm border mt-0.5"
+                style={{background:'#00FF9D12', borderColor:'#00FF9D35'}}>
+                ⚡
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold mb-1 text-[#00FF9D]">GodLocal</div>
+                <div className="bg-[#080d14] border border-[#0f1820] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+                  <span className="flex gap-1">
+                    {[0,1,2].map(i => (
+                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#00FF9D]"
+                        style={{animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>
+                    ))}
+                  </span>
+                  <span className="text-xs text-gray-500">думает...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {activeArchetypes.length > 0 && (
+            <div className="flex items-center gap-2 px-1 mb-3 flex-wrap">
+              <span className="text-xs text-gray-600">Советники:</span>
+              {activeArchetypes.map(aid => {
+                const ag = AGENTS.find(a => a.id === aid)
+                return ag ? (
+                  <span key={aid} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border"
+                    style={{borderColor: ag.color+'40', color: ag.color, background: ag.color+'10'}}>
+                    <span className="animate-pulse">●</span> {ag.name}
+                  </span>
+                ) : null
+              })}
+            </div>
+          )}
           <div ref={bottomRef} className="h-1" />
         </div>
       </div>
