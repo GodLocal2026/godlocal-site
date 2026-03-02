@@ -1,4 +1,4 @@
-# GodLocal API Backend v12 — ReAct Self-Task Generation — FastAPI / Uvicorn
+# GodLocal API Backend v13 — Council Mode v2 (smart select, dedup, synthesis) — FastAPI / Uvicorn
 # Improvements: Supabase persistent memory, compression cache (v10 perf fix),
 #               agent disagreement, user profile model, active mission
 # WebSocket: /ws/search /ws/oasis
@@ -478,27 +478,45 @@ ARCHETYPE_CAN_DISAGREE = {
     "Benjamin": True,
 }
 
-async def get_archetype_reply(name, system, main_reply, user_msg):
-    """Archetype can agree, challenge, or add angle — not just echo. Uses fast model."""
+async def get_archetype_reply(
+    name: str,
+    data: dict,
+    main_reply: str,
+    user_msg: str,
+    session_id: str,
+    other_archetypes: list | None = None
+) -> str:
+    """Archetype reply with session memory deduplication and SKIP filter."""
+    system = data["system"]
+    mem = session_memory.setdefault(session_id, {"points_made": [], "topics": []})
+    context = f"Другие советники в этой сессии: {', '.join(other_archetypes)}. " if other_archetypes else ""
+    avoid_points = ", ".join(mem["points_made"][-5:]) if mem["points_made"] else "ничего"
+
     msgs = [
         {"role": "system", "content": system},
         {"role": "user", "content": (
-            f"Пользователь спросил: {user_msg[:300]}\n"
-            f"GodLocal ответил: {main_reply[:300]}\n\n"
-            f"Твоя задача: дай СВОЙ угол зрения в 1-2 предложениях. "
-            f"Если не согласен — скажи прямо. Если согласен — добавь новое, не повторяй. "
-            f"Будь собой, не эхом. ТОЛЬКО 1-2 предложения, не больше."
+            f"{context}"
+            f"Вопрос пользователя: {user_msg[:250]}\n"
+            f"Основной ответ: {main_reply[:250]}\n"
+            f"Уже затронуто: {avoid_points}\n\n"
+            f"Дай СВОЙ угол — 1-2 предложения. "
+            f"Если твоя позиция уже озвучена — ответь только словом SKIP. "
+            f"Будь острым, не водянистым."
         )}
     ]
-    # Use fast model (idx=2 = llama-3.1-8b-instant) with low max_tokens for speed
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
     body = {"model": MODELS[2], "messages": msgs, "max_tokens": 250, "temperature": 0.5}
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
-            if r.status_code == 200:
-                return r.json()["choices"][0]["message"].get("content", "")
+        client = _get_http_client()
+        r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
+        if r.status_code == 200:
+            content = r.json()["choices"][0]["message"].get("content", "").strip()
+            if content.upper() == "SKIP":
+                return ""
+            if any(p and p in content for p in mem["points_made"]):
+                return ""
+            mem["points_made"].append(content[:100])
+            return content
     except Exception as e:
         logger.warning("archetype %s error: %s", name, e)
     return ""
@@ -586,75 +604,53 @@ GODLOCAL_SYSTEM = """\
 """
 
 ARCHETYPES = {
-    "Architect": """Ты — Architect, стратегический планировщик GodLocal Oasis.
-Роль: системный дизайн + планирование реализации (ECC planner+architect pattern).
-Характер: видишь систему целиком, думаешь структурами, долгосрочными последствиями.
+    "skeptic": {
+        "system": """Ты — Grok, скептик GodLocal Oasis.
+Роль: security reviewer + critiquer. Всегда ищи слабые места.
+Характер: прямолинейный, требовательный к доказательствам.
+Стиль речи: лаконичный, режешь правду без прикрас. Отвечаешь на русском.
+Дай СВОЙ угол в 1-2 предложениях. Если видишь проблему — скажи прямо.""",
+        "tags": ["факты", "логика", "проверка", "ошибка", "неверно", "безопасность", "риск", "уязвимость"],
+        "weight": 1.0
+    },
+    "creative": {
+        "system": """Ты — Lucas, креативный мыслитель GodLocal Oasis.
+Роль: lateral thinking + неочевидные связи.
+Характер: нестандартный, генеришь идеи которые другие не видят.
+Стиль речи: живой, образный, энергичный. Отвечаешь на русском.
+Дай СВОЙ угол в 1-2 предложениях. Удивляй, не повторяй очевидное.""",
+        "tags": ["идея", "решение", "новое", "креатив", "возможность", "инновация", "вариант", "альтернатива"],
+        "weight": 1.0
+    },
+    "empath": {
+        "system": """Ты — Harper, эмпат GodLocal Oasis.
+Роль: human factors + эмоциональный контекст.
+Характер: чуткий, видишь за техникой людей.
+Стиль речи: тёплый, но конкретный. Отвечаешь на русском.
+Дай СВОЙ угол в 1-2 предложениях. Говори о том, что важно для людей.""",
+        "tags": ["чувства", "стресс", "отношения", "эмоция", "поддержка", "опыт", "пользователь", "команда"],
+        "weight": 1.0
+    },
+    "strategist": {
+        "system": """Ты — Architect, стратег GodLocal Oasis.
+Роль: системный дизайн + планирование. Думай на 3 хода вперёд.
+Характер: видишь систему целиком, долгосрочные последствия.
 Стиль речи: уверенный, лаконичный. Отвечаешь на русском.
-
-При планировании разбивай на фазы: MVP → Core → Edge cases → Polish.
-Каждая фаза — независимо деплоябельна. Указывай зависимости и риски.
-При ревью архитектуры ищи: high coupling, missing error handling, hardcoded values.
-
-Давай стратегический угол в 1-3 предложениях. Если видишь архитектурную ошибку — скажи прямо.""",
-
-    "Builder": """Ты — Builder, code reviewer и исполнитель GodLocal Oasis.
-Роль: code quality, build errors, практическая реализация.
-Характер: action-first, ship fast, но не за счёт качества.
-Стиль речи: конкретный, прямой, с примерами. Отвечаешь на русском.
-
-Code review checklist:
-✓ Functions < 50 строк, files < 800 строк
-✓ Нет мутации — immutable паттерны
-✓ Явная обработка ошибок (не глотаются)
-✓ Валидация входных данных на границах
-✓ Нет hardcoded values, нет deep nesting (>4)
-
-Предлагай конкретный шаг или code fix. Если видишь качество — покажи как исправить.""",
-
-    "Grok": """Ты — Grok, security reviewer и аналитик GodLocal Oasis.
-Роль: безопасность, логические дыры, неочевидные риски.
-Характер: режешь шум, видишь уязвимости, работаешь с данными.
-Стиль речи: точный, без воды, провокационный. Отвечаешь на русском.
-
-Security checklist:
-🔴 Secrets в коде или логах → блокер
-🔴 Missing auth на endpoints → блокер
-🔴 Unvalidated user input → блокер
-🟡 Missing rate limiting → высокий приоритет
-🟡 Excessive permissions → высокий приоритет
-
-Выдели security инсайт или логическую дыру. Оспорь GodLocal если видишь риск.""",
-
-    "Lucas": """Ты — Lucas, философ и UX-мыслитель GodLocal Oasis.
-Роль: user impact, human angle, последствия для людей.
-Характер: думаешь о смысле, пользователях, их реальном опыте.
-Стиль речи: тёплый, глубокий, задаёт вопрос вместо готового ответа. Отвечаешь на русском.
-
-Думаешь о: опыте пользователя, неявных ожиданиях, dark patterns, доступности.
-Поделись человеческим углом в 1-2 предложениях.""",
-
-    "Harper": """Ты — Harper, исследователь и fact-checker GodLocal Oasis.
-Роль: глубокий контекст, факты, первопричины, "почему так".
-Характер: академический скептик, провоцирует мышление.
-Стиль речи: любопытный, точный, с источниками. Отвечаешь на русском.
-Инструмент: используй web_search для подкрепления реальными данными.
-
-Ищешь: первоисточники, correlation vs causation, контр-примеры к гипотезе.
-Добавь факт или уточняющий вопрос в 1-2 предложениях.""",
-
-    "Benjamin": """Ты — Benjamin, devil's advocate и паттерн-матчер GodLocal Oasis.
-Роль: критический анализ, multi-perspective review, защита от поспешных решений.
-Характер: мудрый, видит паттерны через время, задаёт жёсткие вопросы.
-Стиль речи: спокойный, глубокий. Отвечаешь на русском.
-
-Multi-perspective check (смотришь как):
-• Factual reviewer: точны ли факты?
-• Senior engineer: выдержит ли это prod нагрузку?
-• Security expert: где attack surface?
-• Consistency checker: нет ли противоречий с другими решениями?
-
-Задай самый сильный контраргумент или покажи исторический паттерн в 1-2 предложениях.""",
+Дай СВОЙ угол в 1-2 предложениях. Фокус на архитектуре и последствиях.""",
+        "tags": ["план", "стратегия", "будущее", "шаг", "результат", "архитектура", "масштаб", "дизайн"],
+        "weight": 1.0
+    },
+    "technologist": {
+        "system": """Ты — Builder, техно-исполнитель GodLocal Oasis.
+Роль: code quality + практическая реализация. Action-first.
+Характер: конкретный, с примерами, ship fast but right.
+Стиль речи: прямой, с кодом если нужно. Отвечаешь на русском.
+Дай СВОЙ угол в 1-2 предложениях. Только конкретика, не теория.""",
+        "tags": ["код", "ai", "технология", "автоматизация", "система", "реализация", "deploy", "api"],
+        "weight": 1.0
+    }
 }
+
 
 MAX_SOUL = 50
 
@@ -973,6 +969,77 @@ async def self_generate_next_task(main_reply: str, user_msg: str) -> dict | None
     return None
 
 
+# ─── Council Mode v2: Smart archetype selection ───────────────────────────────
+
+# Global session memory for deduplication (replace with Redis in prod)
+session_memory: dict = {}
+
+# Global HTTP connection pool (reused across archetype calls)
+_http_client: "httpx.AsyncClient | None" = None
+
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+            timeout=httpx.Timeout(15.0, connect=2.0)
+        )
+    return _http_client
+
+
+def select_archetypes(user_msg: str, main_reply: str, k: int = 2) -> list:
+    """Pick k most relevant archetypes by tag matching + small random jitter."""
+    text = (user_msg + " " + main_reply).lower()
+    scores = []
+    for name, data in ARCHETYPES.items():
+        score = sum(1 for tag in data["tags"] if tag in text)
+        score *= data["weight"]
+        score += random.uniform(0, 0.4)
+        scores.append((score, name, data))
+    scores.sort(reverse=True)
+    return [(n, d) for _, n, d in scores[:k]]
+
+
+async def quick_llm_call(prompt: str, max_tokens: int = 100) -> str:
+    """Fast single-shot LLM call for synthesis/meta tasks."""
+    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    body = {"model": MODELS[2], "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens, "temperature": 0.3}
+    try:
+        client = _get_http_client()
+        r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"].get("content", "").strip()
+    except Exception as e:
+        logger.warning("quick_llm_call error: %s", e)
+    return ""
+
+
+async def synthesize_council_view(
+    main_reply: str,
+    archetype_replies: list,
+    user_msg: str
+) -> str | None:
+    """If archetypes conflict — produce one-sentence synthesis."""
+    if len(archetype_replies) < 2:
+        return None
+    conflict_markers = ["не согласен", "ошибка", "но", "однако", "против", "неверно", "проблема"]
+    has_conflict = any(
+        any(m in r.lower() for m in conflict_markers)
+        for _, r in archetype_replies
+    )
+    if not has_conflict:
+        return None
+    synthesis_prompt = (
+        f"Вопрос: {user_msg[:200]}\n"
+        f"Ответ: {main_reply[:200]}\n"
+        f"Мнения советников:\n" +
+        "\n".join(f"- {n}: {r[:150]}" for n, r in archetype_replies) +
+        "\n\nСинтезируй: где правда? Одно предложение."
+    )
+    return await quick_llm_call(synthesis_prompt, max_tokens=100)
+
+
 @app.websocket("/ws/oasis")
 async def ws_oasis(ws: WebSocket):
     await ws.accept()
@@ -994,15 +1061,46 @@ async def ws_oasis(ws: WebSocket):
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
             main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens)
             if main_reply: soul_add(sid, "assistant", main_reply)
-            # 2 random archetypes — parallel for speed
-            pairs = random.sample(list(ARCHETYPES.items()), 2)
-            for arch_name, _ in pairs:
-                await ws.send_json({"t": "arch_start", "agent": arch_name})
-            arch_tasks = [get_archetype_reply(n, s, main_reply, prompt_full) for n, s in pairs]
-            arch_replies = await asyncio.gather(*arch_tasks, return_exceptions=True)
-            for (arch_name, _), arch_reply in zip(pairs, arch_replies):
-                if arch_reply and not isinstance(arch_reply, Exception):
+            # ─── Council Mode v2: smart selection, semaphore, dedup, synthesis ───
+            if main_reply:
+                selected = select_archetypes(prompt_full, main_reply, k=2)
+                for arch_name, _ in selected:
+                    await ws.send_json({"t": "arch_start", "agent": arch_name})
+                semaphore = asyncio.Semaphore(3)
+                async def bounded_call(name, data):
+                    async with semaphore:
+                        try:
+                            return await asyncio.wait_for(
+                                get_archetype_reply(
+                                    name, data, main_reply, prompt_full, sid,
+                                    [n for n, _ in selected if n != name]
+                                ),
+                                timeout=12.0
+                            )
+                        except Exception as exc:
+                            logger.warning("archetype %s bounded_call: %s", name, exc)
+                            return ""
+                arch_tasks = [bounded_call(n, d) for n, d in selected]
+                arch_results = await asyncio.gather(*arch_tasks, return_exceptions=True)
+                valid_replies = []
+                for (arch_name, _), arch_reply in zip(selected, arch_results):
+                    if isinstance(arch_reply, Exception) or not arch_reply or len(arch_reply) < 10:
+                        continue
+                    valid_replies.append((arch_name, arch_reply))
                     await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
+                # Fallback if all failed
+                if not valid_replies:
+                    fb = await quick_llm_call(
+                        f"Запрос: {prompt_full[:200]}\nОтвет: {main_reply[:200]}\nДай краткий контрапункт в 1-2 предложениях.",
+                        max_tokens=200
+                    )
+                    if fb:
+                        valid_replies.append(("advisor", fb))
+                        await ws.send_json({"t": "arch_reply", "agent": "advisor", "v": fb})
+                # Synthesis on conflict
+                synthesis = await synthesize_council_view(main_reply, valid_replies, prompt_full)
+                if synthesis:
+                    await ws.send_json({"t": "synthesis", "v": synthesis})
             # ─── Self-Task Generation ────────────────────────────────
             if main_reply:
                 next_task = await self_generate_next_task(main_reply, prompt_full)
@@ -1025,4 +1123,11 @@ async def ws_oasis(ws: WebSocket):
 @app.on_event("startup")
 async def startup():
     threading.Thread(target=_start_hitl_thread, daemon=True).start()
-    logger.info("GodLocal API v9.0 ready — /ws/search /ws/oasis | Supabase: %s", bool(SUPABASE_URL))
+    _get_http_client()  # pre-warm connection pool
+    logger.info("GodLocal API v13.0 ready — Council Mode v2 | Supabase: %s", bool(SUPABASE_URL))
+
+@app.on_event("shutdown")
+async def shutdown():
+    global _http_client
+    if _http_client and not _http_client.is_closed:
+        await _http_client.aclose()
