@@ -233,6 +233,14 @@ export default function OasisPage() {
   const [connecting, setConnecting]   = useState(false)
   const [isWaiting, setIsWaiting]     = useState(false)   // waiting for first token
   const [activeArchetypes, setActiveArchetypes] = useState<string[]>([]) // archetypes currently computing
+  const [lang, setLang] = useState<'ru'|'uk'|'en'>(() => {
+    if (typeof window === 'undefined') return 'ru'
+    return (localStorage.getItem('gl_lang') as 'ru'|'uk'|'en') || 'ru'
+  })
+  const cycleLang = () => setLang(l => {
+    const next = l==='ru' ? 'uk' : l==='uk' ? 'en' : 'ru'
+    localStorage.setItem('gl_lang', next); return next
+  })
   const [showAgents, setShowAgents]   = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
   const [feedback, setFeedback] = useState<Record<string,'exact'|'partial'|'miss'>>(() => {
@@ -407,7 +415,7 @@ export default function OasisPage() {
       const keys = ['twitter','telegram','gmail','github']
       keys.forEach(k => { const v = localStorage.getItem(`gl_${k}`); if (v) svcTokens[k] = v })
     }
-    const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id, ...(Object.keys(svcTokens).length ? { service_tokens: svcTokens } : {}) }
+    const payload: any = { prompt: text, session_id: sessionId, agent: activeAgent.id, lang, ...(Object.keys(svcTokens).length ? { service_tokens: svcTokens } : {}) }
     if (attachments.length) {
       const imgs = attachments.filter(f => f.type.startsWith('image/') && f.base64)
       if (imgs.length) payload.image_base64 = imgs[0].base64   // first image → vision
@@ -428,7 +436,7 @@ export default function OasisPage() {
       return () => clearTimeout(t)
     }
     setXpMap(p => ({ ...p, [activeAgent.id]: (p[activeAgent.id]||0)+1 }))
-  }, [input, attachments, activeAgent, sessionId, connectWS])
+  }, [input, attachments, activeAgent, sessionId, connectWS, lang])
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
@@ -535,6 +543,12 @@ export default function OasisPage() {
         <div className="flex items-center gap-2 shrink-0">
           {/* Status dot */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
+          {/* Lang switcher */}
+          <button onClick={cycleLang}
+            className="text-xs px-2 py-1 rounded-full border border-[#1a2535] text-gray-400 hover:border-[#00FF9D]/40 hover:text-[#00FF9D] transition-all active:scale-95 shrink-0"
+            title="Переключить язык">
+            {lang === 'ru' ? '🇷🇺' : lang === 'uk' ? '🇺🇦' : '🇬🇧'}
+          </button>
           {/* Agent selector — icon + name only, no XP clutter */}
           <button onClick={() => { setShowAgents(a => !a); setShowAccounts(false) }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
@@ -794,14 +808,14 @@ export default function OasisPage() {
                         style={{animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>
                     ))}
                   </span>
-                  <span className="text-xs text-gray-500">думает...</span>
+                  <span className="text-xs text-gray-500">{lang==='uk' ? 'думає...' : lang==='en' ? 'thinking...' : 'думает...'}</span>
                 </div>
               </div>
             </div>
           )}
           {activeArchetypes.length > 0 && (
             <div className="flex items-center gap-2 px-1 mb-3 flex-wrap">
-              <span className="text-xs text-gray-600">Советники:</span>
+              <span className="text-xs text-gray-600">{lang==='uk' ? 'Радники:' : lang==='en' ? 'Advisors:' : 'Советники:'}</span>
               {activeArchetypes.map(aid => {
                 const ag = AGENTS.find(a => a.id === aid)
                 return ag ? (
@@ -1002,7 +1016,7 @@ export default function OasisPage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={onKey}
               onInput={e => resizeTA(e.currentTarget)}
-              placeholder={`Спроси ${activeAgent.name}…`}
+              placeholder={lang==='uk' ? `Запитай ${activeAgent.name}…` : lang==='en' ? `Ask ${activeAgent.name}…` : `Спроси ${activeAgent.name}…`}
               className="flex-1 bg-transparent resize-none outline-none text-gray-100 placeholder-gray-600 py-0.5"
               rows={1}
               style={{maxHeight:120, overflowY:'auto', minWidth:0, fontSize:'16px', lineHeight:'1.5'}} />
