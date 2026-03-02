@@ -479,21 +479,29 @@ ARCHETYPE_CAN_DISAGREE = {
 }
 
 async def get_archetype_reply(name, system, main_reply, user_msg):
-    """Archetype can agree, challenge, or add angle — not just echo."""
+    """Archetype can agree, challenge, or add angle — not just echo. Uses fast model."""
     msgs = [
         {"role": "system", "content": system},
         {"role": "user", "content": (
-            f"Пользователь спросил: {user_msg}\n"
-            f"GodLocal ответил: {main_reply[:400]}\n\n"
+            f"Пользователь спросил: {user_msg[:300]}\n"
+            f"GodLocal ответил: {main_reply[:300]}\n\n"
             f"Твоя задача: дай СВОЙ угол зрения в 1-2 предложениях. "
-            f"Если ты не согласен с GodLocal — скажи об этом прямо. "
-            f"Если согласен — добавь что-то новое, не повторяй. "
-            f"Будь собой, не эхом."
+            f"Если не согласен — скажи прямо. Если согласен — добавь новое, не повторяй. "
+            f"Будь собой, не эхом. ТОЛЬКО 1-2 предложения, не больше."
         )}
     ]
-    resp, err = await asyncio.to_thread(groq_call, msgs, None, 1)
-    if err or not resp: return ""
-    return resp["choices"][0]["message"].get("content", "")
+    # Use fast model (idx=2 = llama-3.1-8b-instant) with low max_tokens for speed
+    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    body = {"model": MODELS[2], "messages": msgs, "max_tokens": 250, "temperature": 0.5}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"].get("content", "")
+    except Exception as e:
+        logger.warning("archetype %s error: %s", name, e)
+    return ""
 
 
 # ─── Master System Prompt ─────────────────────────────────────────────────────
@@ -951,11 +959,15 @@ async def ws_oasis(ws: WebSocket):
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
             main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens)
             if main_reply: soul_add(sid, "assistant", main_reply)
-            # 2 random archetypes — they may disagree
-            for arch_name, arch_system in random.sample(list(ARCHETYPES.items()), 2):
+            # 2 random archetypes — parallel for speed
+            pairs = random.sample(list(ARCHETYPES.items()), 2)
+            for arch_name, _ in pairs:
                 await ws.send_json({"t": "arch_start", "agent": arch_name})
-                arch_reply = await get_archetype_reply(arch_name, arch_system, main_reply, prompt_full)
-                if arch_reply: await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
+            arch_tasks = [get_archetype_reply(n, s, main_reply, prompt_full) for n, s in pairs]
+            arch_replies = await asyncio.gather(*arch_tasks, return_exceptions=True)
+            for (arch_name, _), arch_reply in zip(pairs, arch_replies):
+                if arch_reply and not isinstance(arch_reply, Exception):
+                    await ws.send_json({"t": "arch_reply", "agent": arch_name, "v": arch_reply})
             await ws.send_json({"t": "session_done"})
     except WebSocketDisconnect: pass
     except Exception as e:
