@@ -368,7 +368,17 @@ export default function OasisPage() {
     setConnecting(true)
     const ws = new WebSocket(`${WS_BASE}/ws/oasis?sid=${sessionId}`)
     wsRef.current = ws
-    ws.onopen  = () => { setConnected(true); setConnecting(false) }
+    ws.onopen  = () => {
+      setConnected(true); setConnecting(false)
+      // Keepalive ping every 10s to prevent Render from sleeping
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ t: 'ping' }))
+        } else {
+          clearInterval(pingInterval)
+        }
+      }, 10000)
+    }
     ws.onclose = () => {
       setConnected(false); setConnecting(false)
       if (reconnTimer.current) clearTimeout(reconnTimer.current)
@@ -427,16 +437,27 @@ export default function OasisPage() {
     setIsWaiting(true)
     setActiveArchetypes([])
     // Safety: reset waiting state after 30s to prevent infinite spinner
-    const safetyTimer = setTimeout(() => { setIsWaiting(false); setActiveArchetypes([]) }, 30000)
+    const safetyTimer = setTimeout(() => { setIsWaiting(false); setActiveArchetypes([]) }, 65000)
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload))
     } else {
       connectWS()
-      // Retry after reconnect
-      const t = setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(payload))
-      }, 2000)
-      return () => clearTimeout(t)
+      // Retry loop — Render cold start can take 30-60s, retry every 3s up to 60s
+      let retries = 0
+      const retryInterval = setInterval(() => {
+        retries++
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          clearInterval(retryInterval)
+          wsRef.current.send(JSON.stringify(payload))
+        } else if (retries > 20) {
+          clearInterval(retryInterval)
+          setIsWaiting(false)
+          setActiveArchetypes([])
+        } else {
+          connectWS() // keep trying to reconnect
+        }
+      }, 3000)
+      return () => clearInterval(retryInterval)
     }
     setXpMap(p => ({ ...p, [activeAgent.id]: (p[activeAgent.id]||0)+1 }))
   }, [input, attachments, activeAgent, sessionId, connectWS, lang])
