@@ -442,7 +442,7 @@ function updateQuest() {
 }
 </script>
 </body>
-</html>\`
+</html>`
 
 export function GET() {
   return new NextResponse(HTML, {
