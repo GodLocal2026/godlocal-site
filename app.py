@@ -833,6 +833,81 @@ async def react_ws(prompt, history, ws, svc_tokens=None, user_lang="ru"):
     return full_text
 
 
+# ─── V2: LLM-Routed Multi-Agent Core ─────────────────────────────────────────
+
+V2_ARCHETYPES = {
+    "Architect":  "You think in systems, long-term strategy, and elegant structures. You see the whole before the parts. Be concise.",
+    "Builder":    "You execute fast with concrete, practical solutions. You ship, not theorize. Code when relevant. Be concise.",
+    "Strategist": "You analyze risk, leverage, timing, and positioning. You think in probabilities and asymmetric bets. Be concise.",
+}
+
+def v2_llm_route(message: str) -> str:
+    """LLM-based routing — model decides which archetype fits best."""
+    prompt = (
+        f"Which agent handles this message best?\n"
+        f"Architect: systems, structure, long-term\n"
+        f"Builder: code, execution, practical, fast\n"
+        f"Strategist: risk, leverage, analysis, positioning\n\n"
+        f"Message: {message[:300]}\n\n"
+        f"Reply with ONE word only: Architect, Builder, or Strategist"
+    )
+    resp, err = groq_call(
+        [{"role": "system", "content": "You are a routing agent. Reply with exactly one word."},
+         {"role": "user", "content": prompt}],
+        tools=[], idx=2  # 8b-instant for low-latency routing
+    )
+    if err or not resp:
+        return "Architect"
+    raw = resp["choices"][0]["message"].get("content", "").strip()
+    for name in V2_ARCHETYPES:
+        if name.lower() in raw.lower():
+            return name
+    return "Architect"
+
+
+async def v2_run_agent(session_id: str, agent_name: str, message: str, max_tok: int = 800) -> str:
+    """Run a V2 archetype with soul memory + typed memories injected."""
+    mems = memory_get(session_id)
+    mem_ctx = ""
+    if mems:
+        lines = [f"- [{m.get('type','fact')}] {m.get('content','')}" for m in mems[-8:] if m.get("content")]
+        if lines:
+            mem_ctx = "\nKnown context:\n" + "\n".join(lines)
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    system = (
+        f"You are {agent_name} — part of GodLocal Oasis council.\n"
+        f"{V2_ARCHETYPES[agent_name]}\n"
+        f"Use ReAct: 1.Think → 2.Decide → 3.Answer clearly.\n"
+        f"{mem_ctx}\n"
+        f"Date: {now_str}"
+    )
+
+    soul = soul_history(session_id)
+    msgs = [{"role": "system", "content": system}]
+    if soul:
+        msgs.extend(compress_history(soul, session_id))
+    msgs.append({"role": "user", "content": message})
+
+    content = ""
+    for midx in (1, 2, 0):  # 70b-versatile → 8b-instant → 70b-specdec
+        try:
+            async for tok in groq_stream(msgs, idx=midx, max_tokens=max_tok):
+                content += tok
+            if content:
+                break
+        except Exception as e:
+            logger.warning("v2_run_agent %s idx=%d: %s", agent_name, midx, e)
+
+    if content:
+        soul_add(session_id, "user", message)
+        soul_add(session_id, "assistant", content)
+        asyncio.create_task(extract_and_save_memories(message, content, session_id, agent_name.lower()))
+
+    return content.strip()
+
+
+
 # ─── REST Endpoints ───────────────────────────────────────────────────────────
 
 @app.get("/")
@@ -890,6 +965,50 @@ async def think(req: Request):
     if not prompt: return JSONResponse({"error": "prompt required"}, status_code=400)
     response, steps, model = await asyncio.to_thread(react, prompt, data.get("history", []))
     return {"response": response, "steps": steps, "model": model}
+
+
+@app.post("/v2/chat")
+async def v2_chat(body: dict = Body(...)):
+    """V2: LLM-routed chat — model decides which archetype replies."""
+    user_id = body.get("user_id", "default")
+    message = body.get("message", "")
+    if not message.strip():
+        return {"error": "message required"}
+    agent = v2_llm_route(message)
+    reply = await v2_run_agent(user_id, agent, message)
+    return {"reply": reply, "agent": agent}
+
+
+@app.post("/v2/autonomy")
+async def v2_autonomy(body: dict = Body(...)):
+    """V2: Strategist generates 3 strategic tasks from conversation context."""
+    user_id = body.get("user_id", "default")
+    prompt = (
+        "Based on the recent conversation and user context, generate exactly 3 specific "
+        "strategic tasks that increase the user's leverage and clarity right now. "
+        "Format: bullet list. Be concrete, not generic."
+    )
+    tasks = await v2_run_agent(user_id, "Strategist", prompt, max_tok=400)
+    return {"tasks": tasks, "agent": "Strategist"}
+
+
+@app.post("/v2/council")
+async def v2_council(body: dict = Body(...)):
+    """V2: All 3 archetypes respond in parallel — full council."""
+    user_id = body.get("user_id", "default")
+    message = body.get("message", "")
+    if not message.strip():
+        return {"error": "message required"}
+    results = await asyncio.gather(
+        *[v2_run_agent(user_id, name, message, max_tok=300) for name in V2_ARCHETYPES],
+        return_exceptions=True
+    )
+    council = {
+        name: reply for name, reply in zip(V2_ARCHETYPES.keys(), results)
+        if isinstance(reply, str) and reply
+    }
+    return {"council": council}
+
 
 @app.get("/agent/tick")
 @app.post("/agent/tick")
