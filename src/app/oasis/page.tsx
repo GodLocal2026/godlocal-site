@@ -433,7 +433,8 @@ export default function OasisPage() {
                 </motion.div>
               )
               const isSynth=msg.agentId==='synth'
-              const ag=isSynth?{id:'synth',name:'Синтез',color:'#00FF9D',icon:'🔮'}:AGENTS.find(a=>a.id===msg.agentId)||AGENTS[0]
+              if(!isSynth)return null
+              const ag={id:'synth',name:'GodLocal',color:'#00FF9D',icon:'⚡'}
               return(
                 <motion.div key={msg.id} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{duration:.15}} style={{display:'flex',gap:10,marginBottom:14,alignItems:'flex-start'}}>
                   <div style={{width:32,height:32,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,marginTop:2,
@@ -479,14 +480,11 @@ export default function OasisPage() {
           )}
 
           {archs.length>0&&(
-            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,paddingLeft:42,flexWrap:'wrap' as any}}>
-              <span style={{fontSize:11,color:'#4b5563'}}>Совет:</span>
-              {archs.map(aid=>{
-                const a=AGENTS.find(x=>x.id===aid);if(!a)return null
-                return(<span key={aid} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,padding:'2px 8px',borderRadius:20,border:`1px solid ${h2r(a.color,.21)}`,color:a.color,background:h2r(a.color,.047)}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:a.color,display:'inline-block',animation:'gl-pulse 1s infinite'}}/>{a.name}
-                </span>)
-              })}
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,paddingLeft:42}}>
+              <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,padding:'3px 10px',borderRadius:20,border:'1px solid rgba(0,255,157,.2)',color:'#00FF9D',background:'rgba(0,255,157,.05)'}}>
+                <span style={{width:5,height:5,borderRadius:'50%',background:'#00FF9D',display:'inline-block',animation:'gl-pulse 1s infinite'}}/>
+                GodLocal обрабатывает…
+              </span>
             </div>
           )}
           <div ref={botRef} style={{height:4}}/>
