@@ -7,7 +7,7 @@ import os, sys, time, json, threading, asyncio, logging, random
 import requests, httpx
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -994,20 +994,36 @@ async def v2_autonomy(body: dict = Body(...)):
 
 @app.post("/v2/council")
 async def v2_council(body: dict = Body(...)):
-    """V2: All 3 archetypes respond in parallel — full council."""
+    """V2: SSE — each archetype streams as soon as ready (max_tokens=80)."""
     user_id = body.get("user_id", "default")
     message = body.get("message", "")
     if not message.strip():
         return {"error": "message required"}
-    results = await asyncio.gather(
-        *[v2_run_agent(user_id, name, message, max_tok=300) for name in V2_ARCHETYPES],
-        return_exceptions=True
+
+    async def event_gen():
+        tasks = {
+            name: asyncio.create_task(v2_run_agent(user_id, name, message, max_tok=80))
+            for name in V2_ARCHETYPES
+        }
+        pending = set(tasks.values())
+        name_by_task = {v: k for k, v in tasks.items()}
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                name = name_by_task[task]
+                try:
+                    reply = task.result()
+                    if reply:
+                        yield f"data: {json.dumps({'name': name, 'reply': reply})}\n\n"
+                except Exception as ex:
+                    logger.warning("council SSE %s: %s", name, ex)
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-    council = {
-        name: reply for name, reply in zip(V2_ARCHETYPES.keys(), results)
-        if isinstance(reply, str) and reply
-    }
-    return {"council": council}
 
 
 @app.get("/agent/tick")
