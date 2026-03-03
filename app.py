@@ -57,11 +57,13 @@ def _sb_headers():
         "Prefer": "resolution=merge-duplicates"
     }
 
-def memory_add(session_id: str, content: str):
+def memory_add(session_id: str, content: str, agent_id: str = "godlocal", mem_type: str = "fact"):
     import uuid
     entry = {
         "id": str(uuid.uuid4())[:8],
         "content": content,
+        "type": mem_type,
+        "agent_id": agent_id,
         "ts": int(datetime.utcnow().timestamp() * 1000)
     }
     # Supabase first
@@ -78,8 +80,8 @@ def memory_add(session_id: str, content: str):
     with _lock:
         if session_id not in _memories: _memories[session_id] = []
         _memories[session_id].append(entry)
-        if len(_memories[session_id]) > 50:
-            _memories[session_id] = _memories[session_id][-50:]
+        if len(_memories[session_id]) > 100:
+            _memories[session_id] = _memories[session_id][-100:]
 
 def memory_get(session_id: str):
     if SUPABASE_URL and SUPABASE_KEY:
@@ -1038,6 +1040,39 @@ async def synthesize_council_view(
     return await quick_llm_call(synthesis_prompt, max_tokens=100)
 
 
+
+async def extract_and_save_memories(user_msg: str, agent_reply: str, session_id: str, agent_id: str = "godlocal"):
+    """Background: extract facts/preferences/tasks/events and persist them."""
+    import re as _re, json as _json
+    prompt = (
+        "Extract important information from this exchange. "
+        "Output JSON only (no markdown): "
+        '{"memories": [{"type": "fact|preference|task|event", "content": "short memory text"}]} '
+        "Max 3 items. Empty array if nothing notable.\n\n"
+        f"User: {user_msg[:400]}\nAgent: {agent_reply[:400]}"
+    )
+    content = ""
+    for _midx in (2, 1, 0):
+        try:
+            async for tok in groq_stream([{"role": "user", "content": prompt}], idx=_midx, max_tokens=160):
+                content += tok
+                if len(content) > 600: break
+            if content: break
+        except Exception as e:
+            logger.warning("extract_memories model=%d: %s", _midx, e)
+    if not content:
+        return
+    try:
+        m = _re.search(r'\{.*\}', content, _re.DOTALL)
+        if m:
+            data = _json.loads(m.group())
+            for mem in data.get("memories", [])[:3]:
+                c = (mem.get("content") or "").strip()
+                if len(c) > 8:
+                    memory_add(session_id, c, agent_id=agent_id, mem_type=mem.get("type", "fact"))
+    except Exception as e:
+        logger.warning("extract_memories parse: %s", e)
+
 @app.websocket("/ws/oasis")
 async def ws_oasis(ws: WebSocket):
     await ws.accept()
@@ -1062,6 +1097,9 @@ async def ws_oasis(ws: WebSocket):
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
             main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens, user_lang=user_lang)
             if main_reply: soul_add(sid, "assistant", main_reply)
+            # Background memory extraction
+            if main_reply:
+                asyncio.create_task(extract_and_save_memories(prompt_full, main_reply, sid, "godlocal"))
             # ─── Council Mode v2: smart selection, semaphore, dedup, synthesis ───
             if main_reply:
                 selected = select_archetypes(prompt_full, main_reply, k=3)
