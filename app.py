@@ -1050,6 +1050,7 @@ async def ws_oasis(ws: WebSocket):
                 prompt_full = (f"{prompt}\n\n[Пользователь прикрепил изображение. Опиши и прокомментируй его содержимое в контексте запроса.]" if prompt else "[Пользователь прикрепил изображение. Опиши что на нём изображено.]")
             else:
                 prompt_full = prompt
+            if data.get("t") == "ping": await ws.send_json({"t": "pong"}); continue
             if not prompt_full.strip(): await ws.send_json({"t": "error", "v": "prompt required"}); continue
             history = soul_history(sid)
             soul_add(sid, "user", prompt_full)
