@@ -19,6 +19,7 @@ const AGENTS:Agent[] = [
   {id:'lucas',    name:'Lucas',     color:'#FDCB6E', icon:'💡'},
   {id:'harper',   name:'Harper',    color:'#E17055', icon:'🔬'},
   {id:'benjamin', name:'Benjamin',  color:'#55EFC4', icon:'📚'},
+  {id:'strategist',name:'Strategist',color:'#FF6B6B', icon:'♟'},
 ]
 
 const QUICK = [
@@ -150,6 +151,7 @@ export default function OasisPage() {
   const [conn,setConn]       = useState(false)
   const [conning,setConning] = useState(false)
   const [waiting,setWaiting] = useState(false)
+  const [councilLoad,setCLoad] = useState(false)
   const [archs,setArchs]     = useState<string[]>([])
   const [lang,setLang]       = useState<'ru'|'uk'|'en'>(()=>{
     if(typeof window==='undefined')return 'ru'
@@ -304,6 +306,33 @@ export default function OasisPage() {
   const fetchMem=async()=>{try{const r=await fetch(`${API_BASE}/memory?session_id=${sid}`);if(r.ok){const d=await r.json();const raw=Array.isArray(d)?d:(d.memories||[]);setMemory(raw.map((m:any)=>typeof m==='string'?{id:Math.random().toString(36).slice(2),content:m,type:'fact',ts:Date.now()}:m))}}catch{}}
   const delMem=async(id:string)=>{try{await fetch(`${API_BASE}/memory/${sid}/${id}`,{method:'DELETE'});setMemory(p=>p.filter(m=>m.id!==id))}catch{}}
   const saveFb=(id:string,v:string)=>setFb(p=>{const n={...p};if(p[id]===v)delete n[id];else n[id]=v;try{localStorage.setItem('gl_fb',JSON.stringify(n))}catch{};return n})
+
+  const sendCouncil=useCallback(async()=>{
+    const msg=input.trim()||'Дай стратегический совет на основе нашего разговора'
+    tap()
+    if(input.trim()){setMsgs(p=>[...p,{id:rnd(),role:'user',content:input.trim(),ts:Date.now()}]);setInput('')}
+    setCLoad(true)
+    try{
+      const r=await fetch(`${API_BASE}/v2/council`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({user_id:sid,message:msg})
+      })
+      if(!r.ok)throw new Error('council fail')
+      const d=await r.json()
+      const council=d.council||{}
+      const ORDER=['Architect','Builder','Strategist']
+      for(const name of ORDER){
+        const reply=(council[name]||''). trim()
+        if(!reply)continue
+        const aid=name.toLowerCase()
+        const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name,color:'#6C5CE7',icon:'♟'}
+        setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:reply,ts:Date.now()}])
+      }
+    }catch(e){
+      setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Совет временно недоступен — попробуй снова.',ts:Date.now()}])
+    }finally{setCLoad(false)}
+  },[input,sid])
+
   const saveArt=(msg:Msg)=>setArts(p=>{const n=p.some(a=>a.id===msg.id)?p.filter(a=>a.id!==msg.id):[{id:msg.id,name:msg.agentName,content:msg.content,ts:msg.ts},...p].slice(0,50);try{localStorage.setItem('gl_art',JSON.stringify(n))}catch{};return n})
 
   const ph=lang==='uk'?`Запитай ${agent.name}…`:lang==='en'?`Ask ${agent.name}…`:`Спроси ${agent.name}…`
@@ -605,6 +634,11 @@ export default function OasisPage() {
               {b.label}
             </button>
           ))}
+          <button onClick={sendCouncil} disabled={councilLoad} style={{flexShrink:0,display:'flex',alignItems:'center',gap:5,padding:'5px 14px',borderRadius:20,fontSize:12,fontWeight:600,cursor:councilLoad?'wait':'pointer',whiteSpace:'nowrap',transition:'all .15s',
+            ...(councilLoad?{background:'rgba(255,107,107,.18)',color:'#FF6B6B',border:'1px solid rgba(255,107,107,.35)'}:{background:'rgba(255,107,107,.08)',color:'rgba(255,107,107,.6)',border:'1px solid rgba(255,107,107,.18)'})}}>
+            {councilLoad?<span style={{display:'inline-block',animation:'gl-spin .8s linear infinite',fontSize:11}}>&#8635;</span>:'🔮'}
+            <span>{councilLoad?'Совет…':'Совет'}</span>
+          </button>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8,background:'#06080d',border:'1px solid #111827',borderRadius:22,padding:'6px 8px 6px 12px'}}>
           <button onClick={()=>fRef.current?.click()} style={{flexShrink:0,color:'#6b7280',padding:4,background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center'}}>
