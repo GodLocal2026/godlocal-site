@@ -278,7 +278,7 @@ function stripFuncTags(txt) {
 }
 
 const DEX = 'https://api.dexscreener.com';
-const PUMP = 'https://frontend-api.pump.fun';
+const PUMP = '/api/pump';
 const SOL_RPC = 'https://api.mainnet-beta.solana.com';
 let killed=false, scanCache=[], pumpCache=[], pushed=new Set(JSON.parse(localStorage.getItem('gl_pushed')||'[]'));
 let portfolio=JSON.parse(localStorage.getItem('gl_portfolio')||'[]');
