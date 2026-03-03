@@ -875,7 +875,7 @@ export default function OasisPage() {
       <AnimatePresence>
       {showSkills && (
         <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:30,stiffness:300}}
-          className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl z-40 pb-safe">
+          className="shrink-0 w-full max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl pb-safe">
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#0f1820]">
             <div>
               <span className="text-sm font-semibold text-[#00FF9D]">⚡ Навыки агента</span>
@@ -933,7 +933,7 @@ export default function OasisPage() {
       <AnimatePresence>
       {showMemory && (
         <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:30,stiffness:300}}
-          className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl z-40 pb-safe">
+          className="shrink-0 w-full max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl pb-safe">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <span className="text-sm font-semibold text-[#00FF9D]">🧠 Память агента</span>
             <button onClick={() => setShowMemory(false)} className="text-gray-600 hover:text-gray-400 text-lg leading-none">✕</button>
@@ -954,7 +954,7 @@ export default function OasisPage() {
       <AnimatePresence>
       {showArtifacts && (
         <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:30,stiffness:300}}
-          className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl z-40 pb-safe">
+          className="shrink-0 w-full max-w-xl mx-auto bg-[#080d14] border-t border-[#1a2535] rounded-t-2xl pb-safe">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <span className="text-sm font-semibold text-[#FDCB6E]">☆ Галерея артефактов</span>
             <button onClick={() => setShowArtifacts(false)} className="text-gray-600 hover:text-gray-400 text-lg leading-none">✕</button>
