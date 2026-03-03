@@ -505,15 +505,20 @@ async def get_archetype_reply(
             f"{'Відповідай українською.' if session_memory.get(session_id, {}).get('_lang','ru')=='uk' else 'Respond in English.' if session_memory.get(session_id, {}).get('_lang','ru')=='en' else ''}"
         )}
     ]
-    # Use groq_stream (idx=2 → 8b-instant) for reliable retry + model fallback
+    # Use groq_stream (idx=2 → 8b-instant), fallback to idx=1 (70b-versatile) on failure
     content = ""
-    try:
-        async for token in groq_stream(msgs, idx=2, max_tokens=250):
-            content += token
-            if len(content) > 600:  # hard cap
-                break
-    except Exception as e:
-        logger.warning("archetype %s stream error: %s", name, e)
+    for _midx in (2, 1, 0):
+        try:
+            async for token in groq_stream(msgs, idx=_midx, max_tokens=250):
+                content += token
+                if len(content) > 600:  # hard cap
+                    break
+            if content:
+                break  # success — stop trying fallbacks
+        except Exception as e:
+            logger.warning("archetype %s model_idx=%d error: %s", name, _midx, e)
+    if not content:
+        logger.warning("archetype %s: all models returned empty", name)
 
     content = content.strip()
     if not content or content.upper() == "SKIP":
