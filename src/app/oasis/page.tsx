@@ -242,6 +242,7 @@ export default function OasisPage() {
     localStorage.setItem('gl_lang', next); return next
   })
   const [showAgents, setShowAgents]   = useState(false)
+  const [showLangMenu, setShowLangMenu] = useState(false)
   const [showAccounts, setShowAccounts] = useState(false)
   const [feedback, setFeedback] = useState<Record<string,'exact'|'partial'|'miss'>>(() => {
     try { return JSON.parse(localStorage.getItem('gl_feedback')||'{}') } catch { return {} }
@@ -425,6 +426,8 @@ export default function OasisPage() {
 
     setIsWaiting(true)
     setActiveArchetypes([])
+    // Safety: reset waiting state after 30s to prevent infinite spinner
+    const safetyTimer = setTimeout(() => { setIsWaiting(false); setActiveArchetypes([]) }, 30000)
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload))
     } else {
@@ -543,12 +546,26 @@ export default function OasisPage() {
         <div className="flex items-center gap-2 shrink-0">
           {/* Status dot */}
           <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-[#00FF9D] animate-pulse' : connecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-600'}`}/>
-          {/* Lang switcher */}
-          <button onClick={cycleLang}
-            className="text-xs px-2 py-1 rounded-full border border-[#1a2535] text-gray-400 hover:border-[#00FF9D]/40 hover:text-[#00FF9D] transition-all active:scale-95 shrink-0"
-            title="Переключить язык">
-            {lang === 'ru' ? '🇷🇺' : lang === 'uk' ? '🇺🇦' : '🇬🇧'}
-          </button>
+          {/* Lang switcher — globe dropdown */}
+          <div className="relative shrink-0">
+            <button onClick={() => setShowLangMenu(v => !v)}
+              className="text-sm px-2 py-1 rounded-full border border-[#1a2535] text-gray-400 hover:border-[#00FF9D]/40 hover:text-[#00FF9D] transition-all active:scale-95"
+              title="Переключить язык">
+              🌎
+            </button>
+            {showLangMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-[#080d14] border border-[#1a2535] rounded-xl overflow-hidden shadow-xl" style={{minWidth:90}}>
+                {(['ru','uk','en'] as const).map(l => (
+                  <button key={l} onClick={() => { setLang(l); localStorage.setItem('gl_lang', l); setShowLangMenu(false) }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-[#0d1520] transition-colors"
+                    style={{color: lang === l ? '#00FF9D' : '#9ca3af'}}>
+                    <span>{l === 'ru' ? '🇷🇺' : l === 'uk' ? '🇺🇦' : '🇬🇧'}</span>
+                    <span className="font-mono">{l === 'ru' ? 'RU' : l === 'uk' ? 'UA' : 'EN'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Agent selector — icon + name only, no XP clutter */}
           <button onClick={() => { setShowAgents(a => !a); setShowAccounts(false) }}
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all shrink-0 active:scale-95"
