@@ -737,7 +737,7 @@ def react(prompt, history=None):
     fallback = "Что-то пошло не так с обработкой. Попробуй переформулировать."
     return fallback, steps, used_model
 
-async def react_ws(prompt, history, ws, svc_tokens=None):
+async def react_ws(prompt, history, ws, svc_tokens=None, user_lang="ru"):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     session_id = (svc_tokens or {}).get("session_id", "default")
 
@@ -752,66 +752,28 @@ async def react_ws(prompt, history, ws, svc_tokens=None):
     # Inject profile block
     profile_block = build_profile_block(session_id)
 
-    is_self_ref = any(kw in prompt.lower() for kw in SELF_REF_KW)
-    system = GODLOCAL_SYSTEM.format(now=now_str, profile_block=profile_block) + svc_line + f"\n\nЯзык ответа: {'українська' if user_lang=='uk' else 'English' if user_lang=='en' else 'русский'}."
+    lang_label = 'українська' if user_lang == 'uk' else ('English' if user_lang == 'en' else 'русский')
+    system = GODLOCAL_SYSTEM.format(now=now_str, profile_block=profile_block) + svc_line + f"\n\nЯзык ответа: {lang_label}."
     msgs = [{"role": "system", "content": system}]
     if history: msgs.extend(compress_history(history))
     msgs.append({"role": "user", "content": prompt})
-    tools = None if is_self_ref else all_tools()
     used_model = MODELS[0]
-
-    for step in range(8):
-        if step >= 7 or (step > 0 and not tools):
-            full_text = ""
-            async for token in groq_stream(msgs):
-                full_text += token
-                await ws.send_json({"t": "token", "v": token})
-            with _lock:
-                _thoughts.append({"text": full_text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
-                if len(_thoughts) > 20: _thoughts.pop(0)
-            await ws.send_json({"t": "done", "m": used_model})
-            return full_text
-
-        resp, err = await asyncio.to_thread(groq_call, msgs, tools)
-        if err or not resp:
-            full_text = ""
-            msgs_notool = [m for m in msgs if m.get("role") != "tool"]
-            async for token in groq_stream(msgs_notool):
-                full_text += token
-                await ws.send_json({"t": "token", "v": token})
-            await ws.send_json({"t": "done", "m": used_model})
-            return full_text
-
-        choice = resp["choices"][0]
-        msg = choice["message"]
-        used_model = resp.get("model", MODELS[0])
-
-        if msg.get("tool_calls"):
-            msgs.append(msg)
-            for tc in msg["tool_calls"]:
-                fn_name = tc["function"]["name"]
-                fn_args = json.loads(tc["function"].get("arguments") or "{}")
-                await ws.send_json({"t": "tool", "n": fn_name, "q": str(fn_args)[:80]})
-                merged_tokens = {**(svc_tokens or {}), "session_id": session_id}
-                result = await asyncio.to_thread(run_tool, fn_name, fn_args, merged_tokens)
-                await ws.send_json({"t": "tool_result", "n": fn_name, "r": result[:300]})
-                msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
-        else:
-            text = msg.get("content") or ""
-            if not text: continue
-            with _lock:
-                _thoughts.append({"text": text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
-                if len(_thoughts) > 20: _thoughts.pop(0)
-            words = text.split(" ")
-            full_text = ""
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words)-1 else "")
-                full_text += chunk
-                await ws.send_json({"t": "token", "v": chunk})
-                await asyncio.sleep(0.008)
-            await ws.send_json({"t": "done", "m": used_model})
-            return full_text
-    return ""
+    full_text = ""
+    try:
+        async for token in groq_stream(msgs):
+            full_text += token
+            await ws.send_json({"t": "token", "v": token})
+    except Exception as e:
+        logger.warning("groq_stream error: %s", e)
+        if not full_text:
+            err_msg = "Извини, произошла ошибка. Попробуй ещё раз."
+            await ws.send_json({"t": "token", "v": err_msg})
+            full_text = err_msg
+    with _lock:
+        _thoughts.append({"text": full_text[:200], "ts": datetime.utcnow().isoformat(), "model": used_model})
+        if len(_thoughts) > 20: _thoughts.pop(0)
+    await ws.send_json({"t": "done", "m": used_model})
+    return full_text
 
 
 # ─── REST Endpoints ───────────────────────────────────────────────────────────
@@ -1091,7 +1053,7 @@ async def ws_oasis(ws: WebSocket):
             history = soul_history(sid)
             soul_add(sid, "user", prompt_full)
             await ws.send_json({"t": "agent_start", "agent": "GodLocal"})
-            main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens)
+            main_reply = await react_ws(prompt_full, history, ws, svc_tokens=svc_tokens, user_lang=user_lang)
             if main_reply: soul_add(sid, "assistant", main_reply)
             # ─── Council Mode v2: smart selection, semaphore, dedup, synthesis ───
             if main_reply:
@@ -1118,6 +1080,8 @@ async def ws_oasis(ws: WebSocket):
                 valid_replies = []
                 for (arch_name, _), arch_reply in zip(selected, arch_results):
                     if isinstance(arch_reply, Exception) or not arch_reply or len(arch_reply) < 10:
+                        # Always send arch_reply to unblock UI "thinking" state
+                        await ws.send_json({"t": "arch_reply", "agent": ARCH_TO_AGENT_ID.get(arch_name, arch_name), "v": ""})
                         continue
                     valid_replies.append((arch_name, arch_reply))
                     agent_id = ARCH_TO_AGENT_ID.get(arch_name, arch_name)
@@ -1135,19 +1099,7 @@ async def ws_oasis(ws: WebSocket):
                 synthesis = await synthesize_council_view(main_reply, valid_replies, prompt_full)
                 if synthesis:
                     await ws.send_json({"t": "synthesis", "v": synthesis})
-            # ─── Self-Task Generation ────────────────────────────────
-            if main_reply:
-                next_task = await self_generate_next_task(main_reply, prompt_full)
-                if next_task and next_task.get("task"):
-                    await ws.send_json({"t": "auto_task", "task": next_task["task"], "action": next_task["action"]})
-                    logger.info("AutoTask: %s [%s]", next_task["task"][:80], next_task["action"])
-                    # Execute: if search action, run web_search tool
-                    if next_task["action"] == "search":
-                        svc_tokens_auto = {"session_id": sid}
-                        result = await asyncio.to_thread(run_tool, "web_search", {"query": next_task["task"]}, svc_tokens_auto)
-                        if result and len(result) > 10:
-                            await ws.send_json({"t": "auto_result", "v": result[:600]})
-                            memory.save("auto_search", {"task": next_task["task"], "result": result[:300]}) if False else None
+            # Self-task generation removed from hot path (moved to background)
             await ws.send_json({"t": "session_done"})
     except WebSocketDisconnect: pass
     except Exception as e:
