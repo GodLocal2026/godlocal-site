@@ -769,6 +769,14 @@ async def react_ws(prompt, history, ws, svc_tokens=None, user_lang="ru"):
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     session_id = (svc_tokens or {}).get("session_id", "default")
 
+    # Inject user memories
+    _mems = memory_get(session_id)
+    _mem_block = ""
+    if _mems:
+        _mem_lines = [f"- [{m.get('type','fact')}] {m.get('content','')}" for m in _mems[-8:] if m.get("content")]
+        if _mem_lines:
+            _mem_block = "\n\nПамять пользователя (используй это в ответах):\n" + "\n".join(_mem_lines)
+
     # Build services hint
     svc_hints = []
     if svc_tokens:
@@ -796,7 +804,7 @@ async def react_ws(prompt, history, ws, svc_tokens=None, user_lang="ru"):
             f"SOL: ${sol:,.0f}\n"
         )
 
-    system = GODLOCAL_SYSTEM.format(now=now_str, profile_block=profile_block) + svc_line + mkt_block + f"\n\nЯзык ответа: {lang_label}."
+    system = GODLOCAL_SYSTEM.format(now=now_str, profile_block=profile_block) + svc_line + mkt_block + _mem_block + f"\n\nЯзык ответа: {lang_label}."
     msgs = [{"role": "system", "content": system}]
     if history: msgs.extend(compress_history(history))
     msgs.append({"role": "user", "content": prompt})
