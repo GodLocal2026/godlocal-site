@@ -273,8 +273,9 @@ async def groq_stream(messages, idx=0, max_tokens=4096):
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             async with client.stream("POST", "https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers) as resp:
-                if resp.status_code == 429:
-                    async for tok in groq_stream(messages, idx + 1): yield tok
+                if resp.status_code in (429, 400):
+                    if idx < len(MODELS) - 1:
+                        async for tok in groq_stream(messages, idx + 1, max_tokens=max_tokens): yield tok
                     return
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -822,10 +823,13 @@ async def react_ws(prompt, history, ws, svc_tokens=None, user_lang="ru"):
                 result = run_tool(fn, fn_args, svc_tokens)
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
 
+    # Strip tool messages for streaming (some models don't support tool role)
+    stream_msgs = [m for m in msgs if m.get("role") != "tool"]
+
     used_model = MODELS[0]
     full_text = ""
     try:
-        async for token in groq_stream(msgs):
+        async for token in groq_stream(stream_msgs):
             full_text += token
             await ws.send_json({"t": "token", "v": token})
     except Exception as e:
