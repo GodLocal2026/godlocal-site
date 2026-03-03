@@ -264,9 +264,9 @@ def groq_call(messages, tools=None, idx=0):
             return groq_call(messages, tools, idx + 1)
         return None, str(e)
 
-async def groq_stream(messages, idx=0):
+async def groq_stream(messages, idx=0, max_tokens=4096):
     if not GROQ_KEY or idx >= len(MODELS): return
-    body = {"model": MODELS[idx], "messages": messages, "max_tokens": 4096, "temperature": 0.4, "stream": True}
+    body = {"model": MODELS[idx], "messages": messages, "max_tokens": max_tokens, "temperature": 0.4, "stream": True}
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -505,23 +505,24 @@ async def get_archetype_reply(
             f"{'Відповідай українською.' if session_memory.get(session_id, {}).get('_lang','ru')=='uk' else 'Respond in English.' if session_memory.get(session_id, {}).get('_lang','ru')=='en' else ''}"
         )}
     ]
-    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-    body = {"model": MODELS[2], "messages": msgs, "max_tokens": 250, "temperature": 0.5}
+    # Use groq_stream (idx=2 → 8b-instant) for reliable retry + model fallback
+    content = ""
     try:
-        client = _get_http_client()
-        r = await client.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers)
-        if r.status_code == 200:
-            content = r.json()["choices"][0]["message"].get("content", "").strip()
-            if content.upper() == "SKIP":
-                return ""
-            # Dedup: reject only exact duplicate (not substring match)
-            if any(p and p == content[:100] for p in mem["points_made"]):
-                return ""
-            mem["points_made"].append(content[:100])
-            return content
+        async for token in groq_stream(msgs, idx=2, max_tokens=250):
+            content += token
+            if len(content) > 600:  # hard cap
+                break
     except Exception as e:
-        logger.warning("archetype %s error: %s", name, e)
-    return ""
+        logger.warning("archetype %s stream error: %s", name, e)
+
+    content = content.strip()
+    if not content or content.upper() == "SKIP":
+        return ""
+    # Dedup: reject only exact duplicate
+    if any(p and p == content[:100] for p in mem["points_made"]):
+        return ""
+    mem["points_made"].append(content[:100])
+    return content
 
 
 # ─── Master System Prompt ─────────────────────────────────────────────────────
