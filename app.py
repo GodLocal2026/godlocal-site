@@ -507,7 +507,7 @@ async def get_archetype_reply(
     ]
     # Use groq_stream (idx=2 → 8b-instant), fallback to idx=1 (70b-versatile) on failure
     content = ""
-    for _midx in (2, 1, 0):
+    for _midx in (1, 2, 0):
         try:
             async for token in groq_stream(msgs, idx=_midx, max_tokens=250):
                 content += token
@@ -1077,12 +1077,17 @@ async def ws_oasis(ws: WebSocket):
                                     name, data, main_reply, prompt_full, sid,
                                     [n for n, _ in selected if n != name]
                                 ),
-                                timeout=12.0
+                                timeout=20.0
                             )
                         except Exception as exc:
                             logger.warning("archetype %s bounded_call: %s", name, exc)
                             return ""
                 arch_tasks = [bounded_call(n, d) for n, d in selected]
+                # stagger archetype calls by 0.3s to avoid burst 429
+                async def staggered_call(i, n, d):
+                    if i > 0: await asyncio.sleep(i * 0.3)
+                    return await bounded_call(n, d)
+                arch_tasks = [staggered_call(i, n, d) for i, (n, d) in enumerate(selected)]
                 arch_results = await asyncio.gather(*arch_tasks, return_exceptions=True)
                 valid_replies = []
                 for (arch_name, _), arch_reply in zip(selected, arch_results):
