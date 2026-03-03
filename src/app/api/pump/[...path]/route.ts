@@ -4,9 +4,10 @@ const PUMP_BASE = 'https://frontend-api.pump.fun';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const path = (params.path ?? []).join('/');
+  const { path: pathSegments } = await params;
+  const path = (pathSegments ?? []).join('/');
   const search = req.nextUrl.search || '';
   const url = `${PUMP_BASE}/${path}${search}`;
 
