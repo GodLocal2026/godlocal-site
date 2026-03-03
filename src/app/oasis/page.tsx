@@ -313,20 +313,33 @@ export default function OasisPage() {
     if(input.trim()){setMsgs(p=>[...p,{id:rnd(),role:'user',content:input.trim(),ts:Date.now()}]);setInput('')}
     setCLoad(true)
     try{
-      const r=await fetch(`${API_BASE}/v2/council`,{
+      const resp=await fetch(`${API_BASE}/v2/council`,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({user_id:sid,message:msg})
       })
-      if(!r.ok)throw new Error('council fail')
-      const d=await r.json()
-      const council=d.council||{}
-      const ORDER=['Architect','Builder','Strategist']
-      for(const name of ORDER){
-        const reply=(council[name]||''). trim()
-        if(!reply)continue
-        const aid=name.toLowerCase()
-        const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name,color:'#6C5CE7',icon:'♟'}
-        setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:reply,ts:Date.now()}])
+      if(!resp.ok||!resp.body)throw new Error('council fail')
+      const reader=resp.body.getReader()
+      const dec=new TextDecoder()
+      let buf=''
+      while(true){
+        const{done,value}=await reader.read()
+        if(done)break
+        buf+=dec.decode(value,{stream:true})
+        const lines=buf.split('\n')
+        buf=lines.pop()||''
+        for(const line of lines){
+          if(!line.startsWith('data: '))continue
+          const raw=line.slice(6).trim()
+          if(raw==='[DONE]')break
+          try{
+            const{name,reply}=JSON.parse(raw)
+            if(reply){
+              const aid=(name||'').toLowerCase()
+              const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name:name||'GodLocal',color:'#6C5CE7',icon:'♟'}
+              setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:reply,ts:Date.now()}])
+            }
+          }catch{}
+        }
       }
     }catch(e){
       setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Совет временно недоступен — попробуй снова.',ts:Date.now()}])
