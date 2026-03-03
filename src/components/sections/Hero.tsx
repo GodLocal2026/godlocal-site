@@ -6,7 +6,7 @@ import { GITHUB_URL } from "@/lib/utils";
 
 const staticMetrics = [
   { value: "17k", label: "tok/s", sub: "Taalas speed" },
-  { value: "3", label: "products", sub: "live now" },
+  { value: "5", label: "products", sub: "live now" },
   { value: "7", label: "agents", sub: "in Oasis" },
   { value: "60", label: "tok/s", sub: "on iPhone" },
 ];
@@ -83,7 +83,7 @@ export default function Hero() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00FF9D]/30 bg-[#00FF9D]/5 text-[#00FF9D] text-sm font-mono mb-8">
             <span className="w-2 h-2 rounded-full bg-[#00FF9D] animate-pulse" />
-            Autonomous AI Platform · 3 Products Live
+            Autonomous AI Platform · 5 Products Live
           </motion.div>
 
           {/* Title */}
@@ -96,7 +96,7 @@ export default function Hero() {
           {/* Subtitle */}
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl md:text-2xl text-[#E0E0E0]/60 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Multi-agent AI workspace, crypto terminal, and voice assistant —
+            Multi-agent AI workspace, crypto terminal, social network, reality game —
             all on one open-source platform.{" "}
             <span className="text-[#E0E0E0]/80">Terminal meets soul.</span>
           </motion.p>
@@ -145,6 +145,8 @@ export default function Hero() {
               <div className="text-[#00FF9D]">✓ 7 agents online · tool feed active</div>
               <div><span className="text-[#6C5CE7]">$</span> <span className="text-[#E0E0E0]/80">open godlocal.ai/static/pwa/smertch.html</span></div>
               <div className="text-[#6C5CE7]">✓ WOLF terminal · live market data</div>
+              <div><span className="text-[#6C5CE7]">$</span> <span className="text-[#E0E0E0]/80">open godlocal.ai/nebudda</span></div>
+              <div className="text-[#FD79A8]">✦ NEBUDDA · social network · coming soon</div>
             </div>
           </motion.div>
 
