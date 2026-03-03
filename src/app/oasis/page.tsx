@@ -28,6 +28,9 @@ const QUICK = [
   'Что такое GodLocal?',
 ]
 
+const h2r=(h:string,a:number)=>{const n=parseInt(h.replace('#',''),16);return`rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`}
+
+
 const TOOL_L:Record<string,string> = {
   web_search:'🌐 поиск', fetch_url:'📄 читаю', get_market_data:'📊 рынок',
   post_tweet:'𝕏 пост', send_telegram:'✈️ Telegram', create_github_issue:'🐙 issue',
@@ -349,8 +352,8 @@ export default function OasisPage() {
           </button>
           <button onClick={()=>openPanel(panel==='agents'?null:'agents')} style={{
             display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:12,cursor:'pointer',
-            border:`1px solid ${panel==='agents'?agent.color+'80':agent.color+'45'}`,
-            background:panel==='agents'?agent.color+'22':agent.color+'12',color:agent.color,transition:'all .15s'}}>
+            border:`1px solid ${panel==='agents'?h2r(agent.color,.5):h2r(agent.color,.27)}`,
+            background:panel==='agents'?h2r(agent.color,.13):h2r(agent.color,.07),color:agent.color,transition:'all .15s'}}>
             <span style={{fontSize:15,lineHeight:1}}>{agent.icon}</span>
             <span style={{fontSize:12,fontWeight:600,maxWidth:60,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{agent.name}</span>
             <svg style={{width:10,height:10,flexShrink:0,opacity:.5,transform:panel==='agents'?'rotate(180deg)':'none'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
@@ -369,7 +372,7 @@ export default function OasisPage() {
                   <button key={a.id} onClick={()=>{setAgent(a);setPanel(null);tap()}}
                     style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',padding:'8px 12px',minWidth:58,
                       borderRadius:14,cursor:'pointer',
-                      border:`1px solid ${on?a.color+'55':'#111827'}`,background:on?a.color+'15':'transparent'}}>
+                      border:`1px solid ${on?h2r(a.color,.33):'#111827'}`,background:on?h2r(a.color,.083):'transparent'}}>
                     <span style={{fontSize:20}}>{a.icon}</span>
                     <span style={{fontSize:11,fontWeight:600,marginTop:2,color:on?a.color:'#9ca3af'}}>{a.name}</span>
                     <span style={{fontSize:9,color:'#374151',marginTop:1}}>{xp[a.id]||0} xp</span>
@@ -381,7 +384,7 @@ export default function OasisPage() {
         )}
       </AnimatePresence>
 
-      <div ref={scRef} style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,overscrollBehavior:'contain'}}
+      <div ref={scRef} style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch' as any,overscrollBehavior:'contain',WebkitTransform:'translateZ(0)' as any}}
         onScroll={e=>{const el=e.currentTarget;atBot.current=el.scrollHeight-el.scrollTop-el.clientHeight<80}}>
         <div style={{padding:'12px 16px 4px'}}>
 
@@ -434,14 +437,14 @@ export default function OasisPage() {
               return(
                 <motion.div key={msg.id} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{duration:.15}} style={{display:'flex',gap:10,marginBottom:14,alignItems:'flex-start'}}>
                   <div style={{width:32,height:32,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,marginTop:2,
-                    background:ag.color+'12',border:`1.5px solid ${ag.color}38`,boxShadow:isSynth?`0 0 12px ${ag.color}28`:'none'}}>{ag.icon}</div>
+                    background:h2r(ag.color,.07),border:`1.5px solid ${h2r(ag.color,.22)}`,boxShadow:isSynth?`0 0 12px ${h2r(ag.color,.16)}`:'none'}}>{ag.icon}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:3,paddingLeft:2}}>
                       <span style={{fontSize:12,fontWeight:700,color:ag.color}}>{msg.agentName}</span>
                       <span style={{fontSize:10,color:'#4b5563'}}>{new Date(msg.ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</span>
                     </div>
                     <div style={{borderRadius:'5px 18px 18px 18px',padding:'10px 14px',fontSize:14,lineHeight:1.6,color:'#d1d5db',wordBreak:'break-word' as any,
-                      background:isSynth?`linear-gradient(135deg,${ag.color}0a,#060b10)`:ag.color+'0b',borderLeft:`2.5px solid ${ag.color}50`}}>
+                      background:isSynth?`linear-gradient(135deg,${h2r(ag.color,.04)},#060b10)`:h2r(ag.color,.043),borderLeft:`2.5px solid ${h2r(ag.color,.31)}`}}>
                       <MD t={msg.content} cur={msg.streaming}/>
                     </div>
                     {!msg.streaming&&msg.content.length>5&&(
@@ -480,7 +483,7 @@ export default function OasisPage() {
               <span style={{fontSize:11,color:'#4b5563'}}>Совет:</span>
               {archs.map(aid=>{
                 const a=AGENTS.find(x=>x.id===aid);if(!a)return null
-                return(<span key={aid} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,padding:'2px 8px',borderRadius:20,border:`1px solid ${a.color}35`,color:a.color,background:a.color+'0c'}}>
+                return(<span key={aid} style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,padding:'2px 8px',borderRadius:20,border:`1px solid ${h2r(a.color,.21)}`,color:a.color,background:h2r(a.color,.047)}}>
                   <span style={{width:5,height:5,borderRadius:'50%',background:a.color,display:'inline-block',animation:'gl-pulse 1s infinite'}}/>{a.name}
                 </span>)
               })}
