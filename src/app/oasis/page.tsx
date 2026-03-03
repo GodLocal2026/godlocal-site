@@ -9,6 +9,7 @@ const WS_BASE  = API_BASE.replace('https://','wss://').replace('http://','ws://'
 interface Agent { id:string; name:string; color:string; icon:string }
 interface Msg   { id:string; role:'user'|'agent'|'chip'; agentId?:string; agentName?:string; content:string; streaming?:boolean; ts:number; files?:Att[] }
 interface Att   { name:string; url:string; type:string; size:number; base64?:string }
+interface Memory{ id:string; content:string; type:string; agent_id?:string; ts:number }
 
 const AGENTS:Agent[] = [
   {id:'godlocal', name:'GodLocal',  color:'#00FF9D', icon:'⚡'},
@@ -152,7 +153,7 @@ export default function OasisPage() {
     return(localStorage.getItem('gl_lang') as any)||'ru'
   })
   const [panel,setPanel]     = useState<null|'agents'|'skills'|'services'|'memory'|'gallery'>(null)
-  const [memory,setMemory]   = useState<string[]>([])
+  const [memory,setMemory]   = useState<Memory[]>([])
   const [arts,setArts]       = useState<{id:string;name?:string;content:string;ts:number}[]>(()=>{
     try{return JSON.parse(localStorage.getItem('gl_art')||'[]')}catch{return[]}
   })
@@ -297,7 +298,8 @@ export default function OasisPage() {
   const resize=(el:HTMLTextAreaElement)=>{el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
   const cycLang=()=>{setLang(l=>{const n=l==='ru'?'uk':l==='uk'?'en':'ru';localStorage.setItem('gl_lang',n);return n});tap(6)}
   const openPanel=(p:typeof panel)=>{tap(6);setPanel(prev=>prev===p?null:p);if(p==='memory')fetchMem()}
-  const fetchMem=async()=>{try{const r=await fetch(`${API_BASE}/memory?session_id=${sid}`);if(r.ok){const d=await r.json();setMemory(Array.isArray(d)?d:(d.memories||[]))}}catch{}}
+  const fetchMem=async()=>{try{const r=await fetch(`${API_BASE}/memory?session_id=${sid}`);if(r.ok){const d=await r.json();const raw=Array.isArray(d)?d:(d.memories||[]);setMemory(raw.map((m:any)=>typeof m==='string'?{id:Math.random().toString(36).slice(2),content:m,type:'fact',ts:Date.now()}:m))}}catch{}}
+  const delMem=async(id:string)=>{try{await fetch(`${API_BASE}/memory/${sid}/${id}`,{method:'DELETE'});setMemory(p=>p.filter(m=>m.id!==id))}catch{}}
   const saveFb=(id:string,v:string)=>setFb(p=>{const n={...p};if(p[id]===v)delete n[id];else n[id]=v;try{localStorage.setItem('gl_fb',JSON.stringify(n))}catch{};return n})
   const saveArt=(msg:Msg)=>setArts(p=>{const n=p.some(a=>a.id===msg.id)?p.filter(a=>a.id!==msg.id):[{id:msg.id,name:msg.agentName,content:msg.content,ts:msg.ts},...p].slice(0,50);try{localStorage.setItem('gl_art',JSON.stringify(n))}catch{};return n})
 
@@ -533,14 +535,19 @@ export default function OasisPage() {
       <AnimatePresence>
         {panel==='memory'&&(
           <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={SPRING}
-            style={{flexShrink:0,background:'#060810',borderTop:'1px solid #0f1820',borderRadius:'16px 16px 0 0',overflow:'hidden',maxHeight:'55vh',display:'flex',flexDirection:'column'}}>
+            style={{flexShrink:0,background:'#060810',borderTop:'1px solid #0f1820',borderRadius:'16px 16px 0 0',overflow:'hidden',maxHeight:'62vh',display:'flex',flexDirection:'column'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px 12px',borderBottom:'1px solid #0f1820',flexShrink:0}}>
-              <span style={{fontWeight:700,fontSize:14,color:'#007AFF'}}>🧠 Память</span>
-              <button onClick={()=>setPanel(null)} style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1820',border:'none',color:'#6b7280',cursor:'pointer',fontSize:16}}>✕</button>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontWeight:700,fontSize:14,color:'#007AFF'}}>🧠 Память</span>
+                {memory.length>0&&<span style={{fontSize:11,background:'#007AFF22',color:'#007AFF',borderRadius:6,padding:'1px 7px'}}>{memory.length}</span>}
+              </div>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={fetchMem} title='Обновить' style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1820',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14}}>↻</button>
+                <button onClick={()=>setPanel(null)} style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:'#0f1820',border:'none',color:'#6b7280',cursor:'pointer',fontSize:16}}>✕</button>
+              </div>
             </div>
             <div style={{overflowY:'auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:6}}>
-              {memory.length===0?<p style={{fontSize:12,color:'#4b5563',fontStyle:'italic',margin:0}}>Память пуста</p>
-                :memory.map((m,i)=><div key={i} style={{fontSize:12,color:'#9ca3af',background:'#07090f',border:'1px solid #111827',borderRadius:10,padding:'8px 12px'}}>{m}</div>)}
+              {(()=>{const TC:Record<string,string>={fact:'#34C759',preference:'#5856D6',task:'#FF9F0A',event:'#007AFF'};const TL:Record<string,string>={fact:'факт',preference:'предп.',task:'задача',event:'событие'};return memory.length===0?(<p style={{fontSize:12,color:'#4b5563',fontStyle:'italic',margin:0}}>Память пуста — агенты запомнят важное автоматически</p>):(memory.map((m,i)=>(<div key={m.id||i} style={{background:'#07090f',border:'1px solid #111827',borderRadius:10,padding:'8px 12px',display:'flex',alignItems:'flex-start',gap:8}}><div style={{flex:1}}><div style={{display:'flex',gap:4,marginBottom:5,flexWrap:'wrap' as any}}><span style={{fontSize:10,background:TC[m.type]||'#374151',color:'white',borderRadius:4,padding:'1px 6px',fontWeight:600}}>{TL[m.type]||m.type}</span>{m.agent_id&&<span style={{fontSize:10,color:'#4b5563'}}>{m.agent_id}</span>}</div><p style={{fontSize:12,color:'#9ca3af',margin:0,lineHeight:'1.5'}}>{m.content}</p></div><button onClick={()=>delMem(m.id)} style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'none',border:'1px solid #1f2937',color:'#4b5563',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button></div>)))})()}
             </div>
             <div style={{height:'max(env(safe-area-inset-bottom),10px)',flexShrink:0}}/>
           </motion.div>
@@ -591,7 +598,7 @@ export default function OasisPage() {
       <div style={{flexShrink:0,padding:`8px 12px max(env(safe-area-inset-bottom),12px)`,
         background:'rgba(3,5,8,.88)',backdropFilter:'blur(18px)',WebkitBackdropFilter:'blur(18px)'}}>
         <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>
-          {([{id:'skills' as const,label:'⚡ Навыки',col:'#34C759'},{id:'services' as const,label:'🔗 Сервисы',col:'#5856D6'},{id:'memory' as const,label:'🧠 Память',col:'#007AFF'},{id:'gallery' as const,label:'★ Галерея',col:'#FF9F0A'}]).map(b=>(
+          {([{id:'skills' as const,label:'⚡ Навыки',col:'#34C759'},{id:'services' as const,label:'🔗 Сервисы',col:'#5856D6'},{id:'memory' as const,label:`🧠 Память${memory.length>0?' ('+memory.length+')':''}`,col:'#007AFF'},{id:'gallery' as const,label:'★ Галерея',col:'#FF9F0A'}]).map(b=>(
             <button key={b.id} onClick={()=>openPanel(b.id)} style={{flexShrink:0,display:'flex',alignItems:'center',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',
               ...(panel===b.id?{background:b.col,color:'#000',fontWeight:700,border:'none'}:{background:'rgba(255,255,255,.05)',color:'rgba(255,255,255,.35)',border:'1px solid rgba(255,255,255,.07)'})}}>
               {b.label}
