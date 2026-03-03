@@ -629,8 +629,8 @@ export default function OasisPage() {
         background:'rgba(3,5,8,.88)',backdropFilter:'blur(18px)',WebkitBackdropFilter:'blur(18px)'}}>
         <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>
           {([{id:'skills' as const,label:'⚡ Навыки',col:'#34C759'},{id:'services' as const,label:'🔗 Сервисы',col:'#5856D6'},{id:'memory' as const,label:`🧠 Память${memory.length>0?' ('+memory.length+')':''}`,col:'#007AFF'},{id:'gallery' as const,label:'★ Галерея',col:'#FF9F0A'}]).map(b=>(
-            <button key={b.id} onClick={()=>openPanel(b.id)} style={{flexShrink:0,display:'flex',alignItems:'center',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',
-              ...(panel===b.id?{background:b.col,color:'#000',fontWeight:700,border:'none'}:{background:'rgba(255,255,255,.05)',color:'rgba(255,255,255,.35)',border:'1px solid rgba(255,255,255,.07)'})}}>
+            <button key={b.id} onClick={()=>openPanel(b.id)} style={{flexShrink:0,display:'flex',alignItems:'center',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:panel===b.id?700:500,cursor:'pointer',whiteSpace:'nowrap',
+              ...(panel===b.id?{background:b.col,color:'#000',border:'none'}:{background:'rgba(255,255,255,.05)',color:'rgba(255,255,255,.35)',border:'1px solid rgba(255,255,255,.07)'})}}>
               {b.label}
             </button>
           ))}
