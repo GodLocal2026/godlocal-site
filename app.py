@@ -1,4 +1,4 @@
-# GodLocal API Backend v14.4 — FastAPI / Uvicorn
+# GodLocal API Backend v14.5 — FastAPI / Uvicorn
 # WebSocket: /ws/oasis /ws/deep
 # REST: /health /ping /status /v2/chat /v2/council /memory /profile /mission /market /think /hitl/*
 import os, sys, time, json, threading, asyncio, logging, random, hashlib
@@ -140,7 +140,11 @@ def groq_call(messages, tools=None, idx=0, max_tokens=1500):
     if not GROQ_KEY or idx >= len(MODELS): return None, "all models exhausted"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
     if not tools:
-        messages = [m for m in messages if m.get("role") != "tool"]
+        # Only strip tool messages when there are no assistant tool_calls referencing them
+        # (orphan tool_calls without tool results breaks the Groq API)
+        has_tool_calls = any(m.get("tool_calls") for m in messages if m.get("role") == "assistant")
+        if not has_tool_calls:
+            messages = [m for m in messages if m.get("role") != "tool"]
     body = {"model": MODELS[idx], "messages": messages, "max_tokens": max_tokens,
             "temperature": 0.4, "top_p": 0.9}
     if tools: body["tools"] = tools; body["tool_choice"] = "auto"
@@ -409,8 +413,30 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
         user_content = prompt
     messages = [sys_msg] + hist + [{"role": "user", "content": user_content}]
     full_response = ""
-    for iteration in range(4):
-        resp_data, err = groq_call(messages, tools=tools if iteration < 3 else None)
+    tool_context: list[str] = []          # accumulate tool results as plain text
+    tool_calls_made = 0
+
+    for iteration in range(5):
+        # After tool calls: build clean synthesis messages (no tool_call message format)
+        if tool_calls_made > 0 and not any(
+            m.get("finish_reason") != "tool_calls" for m in []
+        ):
+            pass  # handled below
+        use_tools = tools if iteration < 4 else None
+
+        if use_tools is None and tool_calls_made > 0:
+            # Build clean synthesis prompt — embed tool results as plain context
+            ctx_block = ""
+            if tool_context:
+                ctx_block = "\n\n--- Tool Results ---\n" + "\n\n".join(tool_context) + "\n--- End ---"
+            synth_msgs = [sys_msg] + hist + [{
+                "role": "user",
+                "content": f"{prompt}{ctx_block}"
+            }]
+            resp_data, err = groq_call(synth_msgs, tools=None, max_tokens=1500)
+        else:
+            resp_data, err = groq_call(messages, tools=use_tools, max_tokens=1500)
+
         if err or not resp_data:
             await ws.send_json({"t": "token", "v": "\u041e\u0448\u0438\u0431\u043a\u0430 AI. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430."})
             break
@@ -430,10 +456,11 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                 await ws.send_json({"t": "tool_done", "v": label})
                 messages.append({"role": "tool", "tool_call_id": tc["id"],
                                   "name": fn, "content": result})
+                tool_context.append(f"{fn}: {str(result)[:600]}")
+                tool_calls_made += 1
             continue
         content = msg.get("content") or ""
         if content:
-            # Stream content directly — no second Groq request
             full_response = content
             chunk = 6
             for i in range(0, len(content), chunk):
@@ -591,7 +618,7 @@ async def ws_deep(ws: WebSocket):
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return JSONResponse({"status": "ok", "version": "14.4.0",
+    return JSONResponse({"status": "ok", "version": "14.5.0",
                          "supabase": bool(SUPABASE_URL and SUPABASE_KEY),
                          "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY)})
 
