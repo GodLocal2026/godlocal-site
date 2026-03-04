@@ -1,0 +1,34 @@
+name: Keepalive Ping — GodLocal Render Services
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes
+  workflow_dispatch:          # allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping all services
+        run: |
+          echo "=== GodLocal Keepalive $(date -u) ==="
+
+          ping_service() {
+            local name=$1
+            local url=$2
+            local status
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url" 2>/dev/null || echo "timeout")
+            if [ "$status" = "200" ]; then
+              echo "  ✅ $name: $status"
+            else
+              echo "  ⚠️  $name: $status"
+            fi
+          }
+
+          ping_service "godlocal-api"            "https://godlocal-api.onrender.com/api/health"
+          ping_service "godlocal-v07"            "https://godlocal-v07.onrender.com/health"
+          ping_service "x100-voice"              "https://x100-voice.onrender.com/health"
+          ping_service "oasis-eternal-sanctuary" "https://oasis-eternal-sanctuary.onrender.com/health"
+
+          echo "Done."
