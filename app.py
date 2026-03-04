@@ -409,7 +409,13 @@ Be concise but complete.
 
 async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                    image_base64: str = None, lang: str = "ru"):
-    tools = all_tools()
+    # Only use tools for explicit search requests, not general chat
+    import re as _re
+    _needs_tools = any(kw in prompt.lower() for kw in [
+        'поиск', 'найди', 'search', 'курс', 'цена', 'btc', 'bitcoin', 'крипт',
+        'что сейчас', 'актуальн', 'последн', 'новост', 'цена', 'помни', 'запомни'
+    ])
+    tools = all_tools() if _needs_tools else None
     profile = profile_get(session_id)
     mems = memory_get(session_id)
     mem_text = ""
