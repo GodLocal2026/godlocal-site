@@ -1,4 +1,4 @@
-# GodLocal API Backend v14.2 — FastAPI / Uvicorn
+# GodLocal API Backend v14.3 — FastAPI / Uvicorn
 # WebSocket: /ws/oasis /ws/deep
 # REST: /health /ping /status /v2/chat /v2/council /memory /profile /mission /market /think /hitl/*
 import os, sys, time, json, threading, asyncio, logging, random, hashlib
@@ -419,14 +419,12 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
             continue
         content = msg.get("content") or ""
         if content:
-            async for tok in groq_stream(messages, max_tokens=1200):
-                full_response += tok
-                await ws.send_json({"t": "token", "v": tok})
-            if not full_response:
-                full_response = content
-                for i in range(0, len(content), 4):
-                    await ws.send_json({"t": "token", "v": content[i:i+4]})
-                    await asyncio.sleep(0.01)
+            # Stream content directly — no second Groq request
+            full_response = content
+            chunk = 6
+            for i in range(0, len(content), chunk):
+                await ws.send_json({"t": "token", "v": content[i:i+chunk]})
+                await asyncio.sleep(0.008)
         break
     if full_response and len(full_response) > 50:
         try:
