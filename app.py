@@ -34,9 +34,9 @@ SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
 XQUIK_KEY = os.environ.get("XQUIK_API_KEY", "")
 PINCHTAB_URL = os.environ.get("PINCHTAB_URL", "")  # e.g. http://localhost:7171
 MODELS = [
-    "llama-3.3-70b-specdec",
-    "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+    "llama-3.3-70b-specdec",
 ]
 
 _HITL_READY = False
@@ -136,7 +136,7 @@ def profile_update(session_id: str, updates: dict):
     return current
 
 
-# ─── IMPROVEMENT 5: Active Mission ──────────────────────────────────────────
+# ─── IMPROVEMENT 5: Active Mission ───────────────────────────────────────────
 
 def mission_get(session_id: str) -> str:
     profile = profile_get(session_id)
@@ -253,10 +253,10 @@ def get_market():
 def groq_call(messages, tools=None, idx=0):
     if idx >= len(MODELS): return None, "all models exhausted"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json", "User-Agent": "groq-python/0.21.0"}
-    body = {"model": MODELS[idx], "messages": messages, "max_tokens": 4096, "temperature": 0.4, "top_p": 0.9}
+    body = {"model": MODELS[idx], "messages": messages, "max_tokens": 1500, "temperature": 0.4, "top_p": 0.9}
     if tools: body["tools"] = tools; body["tool_choice"] = "auto"
     try:
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=30)
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions", json=body, headers=headers, timeout=15)
         if r.status_code == 429:
             time.sleep(1.5)
             return groq_call(messages, tools, idx + 1)
@@ -267,7 +267,7 @@ def groq_call(messages, tools=None, idx=0):
             return groq_call(messages, tools, idx + 1)
         return None, str(e)
 
-async def groq_stream(messages, idx=0, max_tokens=4096):
+async def groq_stream(messages, idx=0, max_tokens=1500):
     if not GROQ_KEY or idx >= len(MODELS): return
     body = {"model": MODELS[idx], "messages": messages, "max_tokens": max_tokens, "temperature": 0.4, "stream": True}
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
