@@ -211,11 +211,25 @@ export default function OasisPage() {
       setWaiting(false);setArchs([])
       setMsgs(p=>p.map(m=>({...m,streaming:false})));return
     }
-    if(t==='tool'){
-      const lbl=TOOL_L[d.n]||`🔧 ${d.n}`
+    if(t==='tool_start'||t==='tool'){
+      setWaiting(false)
+      const lbl=d.v||TOOL_L[d.n]||`🔧 ${d.n||''}`
       const q=d.q?`: ${String(d.q).slice(0,55)}`:''
-      setMsgs(p=>[...p,{id:rnd(),role:'chip',content:lbl+q,ts:Date.now()}]);return
+      setMsgs(p=>{
+        // replace existing chip with same label to avoid spam
+        const filtered=p.filter(m=>!(m.role==='chip'&&m.content===lbl+q+'…'))
+        return[...filtered,{id:rnd(),role:'chip',content:lbl+q+'…',ts:Date.now()}]
+      });return
     }
+    if(t==='tool_done'){
+      // Remove the spinner chip, don't add more noise
+      return
+    }
+    if(t==='plan'||t==='research'||t==='build'){
+      setWaiting(false)
+      setMsgs(p=>[...p,{id:rnd(),role:'chip',content:d.v||'',ts:Date.now()}]);return
+    }
+    if(t==='plan_token'||t==='research_done'||t==='plan_done'){return}
     if(t==='error'){
       setWaiting(false);setArchs([])
       setMsgs(p=>[...p,{id:rnd(),role:'chip',content:`❌ ${d.v||'ошибка'}`,ts:Date.now()}])
