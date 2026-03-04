@@ -1,4 +1,4 @@
-# GodLocal API Backend v14.1 — FastAPI / Uvicorn
+# GodLocal API Backend v14.2 — FastAPI / Uvicorn
 # WebSocket: /ws/oasis /ws/deep
 # REST: /health /ping /status /v2/chat /v2/council /memory /profile /mission /market /think /hitl/*
 import os, sys, time, json, threading, asyncio, logging, random, hashlib
@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("godlocal")
 
-app = FastAPI(title="GodLocal API", version="14.1.0")
+app = FastAPI(title="GodLocal API", version="14.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _lock = threading.Lock()
@@ -41,7 +41,7 @@ MODELS = [
 
 _HITL_READY = False
 
-# ─── Supabase helpers ────────────────────────────────────────────────
+# ─── Supabase helpers ────────────────────────────────────────────────────────
 
 def _sb_headers():
     return {
@@ -134,7 +134,7 @@ def kv_get(session_id: str, key: str):
             logger.warning("Supabase kv_get: %s", e)
     return _soul.get("_kv", {}).get(f"{session_id}::{key}")
 
-# ─── Groq helpers ────────────────────────────────────────────────
+# ─── Groq helpers ────────────────────────────────────────────────────────────
 
 def groq_call(messages, tools=None, idx=0, max_tokens=1500):
     if not GROQ_KEY or idx >= len(MODELS): return None, "all models exhausted"
@@ -194,16 +194,16 @@ def get_market():
         return data
     except Exception as e: return {"error": str(e)}
 
-# ─── Tools ────────────────────────────────────────────────────────
+# ─── Tools ───────────────────────────────────────────────────────────────────
 
 BASE_TOOLS = [
-    {"type": "function", "function": {"name": "get_market_data", "description": "Live crypto prices",
+    {"type": "function", "function": {"name": "get_market_data", "description": "Live crypto prices from CoinGecko. USE THIS for any crypto price question.",
         "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "get_system_status", "description": "System state",
         "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "set_kill_switch", "description": "Enable/disable trading",
         "parameters": {"type": "object", "properties": {"active": {"type": "boolean"}, "reason": {"type": "string"}}, "required": ["active"]}}},
-    {"type": "function", "function": {"name": "web_search", "description": "Search web via Serper",
+    {"type": "function", "function": {"name": "web_search", "description": "Search web via Serper. USE THIS for any current events or news question.",
         "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "fetch_url", "description": "Fetch full content of any URL",
         "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
@@ -265,7 +265,7 @@ TOOL_LABELS = {
     "youtube_transcript": "\U0001f3ac \u0432\u0438\u0434\u0435\u043e",
 }
 
-# ─── Tool executor ───────────────────────────────────────────────────
+# ─── Tool executor ───────────────────────────────────────────────────────────
 
 def run_tool(name: str, args: dict, session_id: str = ""):
     global _kill_switch
@@ -364,16 +364,17 @@ def _fire_tweet(text: str):
     except Exception as e:
         logger.warning("Tweet failed: %s", e)
 
-# ─── System prompt ───────────────────────────────────────────────────
+# ─── System prompt ────────────────────────────────────────────────────────────
 
-AGENT_SYSTEM = """You are GodLocal \u26a1 \u2014 a sovereign AI assistant and strategic partner.
+AGENT_SYSTEM = """You are GodLocal ⚡ — a sovereign AI assistant and strategic partner.
 You are direct, insightful, and action-oriented. You think in first principles.
 You have access to tools: web search, market data, memory, browser control, and more.
+IMPORTANT: For crypto prices or any live data — ALWAYS call the tool first. Never use training data for live prices.
 When you need to use a tool, use it. When you have enough information, respond directly.
-Speak the user's language (Russian/Ukrainian/English \u2014 match what they use).
+Speak the user's language (Russian/Ukrainian/English — match what they use).
 Be concise but complete. No filler phrases."""
 
-# ─── react_ws ────────────────────────────────────────────────────────────
+# ─── react_ws ─────────────────────────────────────────────────────────────────
 
 async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                    image_base64: str = None, lang: str = "ru"):
@@ -436,19 +437,19 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     await ws.send_json({"t": "done"})
     return full_response
 
-# ─── Council ──────────────────────────────────────────────────────────
+# ─── Council ──────────────────────────────────────────────────────────────────
 
 ARCHETYPES = [
     {"id": "grok", "name": "Grok", "emoji": "\U0001f525",
-     "system": "You are Grok \u2014 a sharp market strategist. Identify patterns, risks, opportunities. Be direct. Max 200 words."},
+     "system": "You are Grok — a sharp market strategist. Identify patterns, risks, opportunities. Be direct. Max 200 words."},
     {"id": "lucas", "name": "Lucas", "emoji": "\U0001f4d0",
-     "system": "You are Lucas \u2014 a systems architect. Break problems into first principles. Max 200 words."},
+     "system": "You are Lucas — a systems architect. Break problems into first principles. Max 200 words."},
     {"id": "harper", "name": "Harper", "emoji": "\U0001f30a",
-     "system": "You are Harper \u2014 a growth catalyst. Focus on human dynamics and traction. Max 200 words."},
+     "system": "You are Harper — a growth catalyst. Focus on human dynamics and traction. Max 200 words."},
     {"id": "navi", "name": "Navi", "emoji": "\U0001f9ed",
-     "system": "You are Navi \u2014 a pragmatic navigator. Focus on concrete next steps NOW. Max 200 words."},
+     "system": "You are Navi — a pragmatic navigator. Focus on concrete next steps NOW. Max 200 words."},
     {"id": "rex", "name": "Rex", "emoji": "\U0001f4b0",
-     "system": "You are Rex \u2014 a capital strategist. Focus on ROI and resource allocation. Max 200 words."},
+     "system": "You are Rex — a capital strategist. Focus on ROI and resource allocation. Max 200 words."},
 ]
 
 async def council_stream(user_id: str, message: str):
@@ -457,28 +458,33 @@ async def council_stream(user_id: str, message: str):
     if mems:
         mem_ctx = "\n\nContext:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-5:])
     responses = []
-    for arch in ARCHETYPES:
-        yield f"data: {json.dumps({'t': 'arch_start', 'id': arch['id'], 'name': arch['name'], 'emoji': arch['emoji']})}\n\n"
+    for i, arch in enumerate(ARCHETYPES):
+        if i > 0:
+            await asyncio.sleep(0.35)   # stagger: avoid Groq 429 burst
         arch_msgs = [{"role": "system", "content": arch["system"] + mem_ctx},
                      {"role": "user", "content": message}]
         arch_response = ""
         async for tok in groq_stream(arch_msgs, max_tokens=300):
             arch_response += tok
-            yield f"data: {json.dumps({'t': 'arch_token', 'id': arch['id'], 'v': tok})}\n\n"
+        if not arch_response.strip():
+            arch_response = f"[{arch['name']} — нет ответа, попробуй ещё раз]"
         responses.append({"name": arch["name"], "response": arch_response})
-        yield f"data: {json.dumps({'t': 'arch_done', 'id': arch['id']})}\n\n"
-    yield f"data: {json.dumps({'t': 'synth_start'})}\n\n"
+        # Frontend expects: data: {"name": archetype_id, "reply": text}
+        yield f"data: {json.dumps({'name': arch['id'], 'reply': arch_response}, ensure_ascii=False)}\n\n"
+    # Synthesis
     synth_input = "\n\n".join([f"{r['name']}: {r['response']}" for r in responses])
     synth_msgs = [
         {"role": "system", "content": "You are the Synthesis voice. Synthesise council perspectives into ONE actionable insight. Max 150 words. Match user language."},
         {"role": "user", "content": f"Question: {message}\n\nCouncil:\n{synth_input}"}
     ]
+    synth_response = ""
     async for tok in groq_stream(synth_msgs, max_tokens=300):
-        yield f"data: {json.dumps({'t': 'synth_token', 'v': tok})}\n\n"
-    yield f"data: {json.dumps({'t': 'synth_done'})}\n\n"
-    yield f"data: {json.dumps({'t': 'council_done'})}\n\n"
+        synth_response += tok
+    if synth_response.strip():
+        yield f"data: {json.dumps({'name': 'synth', 'reply': synth_response}, ensure_ascii=False)}\n\n"
+    yield f"data: [DONE]\n\n"
 
-# ─── WebSocket /ws/oasis ──────────────────────────────────────────────────
+# ─── WebSocket /ws/oasis ──────────────────────────────────────────────────────
 
 @app.websocket("/ws/oasis")
 async def ws_oasis(ws: WebSocket, sid: str = "default"):
@@ -510,7 +516,7 @@ async def ws_oasis(ws: WebSocket, sid: str = "default"):
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
-# ─── WebSocket /ws/deep ──────────────────────────────────────────────────
+# ─── WebSocket /ws/deep ───────────────────────────────────────────────────────
 
 @app.websocket("/ws/deep")
 async def ws_deep(ws: WebSocket):
@@ -559,12 +565,12 @@ async def ws_deep(ws: WebSocket):
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
-# ─── REST ─────────────────────────────────────────────────────────────────
+# ─── REST ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return JSONResponse({"status": "ok", "version": "14.1.0",
+    return JSONResponse({"status": "ok", "version": "14.2.0",
                          "supabase": bool(SUPABASE_URL and SUPABASE_KEY),
                          "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY)})
 
