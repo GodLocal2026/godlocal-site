@@ -689,7 +689,7 @@ async function runAnalyze(addr){
     </div>\`;
     document.getElementById('chat').appendChild(d);scroll();
     lastTokenCtx=\`Токен: \${sym} | Mcap: $\${f$(mcap)} | Ликвидность: $\${f$(liq)} | Rug: \${rug}/100 | Buy pressure: \${bp}%\`;
-    setTimeout(()=>(agentMode?askAgents:askAI)(\`Дай краткое мнение по \${sym}: mcap=\${f$(mcap)}, ликвидность=\${f$(liq)}, rug=\${rug}/100, buy pressure=\${bp}%, топ держатель=\${holdersRes.topHolderPct.toFixed(0)}%. Стоит флипать?\`),200);
+    setTimeout(()=>askAgents(\`🔬 COUNCIL: токен \${sym}\n\n📊 mcap=\$\${f\$(mcap)}, ликвидность=\$\${f\$(liq)}, rug=\${rug}/100, buy pressure=\${bp}%, топ держатель=\${holdersRes.topHolderPct.toFixed(0)}%.\nSocials: TG=\${hasTg?'✅':'❌'} TW=\${hasTw?'✅':'❌'} Сайт=\${hasSite?'✅':'❌'}.\n\nАнализ через совет агентов: Grok — rug-риски и красные флаги, Lucas — нарратив и потенциал x10, Architect — структура рынка и тренд, Rex — есть ли реальные деньги. Стоит флипать?\`),200);
   }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
@@ -1277,6 +1277,11 @@ async function askAgents(question){
               const body = currentArchEl.querySelector('.agent-body');
               if(body) body.innerHTML = stripFuncTags(d.v||'').replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
             }
+          }
+          else if(d.t === 'synthesis' && d.v){
+            const synthEl = agentBubble('\\uD83D\\uDD2E Синтез', '');
+            const body = synthEl.querySelector('.agent-body');
+            if(body) body.innerHTML = '<b>\\u2696\\uFE0F Итог совета:</b><br>' + stripFuncTags(d.v).replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
           }
           else if(d.t === 'error'){
             agentBubble('System','⚠️ ' + (d.v||'error'));
