@@ -333,17 +333,38 @@ export default function OasisPage() {
           const raw=line.slice(6).trim()
           if(raw==='[DONE]')break
           try{
-            const{name,reply}=JSON.parse(raw)
-            if(reply){
-              const aid=(name||'').toLowerCase()
-              const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name:name||'GodLocal',color:'#6C5CE7',icon:'♟'}
-              setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:reply,ts:Date.now()}])
+            const d=JSON.parse(raw)
+            const t=d.t||d.type
+            if(t==='token'){
+              setMsgs(p=>{
+                const l=p[p.length-1]
+                if(l?.streaming&&l.agentId==='council')return[...p.slice(0,-1),{...l,content:l.content+(d.v||'')}]
+                return[...p,{id:rnd(),role:'agent',agentId:'council',agentName:'GodLocal',content:d.v||'',streaming:true,ts:Date.now()}]
+              })
+            } else if(t==='agent'||t==='arch_start'){
+              // agent header — ignore or show label
+            } else if(t==='arch_reply'||t==='agent_reply'||t==='reply'){
+              const aid=(d.agent||d.name||'council').toLowerCase()
+              const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name:d.agent||d.name||'GodLocal',color:'#6C5CE7',icon:'♟'}
+              const v=(d.v||d.reply||'').trim()
+              if(v&&v.length>=3)setMsgs(p=>{
+                // finalize streaming bubble if exists
+                const cleaned=p.map(m=>m.streaming?{...m,streaming:false}:m)
+                return[...cleaned,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:v,ts:Date.now()}]
+              })
+            } else if(t==='done'||t==='[DONE]'){
+              setMsgs(p=>p.map(m=>({...m,streaming:false})))
+            } else if(d.name&&d.reply){
+              // legacy format fallback
+              const aid=(d.name||'').toLowerCase()
+              const ag=AGENTS.find(a=>a.id===aid)||{id:aid,name:d.name||'GodLocal',color:'#6C5CE7',icon:'♟'}
+              setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:ag.id,agentName:ag.name,content:d.reply,ts:Date.now()}])
             }
           }catch{}
         }
       }
     }catch(e){
-      setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Совет временно недоступен — попробуй снова.',ts:Date.now()}])
+      setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Ошибка соединения — попробуй снова.',ts:Date.now()}])
     }finally{setCLoad(false)}
   },[input,sid])
 
@@ -694,11 +715,7 @@ export default function OasisPage() {
               {b.label}
             </button>
           ))}
-          <button onClick={sendCouncil} disabled={councilLoad} style={{flexShrink:0,display:'flex',alignItems:'center',gap:5,padding:'5px 14px',borderRadius:20,fontSize:12,fontWeight:600,cursor:councilLoad?'wait':'pointer',whiteSpace:'nowrap',transition:'all .15s',
-            ...(councilLoad?{background:'rgba(255,107,107,.18)',color:'#FF6B6B',border:'1px solid rgba(255,107,107,.35)'}:{background:'rgba(255,107,107,.08)',color:'rgba(255,107,107,.6)',border:'1px solid rgba(255,107,107,.18)'})}}>
-            {councilLoad?<span style={{display:'inline-block',animation:'gl-spin .8s linear infinite',fontSize:11}}>&#8635;</span>:'🔮'}
-            <span>{councilLoad?'Совет…':'Совет'}</span>
-          </button>
+          
           <button onClick={sendDeep} disabled={deepLoad} style={{flexShrink:0,display:'flex',alignItems:'center',gap:5,padding:'5px 14px',borderRadius:20,fontSize:12,fontWeight:600,cursor:deepLoad?'wait':'pointer',whiteSpace:'nowrap',transition:'all .15s',
             ...(deepLoad?{background:'rgba(99,179,237,.18)',color:'#63B3ED',border:'1px solid rgba(99,179,237,.35)'}:{background:'rgba(99,179,237,.08)',color:'rgba(99,179,237,.6)',border:'1px solid rgba(99,179,237,.18)'})}}>
             {deepLoad?<span style={{display:'inline-block',animation:'gl-spin .8s linear infinite',fontSize:11}}>&#8635;</span>:'🔬'}
