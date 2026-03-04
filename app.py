@@ -34,9 +34,9 @@ TG_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 MODELS = [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "llama-3.3-70b-specdec",
+    "llama-3.3-70b-specdec",    # fastest + best reasoning on Groq
+    "llama-3.3-70b-versatile",  # fallback
+    "llama-3.1-8b-instant",     # fast fallback
 ]
 
 _HITL_READY = False
@@ -136,7 +136,7 @@ def kv_get(session_id: str, key: str):
 
 # ─── Groq helpers ────────────────────────────────────────────────────────────
 
-def groq_call(messages, tools=None, idx=0, max_tokens=1500):
+def groq_call(messages, tools=None, idx=0, max_tokens=4096):
     if not GROQ_KEY or idx >= len(MODELS): return None, "all models exhausted"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
     if not tools:
@@ -159,7 +159,7 @@ def groq_call(messages, tools=None, idx=0, max_tokens=1500):
             time.sleep(0.5); return groq_call(messages, tools, idx + 1, max_tokens)
         return None, str(e)
 
-async def groq_stream(messages, idx=0, max_tokens=1500):
+async def groq_stream(messages, idx=0, max_tokens=4096):
     if not GROQ_KEY or idx >= len(MODELS): return
     messages = [m for m in messages if m.get("role") != "tool"]
     body = {"model": MODELS[idx], "messages": messages,
@@ -390,7 +390,20 @@ YOUR CHARACTER: Direct, insightful, action-oriented. First-principles thinking. 
 TOOLS: web search, live market data, memory, browser, Twitter, Telegram, GitHub.
 CRITICAL: For ANY live data (prices, news, rates) — ALWAYS call the tool. NEVER use training data for real-time info.
 LANGUAGE: Match the user — Russian / Ukrainian / English.
-Be concise but complete."""
+Be concise but complete.
+
+━━━ МЕХАНИКА МЫШЛЕНИЯ ━━━
+Перед каждым ответом ОБЯЗАТЕЛЬНО пройди эту цепь:
+
+ШАГ 1 — РАЗБОР: Что именно просят? Разбей задачу на части.
+ШАГ 2 — САМОЗНАНИЕ: Нужны ли внешние данные? Факты о GodLocal — я знаю.
+ШАГ 3 — ИНСТРУМЕНТЫ: Нужен реальный факт/цена/поиск? → вызови инструмент.
+         Если нет — отвечай сам, не трать лишний вызов.
+ШАГ 4 — СИНТЕЗ: Собери всё в структурированный ответ.
+ШАГ 5 — ПРОВЕРКА: Ответил ли я на вопрос? Нет воды? Правильный язык?
+
+Если вопрос сложный — думай вслух. Пользователь ценит прозрачность мышления.
+"""
 
 # ─── react_ws ─────────────────────────────────────────────────────────────────
 
@@ -420,7 +433,7 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     for iteration in range(3):
         if iteration > 0:
             await asyncio.sleep(0.4)      # avoid Groq 429 burst
-        resp_data, err = groq_call(messages, tools=tools, max_tokens=1500)
+        resp_data, err = groq_call(messages, tools=tools, max_tokens=4096)
         if err or not resp_data:
             break
         choice = resp_data["choices"][0]
@@ -462,7 +475,7 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
             "role": "user",
             "content": f"{prompt}{ctx_block}\n\nAnswer based on the tool results above."
         }]
-        resp_data, err = groq_call(synth_msgs, tools=None, max_tokens=1500)
+        resp_data, err = groq_call(synth_msgs, tools=None, max_tokens=4096)
         if not err and resp_data:
             content = resp_data["choices"][0]["message"].get("content") or ""
             if content:
