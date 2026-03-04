@@ -2,7 +2,7 @@
 # Improvements: Supabase persistent memory, compression cache (v10 perf fix),
 #               agent disagreement, user profile model, active mission
 # WebSocket: /ws/search /ws/oasis
-# REST: /api/health /api/soul/{sid} /think /market /status /hitl/* /memory /profile /mission
+# REST: /health /ping /status /api/health /api/soul/{sid} /think /market /hitl/* /memory /profile /mission
 import os, sys, time, json, threading, asyncio, logging, random
 import requests, httpx
 from datetime import datetime
@@ -23,9 +23,9 @@ _sparks: list = []
 _market_cache: dict = {"data": None, "ts": 0.0}
 
 # ─── In-memory fallback (used when Supabase not configured) ───────────────────
-_soul: dict = {}         # session_id -> [{role, content, ts}]
+_soul: dict = {}          # session_id -> [{role, content, ts}]
 _compression_cache: dict = {}  # session_id -> {hash, result}  v10 perf fix
-_memories: dict = {}     # session_id -> [{id, content, ts}]
+_memories: dict = {}      # session_id -> [{id, content, ts}]
 _user_profiles: dict = {}  # session_id -> {name, goals, style, facts, mission}
 
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
@@ -321,8 +321,33 @@ XQUIK_TOOLS = [
 def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else []) + (PINCHTAB_TOOLS if PINCHTAB_URL else [])
 
 TOOL_LABELS = {
-    'web_search':'🌐 поиск', 'fetch_url':'📄 читаю', 'get_market_data':'📊 рынок',
-    'post_tweet':'𝕏 пост', 'send_telegram':'✈️ Telegram', 'create_github_issue':'🐙 issue',
-    'remember':'🧠 запоминаю', 'recall':'🧠 вспоминаю', 'get_twitter_trends':'📈 тренды',
-    'browser_action':'🌍 браузер', 'youtube_transcript':'🎬 видео',
+    'web_search':'\U0001f310 поиск', 'fetch_url':'\U0001f4c4 читаю', 'get_market_data':'\U0001f4ca рынок',
+    'post_tweet':'\U0001d54f пост', 'send_telegram':'\u2708\ufe0f Telegram', 'create_github_issue':'\U0001f419 issue',
+    'remember':'\U0001f9e0 запоминаю', 'recall':'\U0001f9e0 вспоминаю', 'get_twitter_trends':'\U0001f4c8 тренды',
+    'browser_action':'\U0001f30d браузер', 'youtube_transcript':'\U0001f3ac видео',
 }
+
+# ─── HTTP Endpoints ───────────────────────────────────────────────────────────
+
+@app.get("/health")
+@app.get("/api/health")
+def health():
+    return JSONResponse({
+        "status": "ok",
+        "supabase": bool(SUPABASE_URL and SUPABASE_KEY),
+        "groq": bool(GROQ_KEY),
+        "version": "9.0.0"
+    })
+
+@app.get("/ping")
+def ping():
+    return JSONResponse({"pong": True})
+
+@app.get("/status")
+def status():
+    return JSONResponse({
+        "kill_switch": _kill_switch,
+        "thoughts": len(_thoughts),
+        "sparks": len(_sparks),
+        "hitl_ready": _HITL_READY
+    })
