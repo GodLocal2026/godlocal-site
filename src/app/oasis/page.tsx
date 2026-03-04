@@ -376,8 +376,7 @@ export default function OasisPage() {
             }
             else if(d.t==='research_query'){
               const id=stepMap[agent]
-              if(id) setMsgs(p=>p.map(m=>m.id===id?{...m,content:(m.content||'')+'
-'+d.v}:m))
+              if(id) setMsgs(p=>p.map(m=>m.id===id?{...m,content:(m.content||'')+'\n'+d.v}:m))
             }
             else if(d.t==='session_done'){clearTimeout(timer);ws.close();resolve()}
             else if(d.t==='error'){
