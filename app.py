@@ -1,5 +1,5 @@
-# GodLocal API Backend v14 — FastAPI / Uvicorn
-# WebSocket: /ws/oasis /ws/deep /ws/search
+# GodLocal API Backend v14.1 — FastAPI / Uvicorn
+# WebSocket: /ws/oasis /ws/deep
 # REST: /health /ping /status /v2/chat /v2/council /memory /profile /mission /market /think /hitl/*
 import os, sys, time, json, threading, asyncio, logging, random, hashlib
 import requests, httpx
@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("godlocal")
 
-app = FastAPI(title="GodLocal API", version="14.0.0")
+app = FastAPI(title="GodLocal API", version="14.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _lock = threading.Lock()
@@ -20,7 +20,6 @@ _thoughts: list = []
 _sparks: list = []
 _market_cache: dict = {"data": None, "ts": 0.0}
 _soul: dict = {}
-_compression_cache: dict = {}
 _memories: dict = {}
 _user_profiles: dict = {}
 
@@ -34,7 +33,6 @@ SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 TG_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-# Speed-optimised model list: 8b-instant first (~5x faster)
 MODELS = [
     "llama-3.1-8b-instant",
     "llama-3.3-70b-versatile",
@@ -43,7 +41,7 @@ MODELS = [
 
 _HITL_READY = False
 
-# ─── Supabase helpers ────────────────────────────────────────────────────────
+# ─── Supabase helpers ────────────────────────────────────────────────
 
 def _sb_headers():
     return {
@@ -62,7 +60,7 @@ def memory_add(session_id: str, content: str, agent_id: str = "godlocal", mem_ty
             requests.post(f"{SUPABASE_URL}/rest/v1/agent_memories",
                 json={"session_id": session_id, **entry}, headers=_sb_headers(), timeout=5)
         except Exception as e:
-            logger.warning("Supabase memory_add failed: %s", e)
+            logger.warning("Supabase memory_add: %s", e)
     with _lock:
         if session_id not in _memories: _memories[session_id] = []
         _memories[session_id].append(entry)
@@ -79,7 +77,7 @@ def memory_get(session_id: str):
                 rows = r.json()
                 if isinstance(rows, list): return list(reversed(rows))
         except Exception as e:
-            logger.warning("Supabase memory_get failed: %s", e)
+            logger.warning("Supabase memory_get: %s", e)
     return _memories.get(session_id, [])
 
 def profile_get(session_id: str) -> dict:
@@ -91,7 +89,7 @@ def profile_get(session_id: str) -> dict:
                 rows = r.json()
                 if rows and isinstance(rows, list): return rows[0].get("profile", {})
         except Exception as e:
-            logger.warning("Supabase profile_get failed: %s", e)
+            logger.warning("Supabase profile_get: %s", e)
     return _user_profiles.get(session_id, {})
 
 def profile_update(session_id: str, updates: dict):
@@ -104,7 +102,7 @@ def profile_update(session_id: str, updates: dict):
                 json={"session_id": session_id, "profile": current},
                 headers={**_sb_headers(), "Prefer": "resolution=merge-duplicates"}, timeout=5)
         except Exception as e:
-            logger.warning("Supabase profile_update failed: %s", e)
+            logger.warning("Supabase profile_update: %s", e)
     with _lock:
         _user_profiles[session_id] = current
     return current
@@ -118,7 +116,7 @@ def kv_set(session_id: str, key: str, value: str):
                 headers={**_sb_headers(), "Prefer": "resolution=merge-duplicates"}, timeout=5)
             return
         except Exception as e:
-            logger.warning("Supabase kv_set failed: %s", e)
+            logger.warning("Supabase kv_set: %s", e)
     with _lock:
         if "_kv" not in _soul: _soul["_kv"] = {}
         _soul["_kv"][f"{session_id}::{key}"] = value
@@ -133,10 +131,10 @@ def kv_get(session_id: str, key: str):
                 rows = r.json()
                 if rows: return rows[0].get("value")
         except Exception as e:
-            logger.warning("Supabase kv_get failed: %s", e)
+            logger.warning("Supabase kv_get: %s", e)
     return _soul.get("_kv", {}).get(f"{session_id}::{key}")
 
-# ─── Groq helpers ────────────────────────────────────────────────────────────
+# ─── Groq helpers ────────────────────────────────────────────────
 
 def groq_call(messages, tools=None, idx=0, max_tokens=1500):
     if not GROQ_KEY or idx >= len(MODELS): return None, "all models exhausted"
@@ -196,7 +194,7 @@ def get_market():
         return data
     except Exception as e: return {"error": str(e)}
 
-# ─── Tools ───────────────────────────────────────────────────────────────────
+# ─── Tools ────────────────────────────────────────────────────────
 
 BASE_TOOLS = [
     {"type": "function", "function": {"name": "get_market_data", "description": "Live crypto prices",
@@ -218,12 +216,12 @@ BASE_TOOLS = [
     {"type": "function", "function": {"name": "recall", "description": "Retrieve from persistent memory",
         "parameters": {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}}},
     {"type": "function", "function": {"name": "update_profile",
-        "description": "Update user profile (name, goals, trading style, active mission)",
+        "description": "Update user profile",
         "parameters": {"type": "object", "properties": {
             "field": {"type": "string"}, "value": {"type": "string"}}, "required": ["field", "value"]}}},
 ]
 COMPOSIO_TOOLS = [
-    {"type": "function", "function": {"name": "post_tweet", "description": "Post tweet @kitbtc",
+    {"type": "function", "function": {"name": "post_tweet", "description": "Post tweet",
         "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
     {"type": "function", "function": {"name": "send_telegram", "description": "Send Telegram message",
         "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
@@ -232,15 +230,15 @@ COMPOSIO_TOOLS = [
 ]
 XQUIK_TOOLS = [
     {"type": "function", "function": {"name": "get_twitter_trends",
-        "description": "Get real-time Twitter trending topics, filtered for crypto.",
+        "description": "Get real-time Twitter trending topics",
         "parameters": {"type": "object", "properties": {"woeid": {"type": "integer"}}, "required": []}}},
     {"type": "function", "function": {"name": "get_account_posts",
-        "description": "Get recent tweets from a specific Twitter/X account.",
+        "description": "Get recent tweets from a Twitter/X account",
         "parameters": {"type": "object", "properties": {"username": {"type": "string"}}, "required": ["username"]}}},
 ]
 PINCHTAB_TOOLS = [
     {"type": "function", "function": {"name": "browser_action",
-        "description": "Control a real browser via Pinchtab. Supports: navigate, click, type, scroll, snapshot, screenshot.",
+        "description": "Control a real browser via Pinchtab",
         "parameters": {"type": "object", "properties": {
             "action": {"type": "string", "enum": ["navigate", "click", "type", "scroll", "snapshot", "screenshot"]},
             "url": {"type": "string"}, "selector": {"type": "string"},
@@ -254,15 +252,23 @@ def all_tools():
         + (PINCHTAB_TOOLS if PINCHTAB_URL else [])
 
 TOOL_LABELS = {
-    "web_search": "\U0001f310 \u043f\u043e\u0438\u0441\u043a", "fetch_url": "\U0001f4c4 \u0447\u0438\u0442\u0430\u044e", "get_market_data": "\U0001f4ca \u0440\u044b\u043d\u043e\u043a",
-    "post_tweet": "\U0001d54f \u043f\u043e\u0441\u0442", "send_telegram": "\u2708\ufe0f Telegram", "create_github_issue": "\U0001f419 issue",
-    "remember": "\U0001f9e0 \u0437\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u044e", "recall": "\U0001f9e0 \u0432\u0441\u043f\u043e\u043c\u0438\u043d\u0430\u044e", "get_twitter_trends": "\U0001f4c8 \u0442\u0440\u0435\u043d\u0434\u044b",
-    "browser_action": "\U0001f30d \u0431\u0440\u0430\u0443\u0437\u0435\u0440", "youtube_transcript": "\U0001f3ac \u0432\u0438\u0434\u0435\u043e",
+    "web_search": "\U0001f310 \u043f\u043e\u0438\u0441\u043a",
+    "fetch_url": "\U0001f4c4 \u0447\u0438\u0442\u0430\u044e",
+    "get_market_data": "\U0001f4ca \u0440\u044b\u043d\u043e\u043a",
+    "post_tweet": "\U0001d54f \u043f\u043e\u0441\u0442",
+    "send_telegram": "\u2708\ufe0f Telegram",
+    "create_github_issue": "\U0001f419 issue",
+    "remember": "\U0001f9e0 \u0437\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u044e",
+    "recall": "\U0001f9e0 \u0432\u0441\u043f\u043e\u043c\u0438\u043d\u0430\u044e",
+    "get_twitter_trends": "\U0001f4c8 \u0442\u0440\u0435\u043d\u0434\u044b",
+    "browser_action": "\U0001f30d \u0431\u0440\u0430\u0443\u0437\u0435\u0440",
+    "youtube_transcript": "\U0001f3ac \u0432\u0438\u0434\u0435\u043e",
 }
 
-# ─── Tool executor ────────────────────────────────────────────────────────────
+# ─── Tool executor ───────────────────────────────────────────────────
 
 def run_tool(name: str, args: dict, session_id: str = ""):
+    global _kill_switch
     try:
         if name == "get_market_data":
             return json.dumps(get_market())
@@ -270,7 +276,6 @@ def run_tool(name: str, args: dict, session_id: str = ""):
             return json.dumps({"kill_switch": _kill_switch, "sparks": len(_sparks),
                                "thoughts": len(_thoughts), "uptime_ok": True})
         if name == "set_kill_switch":
-            global _kill_switch
             _kill_switch = args.get("active", False)
             return json.dumps({"ok": True, "kill_switch": _kill_switch})
         if name == "web_search":
@@ -278,17 +283,14 @@ def run_tool(name: str, args: dict, session_id: str = ""):
             if not SERPER_KEY: return json.dumps({"error": "no SERPER_KEY"})
             r = requests.post("https://google.serper.dev/search",
                 json={"q": q, "num": 5}, headers={"X-API-KEY": SERPER_KEY}, timeout=10)
-            data = r.json()
-            results = data.get("organic", [])[:5]
+            results = r.json().get("organic", [])[:5]
             return json.dumps([{"title": x.get("title"), "snippet": x.get("snippet"), "url": x.get("link")} for x in results])
         if name == "fetch_url":
             url = args.get("url", "")
             r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-            text = r.text[:6000]
-            return json.dumps({"url": url, "content": text})
+            return json.dumps({"url": url, "content": r.text[:6000]})
         if name == "youtube_transcript":
-            url = args.get("url", ""); lang = args.get("lang", "en")
-            return _get_youtube_transcript(url, lang)
+            return _get_youtube_transcript(args.get("url", ""), args.get("lang", "en"))
         if name == "remember":
             kv_set(session_id, args["key"], args["value"])
             return json.dumps({"ok": True, "key": args["key"]})
@@ -311,13 +313,11 @@ def run_tool(name: str, args: dict, session_id: str = ""):
                 headers={"x-api-key": COMPOSIO_KEY, "Content-Type": "application/json"}, timeout=15)
             return json.dumps({"ok": True})
         if name == "get_twitter_trends" and XQUIK_KEY:
-            woeid = args.get("woeid", 1)
-            r = requests.get(f"https://api.xquik.com/v1/trends?woeid={woeid}",
+            r = requests.get(f"https://api.xquik.com/v1/trends?woeid={args.get('woeid', 1)}",
                 headers={"Authorization": f"Bearer {XQUIK_KEY}"}, timeout=10)
             return json.dumps(r.json())
         if name == "get_account_posts" and XQUIK_KEY:
-            un = args.get("username", "")
-            r = requests.get(f"https://api.xquik.com/v1/user/{un}/tweets",
+            r = requests.get(f"https://api.xquik.com/v1/user/{args.get('username', '')}/tweets",
                 headers={"Authorization": f"Bearer {XQUIK_KEY}"}, timeout=10)
             return json.dumps(r.json())
         if name == "browser_action" and PINCHTAB_URL:
@@ -335,12 +335,10 @@ def _get_youtube_transcript(url: str, lang: str = "en") -> str:
         if m: vid = m.group(1); break
     if not vid: return json.dumps({"error": "cannot extract video ID"})
     try:
-        api_url = f"https://www.youtube.com/api/timedtext?v={vid}&lang={lang}&fmt=json3"
-        r = requests.get(api_url, timeout=10)
+        r = requests.get(f"https://www.youtube.com/api/timedtext?v={vid}&lang={lang}&fmt=json3", timeout=10)
         if r.status_code == 200 and r.text.strip():
             data = r.json()
-            events = data.get("events", [])
-            segs = [s.get("utf8", "") for e in events for s in e.get("segs", [])]
+            segs = [s.get("utf8", "") for e in data.get("events", []) for s in e.get("segs", [])]
             text = " ".join(segs).replace("\n", " ").strip()[:6000]
             if text: return json.dumps({"video_id": vid, "transcript": text})
     except: pass
@@ -348,12 +346,12 @@ def _get_youtube_transcript(url: str, lang: str = "en") -> str:
         r2 = requests.get(f"https://www.youtube.com/watch?v={vid}",
             headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         if r2.status_code == 200:
-            m = re.search(r'"shortDescription":"(.*?)"(?:,"isCrawlable")', r2.text)
+            import re as re2
+            m = re2.search(r'"shortDescription":"(.*?)"(?:,"isCrawlable")', r2.text)
             desc = m.group(1).replace("\\n", " ")[:2000] if m else ""
-            tm = re.search(r'"title":\{"runs":\[\{"text":"(.*?)"\}', r2.text)
-            title = tm.group(1) if tm else ""
-            return json.dumps({"video_id": vid, "title": title, "description": desc,
-                               "note": "transcript unavailable, showing description"})
+            tm = re2.search(r'"title":\{"runs":\[\{"text":"(.*?)"\}', r2.text)
+            return json.dumps({"video_id": vid, "title": tm.group(1) if tm else "",
+                               "description": desc, "note": "transcript unavailable"})
     except: pass
     return json.dumps({"error": "transcript not available"})
 
@@ -366,7 +364,7 @@ def _fire_tweet(text: str):
     except Exception as e:
         logger.warning("Tweet failed: %s", e)
 
-# ─── System prompt ────────────────────────────────────────────────────────────
+# ─── System prompt ───────────────────────────────────────────────────
 
 AGENT_SYSTEM = """You are GodLocal \u26a1 \u2014 a sovereign AI assistant and strategic partner.
 You are direct, insightful, and action-oriented. You think in first principles.
@@ -375,11 +373,10 @@ When you need to use a tool, use it. When you have enough information, respond d
 Speak the user's language (Russian/Ukrainian/English \u2014 match what they use).
 Be concise but complete. No filler phrases."""
 
-# ─── react_ws: single-agent ReAct loop ───────────────────────────────────────
+# ─── react_ws ────────────────────────────────────────────────────────────
 
 async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                    image_base64: str = None, lang: str = "ru"):
-    """Fast single-agent ReAct loop. Uses 8b-instant by default."""
     tools = all_tools()
     profile = profile_get(session_id)
     mems = memory_get(session_id)
@@ -400,13 +397,14 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     for iteration in range(4):
         resp_data, err = groq_call(messages, tools=tools if iteration < 3 else None)
         if err or not resp_data:
-            await ws.send_json({"t": "token", "v": "\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f \u0441 AI. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430."})
+            await ws.send_json({"t": "token", "v": "\u041e\u0448\u0438\u0431\u043a\u0430 AI. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430."})
             break
         choice = resp_data["choices"][0]
         msg = choice["message"]
         finish = choice.get("finish_reason", "")
         if finish == "tool_calls" and msg.get("tool_calls"):
-            messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": msg["tool_calls"]})
+            messages.append({"role": "assistant", "content": msg.get("content") or "",
+                             "tool_calls": msg["tool_calls"]})
             for tc in msg["tool_calls"]:
                 fn = tc["function"]["name"]
                 args = json.loads(tc["function"].get("arguments", "{}"))
@@ -415,14 +413,15 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                 result = await asyncio.get_event_loop().run_in_executor(
                     None, lambda fn=fn, args=args: run_tool(fn, args, session_id))
                 await ws.send_json({"t": "tool_done", "v": label})
-                messages.append({"role": "tool", "tool_call_id": tc["id"], "name": fn, "content": result})
+                messages.append({"role": "tool", "tool_call_id": tc["id"],
+                                  "name": fn, "content": result})
             continue
         content = msg.get("content") or ""
         if content:
             async for tok in groq_stream(messages, max_tokens=1200):
                 full_response += tok
                 await ws.send_json({"t": "token", "v": tok})
-            if not full_response and content:
+            if not full_response:
                 full_response = content
                 for i in range(0, len(content), 4):
                     await ws.send_json({"t": "token", "v": content[i:i+4]})
@@ -431,31 +430,32 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     if full_response and len(full_response) > 50:
         try:
             asyncio.get_event_loop().run_in_executor(None,
-                lambda: memory_add(session_id, f"[{datetime.utcnow().strftime('%Y-%m-%d')}] Q: {prompt[:80]} \u2192 A: {full_response[:120]}"))
+                lambda: memory_add(session_id,
+                    f"[{datetime.utcnow().strftime('%Y-%m-%d')}] Q: {prompt[:80]} \u2192 A: {full_response[:120]}"))
         except: pass
     await ws.send_json({"t": "done"})
     return full_response
 
-# ─── Council Mode ─────────────────────────────────────────────────────────────
+# ─── Council ──────────────────────────────────────────────────────────
 
 ARCHETYPES = [
     {"id": "grok", "name": "Grok", "emoji": "\U0001f525",
-     "system": "You are Grok \u2014 a sharp market strategist. Identify patterns, risks, and opportunities. Be direct and contrarian when needed. Max 200 words."},
+     "system": "You are Grok \u2014 a sharp market strategist. Identify patterns, risks, opportunities. Be direct. Max 200 words."},
     {"id": "lucas", "name": "Lucas", "emoji": "\U0001f4d0",
-     "system": "You are Lucas \u2014 a systems architect. Break problems into first principles. Find structural solutions. Max 200 words."},
+     "system": "You are Lucas \u2014 a systems architect. Break problems into first principles. Max 200 words."},
     {"id": "harper", "name": "Harper", "emoji": "\U0001f30a",
-     "system": "You are Harper \u2014 a growth catalyst. Focus on human dynamics, psychology, and traction. Max 200 words."},
+     "system": "You are Harper \u2014 a growth catalyst. Focus on human dynamics and traction. Max 200 words."},
     {"id": "navi", "name": "Navi", "emoji": "\U0001f9ed",
-     "system": "You are Navi \u2014 a pragmatic navigator. Focus on what to do NOW, concrete next steps. Max 200 words."},
+     "system": "You are Navi \u2014 a pragmatic navigator. Focus on concrete next steps NOW. Max 200 words."},
     {"id": "rex", "name": "Rex", "emoji": "\U0001f4b0",
-     "system": "You are Rex \u2014 a capital strategist. Focus on ROI, monetisation, resource allocation. Max 200 words."},
+     "system": "You are Rex \u2014 a capital strategist. Focus on ROI and resource allocation. Max 200 words."},
 ]
 
 async def council_stream(user_id: str, message: str):
     mems = memory_get(user_id)
     mem_ctx = ""
     if mems:
-        mem_ctx = "\n\nContext from memory:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-5:])
+        mem_ctx = "\n\nContext:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-5:])
     responses = []
     for arch in ARCHETYPES:
         yield f"data: {json.dumps({'t': 'arch_start', 'id': arch['id'], 'name': arch['name'], 'emoji': arch['emoji']})}\n\n"
@@ -470,15 +470,15 @@ async def council_stream(user_id: str, message: str):
     yield f"data: {json.dumps({'t': 'synth_start'})}\n\n"
     synth_input = "\n\n".join([f"{r['name']}: {r['response']}" for r in responses])
     synth_msgs = [
-        {"role": "system", "content": "You are the Synthesis voice of GodLocal \u26a1. Synthesise the council's perspectives into ONE clear, actionable insight. Be decisive. Max 150 words. Speak in the user's language."},
-        {"role": "user", "content": f"Original question: {message}\n\nCouncil perspectives:\n{synth_input}"}
+        {"role": "system", "content": "You are the Synthesis voice. Synthesise council perspectives into ONE actionable insight. Max 150 words. Match user language."},
+        {"role": "user", "content": f"Question: {message}\n\nCouncil:\n{synth_input}"}
     ]
     async for tok in groq_stream(synth_msgs, max_tokens=300):
         yield f"data: {json.dumps({'t': 'synth_token', 'v': tok})}\n\n"
     yield f"data: {json.dumps({'t': 'synth_done'})}\n\n"
     yield f"data: {json.dumps({'t': 'council_done'})}\n\n"
 
-# ─── WebSocket: /ws/oasis ─────────────────────────────────────────────────────
+# ─── WebSocket /ws/oasis ──────────────────────────────────────────────────
 
 @app.websocket("/ws/oasis")
 async def ws_oasis(ws: WebSocket, sid: str = "default"):
@@ -495,23 +495,22 @@ async def ws_oasis(ws: WebSocket, sid: str = "default"):
                 await ws.send_json({"t": "pong"}); continue
             prompt = data.get("prompt", "").strip()
             if not prompt: continue
-            image_b64 = data.get("image_base64")
-            lang = data.get("lang", "ru")
             history.append({"role": "user", "content": prompt})
             response = await react_ws(ws, prompt, session_id, history[:-1],
-                                      image_base64=image_b64, lang=lang)
+                                      image_base64=data.get("image_base64"),
+                                      lang=data.get("lang", "ru"))
             if response:
                 history.append({"role": "assistant", "content": response})
             if len(history) > 40:
                 history = history[-40:]
     except WebSocketDisconnect:
-        logger.info("WS /ws/oasis disconnected: %s", session_id)
+        logger.info("WS disconnected: %s", session_id)
     except Exception as e:
-        logger.error("WS /ws/oasis error: %s", e)
+        logger.error("WS error: %s", e)
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
-# ─── WebSocket: /ws/deep ─────────────────────────────────────────────────────
+# ─── WebSocket /ws/deep ──────────────────────────────────────────────────
 
 @app.websocket("/ws/deep")
 async def ws_deep(ws: WebSocket):
@@ -520,12 +519,11 @@ async def ws_deep(ws: WebSocket):
         raw = await asyncio.wait_for(ws.receive_text(), timeout=30)
         data = json.loads(raw)
         prompt = data.get("prompt", "")
-        sid = data.get("session_id", "default")
         if not prompt:
             await ws.send_json({"t": "session_done"}); return
-        await ws.send_json({"t": "plan", "v": "\U0001f5fa Составляю план исследования..."})
+        await ws.send_json({"t": "plan", "v": "\U0001f5fa \u0421\u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e \u043f\u043b\u0430\u043d..."})
         plan_msgs = [
-            {"role": "system", "content": "You are a research planner. Create a concise 3-step research plan. Output as numbered list. Max 100 words."},
+            {"role": "system", "content": "Research planner. 3-step plan as numbered list. Max 100 words."},
             {"role": "user", "content": prompt}
         ]
         plan_text = ""
@@ -535,7 +533,7 @@ async def ws_deep(ws: WebSocket):
         await ws.send_json({"t": "plan_done"})
         search_results = ""
         if SERPER_KEY:
-            await ws.send_json({"t": "research", "v": "\U0001f50d Собираю данные..."})
+            await ws.send_json({"t": "research", "v": "\U0001f50d \u0421\u043e\u0431\u0438\u0440\u0430\u044e \u0434\u0430\u043d\u043d\u044b\u0435..."})
             try:
                 r = requests.post("https://google.serper.dev/search",
                     json={"q": prompt, "num": 5}, headers={"X-API-KEY": SERPER_KEY}, timeout=10)
@@ -545,11 +543,10 @@ async def ws_deep(ws: WebSocket):
             except:
                 await ws.send_json({"t": "research_done", "v": "\u041f\u043e\u0438\u0441\u043a \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d"})
         await ws.send_json({"t": "build", "v": "\u270d\ufe0f \u0424\u043e\u0440\u043c\u0438\u0440\u0443\u044e \u043e\u0442\u0432\u0435\u0442..."})
-        synth_ctx = f"Research plan:\n{plan_text}\n\n"
-        if search_results: synth_ctx += f"Search results:\n{search_results}\n\n"
+        ctx = f"Plan:\n{plan_text}\n\n" + (f"Sources:\n{search_results}" if search_results else "")
         synth_msgs = [
-            {"role": "system", "content": "You are a deep research synthesiser. Provide a comprehensive, well-structured answer. Use markdown. Speak in user's language."},
-            {"role": "user", "content": f"Original question: {prompt}\n\n{synth_ctx}"}
+            {"role": "system", "content": "Deep research synthesiser. Comprehensive markdown answer. Match user language."},
+            {"role": "user", "content": f"Question: {prompt}\n\n{ctx}"}
         ]
         async for tok in groq_stream(synth_msgs, max_tokens=1200):
             await ws.send_json({"t": "token", "v": tok})
@@ -562,12 +559,12 @@ async def ws_deep(ws: WebSocket):
         try: await ws.send_json({"t": "error", "v": str(e)})
         except: pass
 
-# ─── REST endpoints ───────────────────────────────────────────────────────────
+# ─── REST ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return JSONResponse({"status": "ok", "version": "14.0.0",
+    return JSONResponse({"status": "ok", "version": "14.1.0",
                          "supabase": bool(SUPABASE_URL and SUPABASE_KEY),
                          "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY)})
 
@@ -603,7 +600,7 @@ async def v2_chat(request: Request):
     async def generate():
         mems = memory_get(sid)
         mem_ctx = ""
-        if mems: mem_ctx = "\n\nUser memory:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-8:])
+        if mems: mem_ctx = "\n\nMemory:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-8:])
         messages = [{"role": "system", "content": AGENT_SYSTEM + mem_ctx},
                     {"role": "user", "content": prompt}]
         async for tok in groq_stream(messages):
