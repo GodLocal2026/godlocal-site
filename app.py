@@ -497,6 +497,52 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     await ws.send_json({"t": "done"})
     return full_response
 
+# ─── WebSocket /ws/search  (СМЕРЧ / WOLF AI chat) ────────────────────────────
+
+@app.websocket("/ws/search")
+async def ws_search(ws: WebSocket, sid: str = "default"):
+    """СМЕРЧ-WOLF AI chat — receives prompt, streams Groq response."""
+    await ws.accept()
+    session_id = sid
+    try:
+        data = await asyncio.wait_for(ws.receive_json(), timeout=28.0)
+        prompt     = data.get("prompt", data.get("message", ""))
+        session_id = data.get("session_id", sid)
+        if not prompt:
+            await ws.send_json({"t": "error", "v": "empty prompt"})
+            return
+
+        mems = memory_get(session_id)
+        mem_ctx = ""
+        if mems:
+            mem_ctx = "\n\nКонтекст: " + " | ".join(m.get("content", "")[:60] for m in mems[-4:])
+
+        msgs = [
+            {"role": "system", "content": AGENT_SYSTEM + mem_ctx},
+            {"role": "user",   "content": prompt},
+        ]
+
+        full = ""
+        async for tok in groq_stream(msgs, max_tokens=600):
+            full += tok
+            await ws.send_json({"t": "token", "v": tok})
+
+        await ws.send_json({"t": "done"})
+
+        if full and session_id:
+            memory_add(session_id, f"AI: {full[:200]}")
+
+    except asyncio.TimeoutError:
+        try: await ws.send_json({"t": "error", "v": "timeout"})
+        except: pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error("WS /ws/search error: %s", e)
+        try: await ws.send_json({"t": "error", "v": str(e)})
+        except: pass
+
+
 # ─── WebSocket /ws/oasis ──────────────────────────────────────────────────────
 
 @app.websocket("/ws/oasis")
