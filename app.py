@@ -1,4 +1,4 @@
-# GodLocal API Backend v14.5 — FastAPI / Uvicorn
+# GodLocal API Backend v14.6 — FastAPI / Uvicorn
 # WebSocket: /ws/oasis /ws/deep
 # REST: /health /ping /status /v2/chat /v2/council /memory /profile /mission /market /think /hitl/*
 import os, sys, time, json, threading, asyncio, logging, random, hashlib
@@ -411,44 +411,29 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                         {"type": "image_url", "image_url": {"url": image_base64}}]
     else:
         user_content = prompt
+
     messages = [sys_msg] + hist + [{"role": "user", "content": user_content}]
     full_response = ""
-    tool_context: list[str] = []          # accumulate tool results as plain text
-    tool_calls_made = 0
+    tool_context: list[str] = []
 
-    for iteration in range(5):
-        # After tool calls: build clean synthesis messages (no tool_call message format)
-        if tool_calls_made > 0 and not any(
-            m.get("finish_reason") != "tool_calls" for m in []
-        ):
-            pass  # handled below
-        use_tools = tools if iteration < 4 else None
-
-        if use_tools is None and tool_calls_made > 0:
-            # Build clean synthesis prompt — embed tool results as plain context
-            ctx_block = ""
-            if tool_context:
-                ctx_block = "\n\n--- Tool Results ---\n" + "\n\n".join(tool_context) + "\n--- End ---"
-            synth_msgs = [sys_msg] + hist + [{
-                "role": "user",
-                "content": f"{prompt}{ctx_block}"
-            }]
-            resp_data, err = groq_call(synth_msgs, tools=None, max_tokens=1500)
-        else:
-            resp_data, err = groq_call(messages, tools=use_tools, max_tokens=1500)
-
+    # ── Phase 1: Tool-calling loop (max 3 rounds, rate-limit guarded) ────────
+    for iteration in range(3):
+        if iteration > 0:
+            await asyncio.sleep(0.4)      # avoid Groq 429 burst
+        resp_data, err = groq_call(messages, tools=tools, max_tokens=1500)
         if err or not resp_data:
-            await ws.send_json({"t": "token", "v": "\u041e\u0448\u0438\u0431\u043a\u0430 AI. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430."})
             break
         choice = resp_data["choices"][0]
-        msg = choice["message"]
+        msg    = choice["message"]
         finish = choice.get("finish_reason", "")
+
         if finish == "tool_calls" and msg.get("tool_calls"):
-            messages.append({"role": "assistant", "content": msg.get("content") or "",
-                             "tool_calls": msg["tool_calls"]})
+            messages.append({"role": "assistant",
+                              "content": msg.get("content") or "",
+                              "tool_calls": msg["tool_calls"]})
             for tc in msg["tool_calls"]:
-                fn = tc["function"]["name"]
-                args = json.loads(tc["function"].get("arguments", "{}"))
+                fn    = tc["function"]["name"]
+                args  = json.loads(tc["function"].get("arguments", "{}"))
                 label = TOOL_LABELS.get(fn, f"\U0001f527 {fn}")
                 await ws.send_json({"t": "tool_start", "v": label})
                 result = await asyncio.get_event_loop().run_in_executor(
@@ -456,9 +441,10 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                 await ws.send_json({"t": "tool_done", "v": label})
                 messages.append({"role": "tool", "tool_call_id": tc["id"],
                                   "name": fn, "content": result})
-                tool_context.append(f"{fn}: {str(result)[:600]}")
-                tool_calls_made += 1
-            continue
+                tool_context.append(f"[{fn}]\n{str(result)[:700]}")
+            continue  # next iteration
+
+        # Model returned content directly — stream it
         content = msg.get("content") or ""
         if content:
             full_response = content
@@ -467,6 +453,28 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                 await ws.send_json({"t": "token", "v": content[i:i+chunk]})
                 await asyncio.sleep(0.008)
         break
+
+    # ── Phase 2: Synthesis (only when tools ran but no direct content yet) ───
+    if not full_response and tool_context:
+        await asyncio.sleep(0.5)          # rate-limit guard before synthesis call
+        ctx_block = "\n\n=== Tool Results ===\n" + "\n\n".join(tool_context) + "\n=== End ==="
+        synth_msgs = [sys_msg] + hist + [{
+            "role": "user",
+            "content": f"{prompt}{ctx_block}\n\nAnswer based on the tool results above."
+        }]
+        resp_data, err = groq_call(synth_msgs, tools=None, max_tokens=1500)
+        if not err and resp_data:
+            content = resp_data["choices"][0]["message"].get("content") or ""
+            if content:
+                full_response = content
+                chunk = 6
+                for i in range(0, len(content), chunk):
+                    await ws.send_json({"t": "token", "v": content[i:i+chunk]})
+                    await asyncio.sleep(0.008)
+
+    if not full_response:
+        await ws.send_json({"t": "token", "v": "Ошибка AI. Попробуйте снова."})
+
     if full_response and len(full_response) > 50:
         try:
             asyncio.get_event_loop().run_in_executor(None,
@@ -475,62 +483,6 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
         except: pass
     await ws.send_json({"t": "done"})
     return full_response
-
-# ─── Council ──────────────────────────────────────────────────────────────────
-
-# Shared platform context injected into every archetype
-_PLATFORM = """
-Platform: GodLocal ⚡ — sovereign AI OS by Rostyslav Oliinyk. You are one of the 5 council agents in Oasis.
-Products: GodLocal (AI OS) / Oasis (7-agent workspace) / NEBUDDA (AI social) / Game ∞ / WOLF.
-Stack: FastAPI/Render backend, Next.js/Vercel frontend, GROQ LLMs, Supabase memory.
-Mission: Self-owned AI infrastructure for builders. Sovereign. No Big Tech dependency.
-When asked about GodLocal or Oasis — speak from this knowledge, not from the web.
-"""
-
-ARCHETYPES = [
-    {"id": "grok", "name": "Grok", "emoji": "\U0001f525",
-     "system": _PLATFORM + "You are Grok — sharp market strategist inside GodLocal council. Spot patterns, risks, asymmetric opportunities. Cut through noise. Direct. Max 180 words."},
-    {"id": "lucas", "name": "Lucas", "emoji": "\U0001f4d0",
-     "system": _PLATFORM + "You are Lucas — systems architect inside GodLocal council. Decompose problems to first principles, find structural leverage points. Max 180 words."},
-    {"id": "harper", "name": "Harper", "emoji": "\U0001f30a",
-     "system": _PLATFORM + "You are Harper — growth catalyst inside GodLocal council. Human dynamics, traction mechanisms, adoption curves. How does this spread? Max 180 words."},
-    {"id": "navi", "name": "Navi", "emoji": "\U0001f9ed",
-     "system": _PLATFORM + "You are Navi — pragmatic navigator inside GodLocal council. What are the 3 concrete actions to take RIGHT NOW? Prioritise ruthlessly. Max 180 words."},
-    {"id": "rex", "name": "Rex", "emoji": "\U0001f4b0",
-     "system": _PLATFORM + "You are Rex — capital strategist inside GodLocal council. ROI, resource allocation, funding paths, burn rate. What's the financial angle? Max 180 words."},
-]
-
-async def council_stream(user_id: str, message: str):
-    mems = memory_get(user_id)
-    mem_ctx = ""
-    if mems:
-        mem_ctx = "\n\nContext:\n" + "\n".join(f"- {m.get('content','')}" for m in mems[-5:])
-    responses = []
-    for i, arch in enumerate(ARCHETYPES):
-        if i > 0:
-            await asyncio.sleep(0.35)   # stagger: avoid Groq 429 burst
-        arch_msgs = [{"role": "system", "content": arch["system"] + mem_ctx},
-                     {"role": "user", "content": message}]
-        arch_response = ""
-        async for tok in groq_stream(arch_msgs, max_tokens=300):
-            arch_response += tok
-        if not arch_response.strip():
-            arch_response = f"[{arch['name']} — нет ответа, попробуй ещё раз]"
-        responses.append({"name": arch["name"], "response": arch_response})
-        # Frontend expects: data: {"name": archetype_id, "reply": text}
-        yield f"data: {json.dumps({'name': arch['id'], 'reply': arch_response}, ensure_ascii=False)}\n\n"
-    # Synthesis
-    synth_input = "\n\n".join([f"{r['name']}: {r['response']}" for r in responses])
-    synth_msgs = [
-        {"role": "system", "content": _PLATFORM + "You are the Synthesis voice in GodLocal council. Cut through all 5 perspectives, deliver ONE clear actionable insight. Be decisive — if perspectives conflict, pick the strongest. Max 150 words. Match user language (RU/UA/EN)."},
-        {"role": "user", "content": f"Question: {message}\n\nCouncil:\n{synth_input}"}
-    ]
-    synth_response = ""
-    async for tok in groq_stream(synth_msgs, max_tokens=300):
-        synth_response += tok
-    if synth_response.strip():
-        yield f"data: {json.dumps({'name': 'synth', 'reply': synth_response}, ensure_ascii=False)}\n\n"
-    yield f"data: [DONE]\n\n"
 
 # ─── WebSocket /ws/oasis ──────────────────────────────────────────────────────
 
@@ -618,7 +570,7 @@ async def ws_deep(ws: WebSocket):
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return JSONResponse({"status": "ok", "version": "14.5.0",
+    return JSONResponse({"status": "ok", "version": "14.6.0",
                          "supabase": bool(SUPABASE_URL and SUPABASE_KEY),
                          "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY)})
 
