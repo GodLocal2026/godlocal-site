@@ -8,7 +8,7 @@ const products = [
     name: "GodLocal",
     tagline: "Your AI Operating System",
     desc: "The platform that unifies everything. Search, memory, integrations, code execution, social layer — all running on your own sovereign infrastructure. The OS your agents live inside.",
-    url: "/oasis",
+    url: "/chat",
     cta: "Enter GodLocal",
     tag: "Platform · OS",
     color: "#00FF9D",
