@@ -152,6 +152,7 @@ export default function OasisPage() {
   const [conning,setConning] = useState(false)
   const [waiting,setWaiting] = useState(false)
   const [councilLoad,setCLoad] = useState(false)
+  const [deepLoad,setDLoad] = useState(false)
   const [archs,setArchs]     = useState<string[]>([])
   const [lang,setLang]       = useState<'ru'|'uk'|'en'>(()=>{
     if(typeof window==='undefined')return 'ru'
@@ -344,6 +345,53 @@ export default function OasisPage() {
     }catch(e){
       setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Совет временно недоступен — попробуй снова.',ts:Date.now()}])
     }finally{setCLoad(false)}
+  },[input,sid])
+
+  const sendDeep=useCallback(async()=>{
+    const msg=input.trim()||'Проведи глубокое исследование по нашему контексту'
+    tap()
+    if(input.trim()){setMsgs(p=>[...p,{id:rnd(),role:'user',content:input.trim(),ts:Date.now()}]);setInput('')}
+    setDLoad(true)
+    // Deep Research agent bubble IDs
+    const stepMap:{[key:string]:string}={}
+    try{
+      await new Promise<void>((resolve)=>{
+        const wsUrl=`${API_BASE.replace('https://','wss://').replace('http://','ws://')}/ws/deep`
+        const ws=new WebSocket(wsUrl)
+        const timer=setTimeout(()=>{ws.close();resolve()},60000)
+        ws.onopen=()=>ws.send(JSON.stringify({prompt:msg,session_id:sid}))
+        ws.onmessage=(e)=>{
+          try{
+            const d=JSON.parse(e.data)
+            const agent=d.agent||'Deep'
+            if(d.t==='step_start'){
+              const id=rnd()
+              stepMap[agent]=id
+              setMsgs(p=>[...p,{id,role:'agent',agentId:agent.toLowerCase(),agentName:agent,content:d.v,ts:Date.now()}])
+            }
+            else if(d.t==='step_done'){
+              const id=stepMap[agent]
+              if(id) setMsgs(p=>p.map(m=>m.id===id?{...m,content:d.v}:m))
+              else setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:agent.toLowerCase(),agentName:agent,content:d.v,ts:Date.now()}])
+            }
+            else if(d.t==='research_query'){
+              const id=stepMap[agent]
+              if(id) setMsgs(p=>p.map(m=>m.id===id?{...m,content:(m.content||'')+'
+'+d.v}:m))
+            }
+            else if(d.t==='session_done'){clearTimeout(timer);ws.close();resolve()}
+            else if(d.t==='error'){
+              setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'system',agentName:'System',content:'⚠️ '+d.v,ts:Date.now()}])
+              clearTimeout(timer);ws.close();resolve()
+            }
+          }catch{}
+        }
+        ws.onerror=()=>{clearTimeout(timer);resolve()}
+        ws.onclose=()=>{clearTimeout(timer);resolve()}
+      })
+    }catch(e){
+      setMsgs(p=>[...p,{id:rnd(),role:'agent',agentId:'godlocal',agentName:'GodLocal',content:'Deep Research временно недоступен.',ts:Date.now()}])
+    }finally{setDLoad(false)}
   },[input,sid])
 
   const saveArt=(msg:Msg)=>setArts(p=>{const n=p.some(a=>a.id===msg.id)?p.filter(a=>a.id!==msg.id):[{id:msg.id,name:msg.agentName,content:msg.content,ts:msg.ts},...p].slice(0,50);try{localStorage.setItem('gl_art',JSON.stringify(n))}catch{};return n})
@@ -651,6 +699,11 @@ export default function OasisPage() {
             ...(councilLoad?{background:'rgba(255,107,107,.18)',color:'#FF6B6B',border:'1px solid rgba(255,107,107,.35)'}:{background:'rgba(255,107,107,.08)',color:'rgba(255,107,107,.6)',border:'1px solid rgba(255,107,107,.18)'})}}>
             {councilLoad?<span style={{display:'inline-block',animation:'gl-spin .8s linear infinite',fontSize:11}}>&#8635;</span>:'🔮'}
             <span>{councilLoad?'Совет…':'Совет'}</span>
+          </button>
+          <button onClick={sendDeep} disabled={deepLoad} style={{flexShrink:0,display:'flex',alignItems:'center',gap:5,padding:'5px 14px',borderRadius:20,fontSize:12,fontWeight:600,cursor:deepLoad?'wait':'pointer',whiteSpace:'nowrap',transition:'all .15s',
+            ...(deepLoad?{background:'rgba(99,179,237,.18)',color:'#63B3ED',border:'1px solid rgba(99,179,237,.35)'}:{background:'rgba(99,179,237,.08)',color:'rgba(99,179,237,.6)',border:'1px solid rgba(99,179,237,.18)'})}}>
+            {deepLoad?<span style={{display:'inline-block',animation:'gl-spin .8s linear infinite',fontSize:11}}>&#8635;</span>:'🔬'}
+            <span>{deepLoad?'Ресёрч…':'Deep'}</span>
           </button>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8,background:'#06080d',border:'1px solid #111827',borderRadius:22,padding:'6px 8px 6px 12px'}}>
