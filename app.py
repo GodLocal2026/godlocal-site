@@ -32,6 +32,7 @@ GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 COMPOSIO_KEY = os.environ.get("COMPOSIO_API_KEY", "")
 SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
 XQUIK_KEY = os.environ.get("XQUIK_API_KEY", "")
+PINCHTAB_URL = os.environ.get("PINCHTAB_URL", "")  # e.g. http://localhost:7171
 MODELS = [
     "llama-3.3-70b-specdec",
     "llama-3.3-70b-versatile",
@@ -303,6 +304,9 @@ BASE_TOOLS = [
     {"type": "function", "function": {"name": "recall", "description": "Retrieve something from persistent memory", "parameters": {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}}},
     {"type": "function", "function": {"name": "update_profile", "description": "Update user profile (name, goals, trading style, active mission)", "parameters": {"type": "object", "properties": {"field": {"type": "string", "description": "e.g. name, goals, style, active_mission"}, "value": {"type": "string"}}, "required": ["field", "value"]}}},
 ]
+PINCHTAB_TOOLS = [
+    {"type": "function", "function": {"name": "browser_action", "description": "Control a real browser via Pinchtab HTTP API. Supports: navigate, click, type, scroll, snapshot, screenshot. Use for web interactions that require a real browser (login flows, JS-rendered pages, form fills).", "parameters": {"type": "object", "properties": {"action": {"type": "string", "enum": ["navigate", "click", "type", "scroll", "snapshot", "screenshot"], "description": "Action to perform"}, "url": {"type": "string", "description": "URL to navigate to (for navigate action)"}, "selector": {"type": "string", "description": "Element selector or ref ID (for click/type actions)"}, "text": {"type": "string", "description": "Text to type (for type action)"}, "session_id": {"type": "string", "description": "Browser session ID (optional, reuses persistent session)"}}, "required": ["action"]}}},
+]
 COMPOSIO_TOOLS = [
     {"type": "function", "function": {"name": "post_tweet", "description": "Post tweet @kitbtc", "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
     {"type": "function", "function": {"name": "send_telegram", "description": "Send Telegram message", "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
@@ -313,12 +317,13 @@ XQUIK_TOOLS = [
     {"type": "function", "function": {"name": "get_account_posts", "description": "Get recent tweets from a specific Twitter/X account.", "parameters": {"type": "object", "properties": {"username": {"type": "string"}}, "required": ["username"]}}},
 ]
 
-def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else [])
+def all_tools(): return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else []) + (XQUIK_TOOLS if XQUIK_KEY else []) + (PINCHTAB_TOOLS if PINCHTAB_URL else [])
 
 TOOL_LABELS = {
     'web_search':'🌐 поиск', 'fetch_url':'📄 читаю', 'get_market_data':'📊 рынок',
     'post_tweet':'𝕏 пост', 'send_telegram':'✈️ Telegram', 'create_github_issue':'🐙 issue',
     'remember':'🧠 запоминаю', 'recall':'🧠 вспоминаю', 'get_twitter_trends':'📈 тренды',
+    'browser_action':'🌍 браузер',
 }
 
 
@@ -379,6 +384,35 @@ def run_tool(name, args, svc_tokens=None):
         field, value = args.get("field", ""), args.get("value", "")
         profile_update(session_id, {field: value})
         return json.dumps({"ok": True, "field": field, "value": value})
+    if name == "browser_action" and PINCHTAB_URL:
+        action = args.get("action", "snapshot")
+        pt_base = PINCHTAB_URL.rstrip("/")
+        pt_session = args.get("session_id", "godlocal-default")
+        try:
+            if action == "navigate":
+                r = requests.post(f"{pt_base}/navigate", json={"url": args.get("url", ""), "sessionId": pt_session}, timeout=20)
+                return json.dumps({"ok": r.status_code < 300, "action": "navigate", "url": args.get("url")})
+            elif action == "snapshot":
+                r = requests.get(f"{pt_base}/text", params={"sessionId": pt_session}, timeout=20)
+                text = r.text[:4000]  # ~800 tokens per Pinchtab spec
+                return json.dumps({"ok": r.status_code < 300, "action": "snapshot", "content": text})
+            elif action == "click":
+                r = requests.post(f"{pt_base}/click", json={"selector": args.get("selector", ""), "sessionId": pt_session}, timeout=15)
+                return json.dumps({"ok": r.status_code < 300, "action": "click", "selector": args.get("selector")})
+            elif action == "type":
+                r = requests.post(f"{pt_base}/type", json={"selector": args.get("selector", ""), "text": args.get("text", ""), "sessionId": pt_session}, timeout=15)
+                return json.dumps({"ok": r.status_code < 300, "action": "type"})
+            elif action == "scroll":
+                r = requests.post(f"{pt_base}/scroll", json={"sessionId": pt_session}, timeout=10)
+                return json.dumps({"ok": r.status_code < 300, "action": "scroll"})
+            elif action == "screenshot":
+                r = requests.get(f"{pt_base}/screenshot", params={"sessionId": pt_session}, timeout=20)
+                return json.dumps({"ok": r.status_code < 300, "action": "screenshot", "note": "screenshot captured (not returned inline)"})
+            return json.dumps({"error": f"unknown browser action: {action}"})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+    if name == "browser_action":
+        return json.dumps({"error": "PINCHTAB_URL not configured - set env var to enable browser actions"})
     if name == "get_twitter_trends" and XQUIK_KEY:
         try:
             woeid = args.get("woeid", 1)
