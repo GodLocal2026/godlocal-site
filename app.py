@@ -628,6 +628,53 @@ async def v2_chat(request: Request):
     return StreamingResponse(generate(), media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+# ─── Council Mode (🔮 Смерч / Совет) ─────────────────────────────────────────
+
+async def council_stream(user_id: str, message: str):
+    """Multi-agent council: 3 archetypes deliberate, then synthesize."""
+    ARCHETYPES = [
+        ("🧠 Стратег", "You are Стратег — strategic analyst. Give a sharp 2-3 sentence strategic perspective on the question. Be direct and insightful. Match user language."),
+        ("⚡ Воин",    "You are Воин — action-first thinker. Give a direct, execution-focused 2-3 sentence take. Be bold and practical. Match user language."),
+        ("🎨 Творец",  "You are Творец — creative lateral thinker. Give an unconventional, creative 2-3 sentence angle. Think outside the box. Match user language."),
+    ]
+    mems = memory_get(user_id)
+    mem_ctx = ""
+    if mems:
+        mem_ctx = "\n\nContext: " + " | ".join(m.get("content", "")[:60] for m in mems[-4:])
+
+    all_views: list[str] = []
+
+    for name, persona in ARCHETYPES:
+        yield f"data: {json.dumps({'t': 'agent', 'v': name})}\n\n"
+        msgs = [
+            {"role": "system", "content": persona + mem_ctx},
+            {"role": "user",   "content": message},
+        ]
+        view = ""
+        async for tok in groq_stream(msgs, max_tokens=180):
+            view += tok
+            yield f"data: {json.dumps({'t': 'token', 'v': tok})}\n\n"
+        all_views.append(f"{name}:\n{view}")
+        yield f"data: {json.dumps({'t': 'agent_done', 'v': name})}\n\n"
+        await asyncio.sleep(0.35)
+
+    # Synthesis
+    yield f"data: {json.dumps({'t': 'synth'})}\n\n"
+    synth_ctx = "\n\n".join(all_views)
+    synth_msgs = [
+        {"role": "system", "content": AGENT_SYSTEM},
+        {"role": "user",   "content": (
+            f"Question: {message}\n\n"
+            f"Council perspectives:\n{synth_ctx}\n\n"
+            "Synthesize these into one clear, concise answer. No repetition. Match user language."
+        )},
+    ]
+    async for tok in groq_stream(synth_msgs, max_tokens=600):
+        yield f"data: {json.dumps({'t': 'synth_token', 'v': tok})}\n\n"
+
+    yield f"data: {json.dumps({'t': 'done'})}\n\n"
+
+
 @app.post("/v2/council")
 async def v2_council(request: Request):
     body = await request.json()
