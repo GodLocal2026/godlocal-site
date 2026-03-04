@@ -1064,15 +1064,28 @@ async def v2_chat(body: dict = Body(...)):
 
 @app.post("/v2/autonomy")
 async def v2_autonomy(body: dict = Body(...)):
-    """V2: Strategist generates 3 strategic tasks from conversation context."""
+    """V2: DeerFlow-style Planner generates research plan + tasks from context."""
     user_id = body.get("user_id", "default")
-    prompt = (
-        "Based on the recent conversation and user context, generate exactly 3 specific "
-        "strategic tasks that increase the user's leverage and clarity right now. "
-        "Format: bullet list. Be concrete, not generic."
-    )
-    tasks = await v2_run_agent(user_id, "Strategist", prompt, max_tok=400)
-    return {"tasks": tasks, "agent": "Strategist"}
+    question = body.get("question", "")
+
+    if question:
+        # DeerFlow mode: decompose specific question into research sub-tasks
+        prompt = (
+            f"User question: {question}\n\n"
+            "Decompose this into exactly 3 specific research sub-tasks a team of agents should tackle. "
+            "For each task: name the agent role, state the specific action, and expected output. "
+            "Format: numbered list. Be concrete. Answer in Russian."
+        )
+    else:
+        # Fallback: strategic tasks from session context
+        prompt = (
+            "Based on the recent conversation and user context, generate exactly 3 specific "
+            "strategic sub-tasks using DeerFlow decomposition: "
+            "Planner (what to research), Researcher (where to look), Builder (what to build). "
+            "Format: numbered list. Be concrete, not generic. Answer in Russian."
+        )
+    tasks = await v2_run_agent(user_id, "Architect", prompt, max_tok=400)
+    return {"tasks": tasks, "agent": "Architect", "mode": "deerflow"}
 
 
 @app.post("/v2/council")
@@ -1182,6 +1195,189 @@ async def set_mission_endpoint(req: Request):
     mission = data.get("mission", "")
     mission_set(session_id, mission)
     return {"ok": True, "active_mission": mission}
+
+
+
+# ─── DeerFlow Deep Research Pipeline ─────────────────────────────────────────
+# Inspired by ByteDance DeerFlow: Planner → Researcher → Builder → Reviewer
+# Each agent SSE-streams its progress; Researcher runs real web_search.
+
+async def _deep_search(query: str) -> str:
+    """Run web_search tool and return formatted results string."""
+    result_raw = run_tool("web_search", {"query": query})
+    try:
+        import json as _json
+        results = _json.loads(result_raw)
+        if isinstance(results, list):
+            lines = []
+            for r in results[:4]:
+                title = r.get("title", "")
+                snippet = r.get("snippet", "")
+                link = r.get("link", "")
+                lines.append(f"• {title}: {snippet} [{link}]")
+            return "\n".join(lines) if lines else "No results found."
+        return str(results)
+    except Exception:
+        return result_raw[:800]
+
+
+async def _deep_agent(session_id: str, role: str, system: str, prompt: str,
+                       max_tok: int = 300) -> str:
+    """Run a single DeerFlow agent step (non-streaming, returns full reply)."""
+    mems = memory_get(session_id)
+    mem_ctx = ""
+    if mems:
+        mem_lines = [f"- {m.get('content','')}" for m in mems[-5:] if m.get("content")]
+        if mem_lines:
+            mem_ctx = "\nContext from memory:\n" + "\n".join(mem_lines)
+
+    msgs = [
+        {"role": "system", "content": system + mem_ctx},
+        {"role": "user", "content": prompt},
+    ]
+    content = ""
+    for midx in (2, 1, 0):  # 8b-instant first (fast) → 70b fallback
+        try:
+            for tok in groq_call_sync(msgs, idx=midx, max_tokens=max_tok):
+                content += tok
+            if content:
+                break
+        except Exception as e:
+            logger.warning("_deep_agent %s idx=%d: %s", role, midx, e)
+    return content.strip()
+
+
+def groq_call_sync(msgs, idx=2, max_tokens=300):
+    """Synchronous Groq call returning list of token strings."""
+    import requests as _req
+    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    body = {
+        "model": MODELS[idx],
+        "messages": msgs,
+        "max_tokens": max_tokens,
+        "temperature": 0.5,
+    }
+    try:
+        r = _req.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=body, headers=headers, timeout=30
+        )
+        if r.status_code == 200:
+            return [r.json()["choices"][0]["message"].get("content", "")]
+        return []
+    except Exception as e:
+        logger.warning("groq_call_sync error: %s", e)
+        return []
+
+
+@app.websocket("/ws/deep")
+async def ws_deep(ws: WebSocket):
+    """DeerFlow Deep Research: Planner → Researcher → Builder → Reviewer."""
+    await ws.accept()
+    try:
+        data = await asyncio.wait_for(ws.receive_json(), timeout=30)
+    except Exception:
+        await ws.close(); return
+
+    user_msg = data.get("prompt", "").strip()
+    session_id = data.get("session_id", "default")
+    if not user_msg:
+        await ws.close(); return
+
+    async def send(t, v, agent=None):
+        payload = {"t": t, "v": v}
+        if agent:
+            payload["agent"] = agent
+        try:
+            await ws.send_json(payload)
+        except Exception:
+            pass
+
+    try:
+        # ── STEP 1: PLANNER (Architect) ──────────────────────────────────────
+        await send("step_start", "🗺️ Планирование...", agent="Architect")
+        planner_sys = (
+            "You are Architect — a systems strategist. "
+            "Your job: decompose the user's request into exactly 3 concrete research sub-questions. "
+            "Each sub-question should be a specific web search query. "
+            "Output format: numbered list 1. 2. 3. — nothing else. "
+            "Answer in the same language as the user's message."
+        )
+        plan_raw = await _deep_agent(
+            session_id, "Planner",
+            planner_sys,
+            f"Decompose this into 3 research sub-questions: {user_msg}",
+            max_tok=200
+        )
+        await send("step_done", plan_raw, agent="Architect")
+
+        # Parse sub-questions
+        import re as _re
+        sub_qs = _re.findall(r"\d+\.\s*(.+)", plan_raw)
+        if not sub_qs:
+            sub_qs = [user_msg]
+        sub_qs = sub_qs[:3]
+
+        # ── STEP 2: RESEARCHER (web_search per sub-question) ─────────────────
+        await send("step_start", "🔍 Исследование...", agent="Researcher")
+        research_parts = []
+        for i, q in enumerate(sub_qs):
+            await send("research_query", f"[{i+1}/{len(sub_qs)}] {q}", agent="Researcher")
+            results = await asyncio.get_event_loop().run_in_executor(
+                None, lambda q=q: run_tool("web_search", {"query": q})
+            )
+            research_parts.append(f"Query: {q}\nResults: {results[:600]}")
+
+        research_ctx = "\n\n".join(research_parts)
+        await send("step_done", f"Собрано {len(sub_qs)} источника(ов).", agent="Researcher")
+
+        # ── STEP 3: BUILDER (synthesize findings) ────────────────────────────
+        await send("step_start", "🔨 Синтез...", agent="Builder")
+        builder_sys = (
+            "You are Builder — a senior engineer and synthesizer. "
+            "You receive research data and produce a clear, actionable answer. "
+            "Be concrete. Use facts from the research. No fluff. "
+            "Answer in the same language as the original question."
+        )
+        synthesis = await _deep_agent(
+            session_id, "Builder",
+            builder_sys,
+            f"Original question: {user_msg}\n\nResearch data:\n{research_ctx[:2500]}\n\nSynthesize a clear answer:",
+            max_tok=500
+        )
+        await send("step_done", synthesis, agent="Builder")
+
+        # ── STEP 4: REVIEWER (Grok — critical check) ─────────────────────────
+        await send("step_start", "🔎 Проверка...", agent="Grok")
+        reviewer_sys = (
+            "You are Grok — a reality checker. "
+            "Review the synthesis below. Find: (1) one weakness or missing angle, "
+            "(2) one concrete improvement. Be sharp, not mean. 2-3 sentences max. "
+            "Answer in the same language as the synthesis."
+        )
+        review = await _deep_agent(
+            session_id, "Reviewer",
+            reviewer_sys,
+            f"Question: {user_msg}\n\nSynthesis to review:\n{synthesis}",
+            max_tok=150
+        )
+        await send("step_done", review, agent="Grok")
+
+        # ── FINAL: save to memory ─────────────────────────────────────────────
+        soul_add(session_id, "user", user_msg)
+        soul_add(session_id, "assistant", synthesis)
+        asyncio.create_task(extract_and_save_memories(user_msg, synthesis, session_id, "deep"))
+
+        await send("session_done", "✅ Готово")
+
+    except Exception as e:
+        logger.error("ws_deep error: %s", e)
+        await send("error", str(e))
+    finally:
+        try:
+            await ws.close()
+        except Exception:
+            pass
 
 @app.websocket("/ws/search")
 async def ws_search(ws: WebSocket):
