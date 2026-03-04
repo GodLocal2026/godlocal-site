@@ -429,12 +429,16 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
     full_response = ""
     tool_context: list[str] = []
 
-    # ── Phase 1: Tool-calling loop (max 3 rounds, rate-limit guarded) ────────
-    for iteration in range(3):
+        # ── Phase 1: Tool-calling loop (max 2 rounds, dedup guard) ──────────────
+    called_tools: set = set()  # prevent duplicate tool calls
+    for iteration in range(2):
         if iteration > 0:
-            await asyncio.sleep(0.4)      # avoid Groq 429 burst
-        resp_data, err = groq_call(messages, tools=tools, max_tokens=4096)
+            await asyncio.sleep(1.0)      # avoid Groq 429 burst
+        resp_data, err = groq_call(messages, tools=tools, max_tokens=2048)
         if err or not resp_data:
+            if "429" in str(err) or "rate" in str(err).lower():
+                # Rate limited - just respond without tools
+                logger.warning("Rate limit hit, skipping tools")
             break
         choice = resp_data["choices"][0]
         msg    = choice["message"]
@@ -447,6 +451,13 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
             for tc in msg["tool_calls"]:
                 fn    = tc["function"]["name"]
                 args  = json.loads(tc["function"].get("arguments", "{}"))
+                # Dedup: skip if this exact tool+args was already called
+                call_key = f"{fn}:{str(args)[:100]}"
+                if call_key in called_tools:
+                    messages.append({"role": "tool", "tool_call_id": tc["id"],
+                                      "name": fn, "content": "(already called)"})
+                    continue
+                called_tools.add(call_key)
                 label = TOOL_LABELS.get(fn, f"\U0001f527 {fn}")
                 await ws.send_json({"t": "tool_start", "v": label})
                 result = await asyncio.get_event_loop().run_in_executor(
@@ -456,18 +467,7 @@ async def react_ws(ws: WebSocket, prompt: str, session_id: str, history: list,
                                   "name": fn, "content": result})
                 tool_context.append(f"[{fn}]\n{str(result)[:700]}")
             continue  # next iteration
-
-        # Model returned content directly — stream it
-        content = msg.get("content") or ""
-        if content:
-            full_response = content
-            chunk = 6
-            for i in range(0, len(content), chunk):
-                await ws.send_json({"t": "token", "v": content[i:i+chunk]})
-                await asyncio.sleep(0.008)
-        break
-
-    # ── Phase 2: Synthesis (only when tools ran but no direct content yet) ───
+# ── Phase 2: Synthesis (only when tools ran but no direct content yet) ───
     if not full_response and tool_context:
         await asyncio.sleep(0.5)          # rate-limit guard before synthesis call
         ctx_block = "\n\n=== Tool Results ===\n" + "\n\n".join(tool_context) + "\n=== End ==="
