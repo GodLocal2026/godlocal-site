@@ -6,32 +6,32 @@ const products = [
   {
     id: "godlocal",
     name: "GodLocal",
-    tagline: "Sovereign AI Ecosystem",
-    desc: "The core platform. Your own autonomous AI stack — search, memory, integrations, code execution. A sovereign agent that works 24/7 on your behalf.",
+    tagline: "Your AI Operating System",
+    desc: "The platform that unifies everything. Search, memory, integrations, code execution, social layer — all running on your own sovereign infrastructure. The OS your agents live inside.",
     url: "/oasis",
     cta: "Enter GodLocal",
-    tag: "Platform · Core",
+    tag: "Platform · OS",
     color: "#00FF9D",
     colorBg: "rgba(0,255,157,0.06)",
     colorBorder: "rgba(0,255,157,0.2)",
     icon: "⚡",
     status: "live",
-    highlights: ["Autonomous AI", "7 Parallel Agents", "Persistent Memory", "Council Mode"],
+    highlights: ["Sovereign Infrastructure", "5-Product Ecosystem", "Persistent Memory", "Open & Self-Hosted"],
   },
   {
     id: "oasis",
     name: "Oasis",
-    tagline: "Multi-Agent AI Terminal",
-    desc: "Seven autonomous agents working simultaneously. Live tool feed, memory graph, artifact gallery, and 3-tier voting. The intelligence hub of the platform.",
+    tagline: "7-Agent AI Workspace",
+    desc: "Seven autonomous agents working in parallel inside your GodLocal OS. Live tool feed, memory graph, artifact gallery, and 3-tier Council voting. Where intelligence actually happens.",
     url: "/oasis",
     cta: "Launch Oasis",
     tag: "AI Workspace",
     color: "#00B4D8",
     colorBg: "rgba(0,180,216,0.06)",
     colorBorder: "rgba(0,180,216,0.2)",
-    icon: "🏛",
+    icon: "🏝",
     status: "live",
-    highlights: ["7 Parallel Agents", "Live Tool Feed", "Memory Graph", "Council Mode"],
+    highlights: ["7 Parallel Agents", "Live Tool Feed", "Council Mode", "Deep Research"],
   },
   {
     id: "game",
@@ -66,8 +66,8 @@ const products = [
   {
     id: "nebudda",
     name: "NEBUDDA",
-    tagline: "AI Social Network",
-    desc: "Telegram-like ecosystem inside GodLocal — chats, channels, files, media, communities. GodLocal AI built into every conversation. Your sovereign social layer.",
+    tagline: "Sovereign Social Layer",
+    desc: "Telegram-like ecosystem inside GodLocal — chats, channels, files, media, communities. GodLocal AI built into every conversation. Your social layer, self-owned.",
     url: "/nebudda",
     cta: "Enter NEBUDDA",
     tag: "Social · Messaging",
@@ -129,7 +129,7 @@ export default function Products() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
                 {products[0].highlights.map(h => (
                   <div key={h} className="flex items-center gap-2 text-xs text-[#E0E0E0]/50">
-                    <span style={{ color: products[0].color }}>◈</span>{h}
+                    <span style={{ color: products[0].color }}>✸</span>{h}
                   </div>
                 ))}
               </div>
@@ -188,7 +188,7 @@ export default function Products() {
                 <div className="grid grid-cols-2 gap-1.5 mb-6">
                   {p.highlights.map(h => (
                     <div key={h} className="flex items-center gap-1.5 text-xs text-[#E0E0E0]/40">
-                      <span style={{ color: p.color }}>◈</span>{h}
+                      <span style={{ color: p.color }}>✸</span>{h}
                     </div>
                   ))}
                 </div>
