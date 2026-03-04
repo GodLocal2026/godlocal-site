@@ -6,32 +6,17 @@ const products = [
   {
     id: "godlocal",
     name: "GodLocal",
-    tagline: "Your AI Operating System",
-    desc: "The platform that unifies everything. Search, memory, integrations, code execution, social layer — all running on your own sovereign infrastructure. The OS your agents live inside.",
-    url: "/chat",
+    tagline: "Multi-Agent AI Workspace",
+    desc: "Seven autonomous agents working in parallel. Live tool feed, memory graph, artifact gallery, Council voting — all running on sovereign infrastructure. Search, integrations, code execution. Your AI OS.",
+    url: "/oasis",
     cta: "Enter GodLocal",
-    tag: "Platform · OS",
+    tag: "Platform · Agents",
     color: "#00FF9D",
     colorBg: "rgba(0,255,157,0.06)",
     colorBorder: "rgba(0,255,157,0.2)",
     icon: "⚡",
     status: "live",
-    highlights: ["Sovereign Infrastructure", "5-Product Ecosystem", "Persistent Memory", "Open & Self-Hosted"],
-  },
-  {
-    id: "oasis",
-    name: "Oasis",
-    tagline: "7-Agent AI Workspace",
-    desc: "Seven autonomous agents working in parallel inside your GodLocal OS. Live tool feed, memory graph, artifact gallery, and 3-tier Council voting. Where intelligence actually happens.",
-    url: "/oasis",
-    cta: "Launch Oasis",
-    tag: "AI Workspace",
-    color: "#00B4D8",
-    colorBg: "rgba(0,180,216,0.06)",
-    colorBorder: "rgba(0,180,216,0.2)",
-    icon: "🏝",
-    status: "live",
-    highlights: ["7 Parallel Agents", "Live Tool Feed", "Council Mode", "Deep Research"],
+    highlights: ["7 Parallel Agents", "Council Mode", "Persistent Memory", "Sovereign Infrastructure"],
   },
   {
     id: "game",
@@ -96,7 +81,7 @@ export default function Products() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
             className="section-title mb-4"
           >
-            Five products.{" "}
+            Four products.{" "}
             <span className="text-[#00FF9D]">One sovereign platform.</span>
           </motion.h2>
           <motion.p
