@@ -34,9 +34,9 @@ TG_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 MODELS = [
-    "llama-3.3-70b-specdec",    # fastest + best reasoning on Groq
-    "llama-3.3-70b-versatile",  # fallback
+    "llama-3.3-70b-versatile",  # primary (specdec decommissioned)
     "llama-3.1-8b-instant",     # fast fallback
+    "meta-llama/llama-4-scout-17b-16e-instruct",  # llama 4 fallback
 ]
 
 _HITL_READY = False
