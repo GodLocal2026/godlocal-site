@@ -331,10 +331,10 @@ let solUsd=0,activeChip='scan',mMint='',mSym='',mMode='buy',mSlip=10,sPct=100,so
 let snipes=JSON.parse(localStorage.getItem('s52sn')||'[]'),snSlip=10;
 let tpV=parseFloat(localStorage.getItem('s52tp')||'100'),slV=parseFloat(localStorage.getItem('s52sl')||'-30');
 let wPub=localStorage.getItem('s52pub')||'',wPrv=localStorage.getItem('s52prv')||'';
-let aiHist=[],filters={mnM:0,mxM:0,mnV:0,mxA:0,mnB:0};
+let filters={mnM:0,mxM:0,mnV:0,mxA:0,mnB:0};
 const G=id=>document.getElementById(id);
-const fN=n=>{if(!n||isNaN(n))return'&#8212;';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toFixed(0)};
-const fP=n=>{if(!n||isNaN(n))return'$&#8212;';if(n<0.000001)return'$'+n.toExponential(2);if(n<0.01)return'$'+n.toFixed(7);if(n<1)return'$'+n.toFixed(4);return'$'+n.toFixed(2)};
+const fN=n=>{if(!n||isNaN(n))return'—';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toFixed(0)};
+const fP=n=>{if(!n||isNaN(n))return'$—';if(n<0.000001)return'$'+n.toExponential(2);if(n<0.01)return'$'+n.toFixed(7);if(n<1)return'$'+n.toFixed(4);return'$'+n.toFixed(2)};
 const fA=ms=>{const s=Math.floor(ms/1000);if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60);if(h<24)return h+'h';return Math.floor(h/24)+'d'};
 function toast(msg,t){const e=G('toastEl');e.textContent=msg;e.className='toast show '+(t||'');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2600)}
 function rugScore(p){let s=0,chk=[];
@@ -358,32 +358,29 @@ const rCls=s>=80?'rl':s>=50?'rm':'rh';const rLbl=s>=80?'SAFE':s>=50?'MED':'RISK'
 if(filters.mnM&&mc<filters.mnM)return null;if(filters.mxM&&mc>filters.mxM)return null;
 if(filters.mnV&&vol1<filters.mnV)return null;if(filters.mxA&&lp>filters.mxA)return null;
 const tot=bs+ss;if(filters.mnB&&tot>0&&bs/tot<filters.mnB)return null;
-const pimg=p.info?.imageUrl?`<img src="${p.info.imageUrl}" onerror="this.parentNode.innerHTML='&#129689;'" alt="">`:'&#129689;';
+const pimg=p.info?.imageUrl?`<img src="${p.info.imageUrl}" onerror="this.parentNode.textContent='🐘'" alt="">`:'🐘';
 const chCls=ch1>=0?'up':'dn';const chSign=ch1>=0?'+':'';
 const badgeCls=chip==='pump'?'bn':chip==='hot'?'bp':'bb';
 const badgeTxt=chip==='pump'?'PUMP':chip==='hot'?'HOT':'NEW';
 const chkHtml=chk.map(c=>`<span class="rck ${c.ok?'rok':'rno'}">${c.l}</span>`).join('');
-return`<div class="card ${ch1>0?'cu':'cd2'}" onclick="openModal('${mint}','${sym.replace(/'/g,"\'")}',${pr})">
-<div class="ct">
-  <div class="tico">${pimg}</div>
-  <div class="tmeta">
-    <div class="tsym">${sym}<span class="badge ${badgeCls}">${badgeTxt}</span><span class="badge bs">${age}</span></div>
-    <div class="tadr" onclick="event.stopPropagation();cpMint('${mint}')">${mint.slice(0,6)}...${mint.slice(-4)}</div>
-  </div>
-  <div class="pbk"><div class="pusd">${fP(pr)}</div><div class="pch ${chCls}">${chSign}${ch1.toFixed(1)}%</div></div>
-</div>
+const symSafe=sym.replace(/'/g,"\'").replace(/"/g,'&quot;');
+return`<div class="card ${ch1>=0?'cu':'cd2'}" onclick="openModal('${mint}','${symSafe}',${pr})">
+<div class="ct"><div class="tico">${pimg}</div>
+<div class="tmeta"><div class="tsym">${sym}<span class="badge ${badgeCls}">${badgeTxt}</span><span class="badge bs">${age}</span></div>
+<div class="tadr" onclick="event.stopPropagation();cpMint('${mint}')">${mint.slice(0,6)}…${mint.slice(-4)}</div></div>
+<div class="pbk"><div class="pusd">${fP(pr)}</div><div class="pch ${chCls}">${chSign}${ch1.toFixed(1)}%</div></div></div>
 <div class="mtr">
-  <div><div class="mv">${fN(mc)}</div><div class="ml">MCAP</div></div>
-  <div><div class="mv">${fN(vol1)}</div><div class="ml">VOL 1H</div></div>
-  <div><div class="mv">${fN(lp)}</div><div class="ml">LIQ</div></div>
-  <div><div class="mv ${ch24>=0?'g':'r'}">${ch24>=0?'+':''}${ch24.toFixed(0)}%</div><div class="ml">24H</div></div>
-</div>
+<div><div class="mv">${fN(mc)}</div><div class="ml">MCAP</div></div>
+<div><div class="mv">${fN(vol1)}</div><div class="ml">VOL 1H</div></div>
+<div><div class="mv">${fN(lp)}</div><div class="ml">LIQ</div></div>
+<div><div class="mv ${ch24>=0?'g':'r'}">${ch24>=0?'+':''}${ch24.toFixed(0)}%</div><div class="ml">24H</div></div></div>
 <div class="rug"><span class="rs ${rCls}">${rLbl} ${s}%</span><div class="rc">${chkHtml}</div><span style="font-size:10px;color:var(--d2)">${bs}B/${ss}S</span></div>
 <div class="cbtns">
-  <button class="bbuy" onclick="event.stopPropagation();openModal('${mint}','${sym.replace(/'/g,"\'")}',${pr},'buy')">&#9889; BUY</button>
-  <button class="bsel" onclick="event.stopPropagation();openModal('${mint}','${sym.replace(/'/g,"\'")}',${pr},'sell')">&#128308; SELL</button>
-  <button class="bai" onclick="event.stopPropagation();aiToken('${sym}','${mint}')">&#129302;</button>
+<button class="bbuy" onclick="event.stopPropagation();openModal('${mint}','${symSafe}',${pr},'buy')">⚡ BUY</button>
+<button class="bsel" onclick="event.stopPropagation();openModal('${mint}','${symSafe}',${pr},'sell')">🔴 SELL</button>
+<button class="bai" onclick="event.stopPropagation();aiToken('${sym}','${mint}')">🤖</button>
 </div></div>`}
+
 async function fetchSol(){
 try{const d=await(await fetch(CG+'/simple/price?ids=solana&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true')).json();
 const s=d.solana;solUsd=s.usd||0;
@@ -394,110 +391,203 @@ const sc=G('mSC');if(sc){sc.textContent=chSign+ch.toFixed(2)+'%';sc.className='s
 const sv=G('mSV');if(sv)sv.textContent=fN(s.usd_24h_vol);
 const sm=G('mSM');if(sm)sm.textContent=fN(s.usd_market_cap);
 }catch(e){console.warn('sol price',e)}}
+
+async function fetchPairsForMints(mints){
+// FIXED: correct DexScreener v1 endpoint
+const r=await fetch(DEX+'/tokens/v1/solana/'+mints.slice(0,30).join(','));
+if(!r.ok)throw new Error('dex v1 err '+r.status);
+const d=await r.json();
+return(d.pairs||[]).filter(p=>p.chainId==='solana');
+}
+
 async function loadScan(full=true){
-const el=G('fScan');if(full)el.innerHTML='<div class="ldg"><div class="spin"></div>&#160;&#1057;&#1082;&#1072;&#1085;&#8230;</div>';
-try{G('tickEl').textContent='&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072; DexScreener&#8230;';
-const [r1,r2]=await Promise.all([
-  fetch(DEX+'/token-boosts/latest/v1').catch(()=>null),
-  fetch(DEX+'/token-profiles/latest/v1').catch(()=>null)]);
+const el=G('fScan');
+if(full)el.innerHTML='<div class="ldg"><div class="spin"></div> Загрузка…</div>';
+try{
+G('tickEl').textContent='Запрос DexScreener…';
+// Step 1: get boosted token addresses
+const [r1,r2]=await Promise.allSettled([
+  fetch(DEX+'/token-boosts/latest/v1'),
+  fetch(DEX+'/token-profiles/latest/v1')]);
+let mints=[];
+if(r1.status==='fulfilled'&&r1.value.ok){const d=await r1.value.json();mints=[...mints,...(Array.isArray(d)?d:d.tokenProfiles||[]).map(x=>x.tokenAddress||x.address).filter(Boolean)];}
+if(r2.status==='fulfilled'&&r2.value.ok){const d=await r2.value.json();mints=[...mints,...(Array.isArray(d)?d:d.tokenProfiles||[]).map(x=>x.tokenAddress||x.address).filter(Boolean)];}
+mints=[...new Set(mints)].slice(0,30);
 let pairs=[];
-if(r1?.ok){const d=await r1.json();const mints=(d.slice?d:d.tokenProfiles||[]).slice(0,30).map(x=>x.tokenAddress||x.address).filter(Boolean);
-if(mints.length){const r=await fetch(DEX+'/tokens/solana/'+mints.join(','));if(r.ok){const td=await r.json();pairs=(td.pairs||[]).filter(p=>p.chainId==='solana');}}}
-if(!pairs.length&&r2?.ok){const d=await r2.json();const mints=(d.slice?d:d.tokenProfiles||[]).slice(0,30).map(x=>x.tokenAddress||x.address).filter(Boolean);
-if(mints.length){const r=await fetch(DEX+'/tokens/solana/'+mints.join(','));if(r.ok){const td=await r.json();pairs=(td.pairs||[]).filter(p=>p.chainId==='solana');}}}
-if(!pairs.length)throw new Error('No pairs');
+if(mints.length){try{pairs=await fetchPairsForMints(mints);}catch(e){console.warn('mints fetch fail',e);}}
+// Fallback: search API
+if(!pairs.length){
+  G('tickEl').textContent='Запасной маршрут…';
+  const rs=await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6');
+  if(rs.ok){const ds=await rs.json();pairs=(ds.pairs||[]).filter(p=>p.chainId==='solana');}
+}
+if(!pairs.length)throw new Error('Нет данных от DexScreener');
 pairs.sort((a,b)=>(b.volume?.h1||0)-(a.volume?.h1||0));
 const html=pairs.slice(0,40).map(p=>buildCard(p,'new')).filter(Boolean).join('');
-el.innerHTML=html||'<div class="ldg">&#1053;&#1077;&#1090; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</div>';
-G('tickEl').textContent=`&#1054;&#1073;&#1085;&#1086;&#1074;&#1083;&#1077;&#1085;&#1086; ${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})} &#183; ${pairs.length} &#1087;&#1072;&#1088;`;
-}catch(e){G('tickEl').textContent='&#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1079;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1080;';if(full)el.innerHTML='<div class="ldg">&#9888;&#65039; &#1054;&#1096;&#1080;&#1073;&#1082;&#1072;: '+e.message+'</div>'}}
-async function loadPump(){const el=G('fPump');el.innerHTML='<div class="ldg"><div class="spin"></div>&#160;pump.fun&#8230;</div>';
-try{const r=await fetch(PUMP+'/coins?offset=0&limit=32&sort=last_trade_timestamp&order=DESC&includeNsfw=false');
-if(!r.ok)throw new Error('pump err');const coins=await r.json();
-const html=coins.map(c=>{const sym=c.symbol||'???';const mc=c.usd_market_cap||0;const img=c.image_uri?`<img src="${c.image_uri}" onerror="this.parentNode.innerHTML='&#128293;'" alt="">`:'&#128293;';
-return`<div class="card cu" onclick="openModal('${c.mint}','${sym.replace(/'/g,"\'")}',${c.usd_market_cap/1e9||0})">
-<div class="ct"><div class="tico">${img}</div><div class="tmeta"><div class="tsym">${sym}<span class="badge bn">PUMP</span></div><div class="tadr" onclick="event.stopPropagation();cpMint('${c.mint}')">${c.mint.slice(0,6)}...${c.mint.slice(-4)}</div></div><div class="pbk"><div class="pusd">${fN(mc)}</div><div style="font-size:9px;color:var(--d2)">MCAP</div></div></div>
+el.innerHTML=html||'<div class="ldg">Нет токенов по фильтрам</div>';
+G('tickEl').textContent=`Обновлено ${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})} · ${pairs.length} пар`;
+}catch(e){console.error('scan',e);G('tickEl').textContent='Ошибка загрузки';
+if(full)el.innerHTML=`<div class="ldg">⚠️ ${e.message}</div>`;}}
+
+async function loadPump(){
+const el=G('fPump');el.innerHTML='<div class="ldg"><div class="spin"></div> pump.fun…</div>';
+try{
+const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),6000);
+const r=await fetch(PUMP+'/coins?offset=0&limit=32&sort=last_trade_timestamp&order=DESC&includeNsfw=false',{signal:ctrl.signal});
+if(!r.ok)throw new Error('pump '+r.status);
+const coins=await r.json();
+el.innerHTML=coins.map(c=>{const sym=c.symbol||'???';const mc=c.usd_market_cap||0;
+const img=c.image_uri?`<img src="${c.image_uri}" onerror="this.parentNode.textContent='🔥'" alt="">`:'🔥';
+const symSafe=(sym+'').replace(/'/g,"\'").replace(/"/g,'&quot;');
+return`<div class="card cu" onclick="openModal('${c.mint}','${symSafe}',0)">
+<div class="ct"><div class="tico">${img}</div>
+<div class="tmeta"><div class="tsym">${sym}<span class="badge bn">PUMP</span></div>
+<div class="tadr" onclick="event.stopPropagation();cpMint('${c.mint}')">${(c.mint+'').slice(0,6)}…${(c.mint+'').slice(-4)}</div></div>
+<div class="pbk"><div class="pusd">${fN(mc)}</div><div style="font-size:9px;color:var(--d2)">MCAP</div></div></div>
 <div style="font-size:11px;color:var(--d2);padding:0 12px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.description||''}</div>
-<div class="cbtns"><button class="bbuy" onclick="event.stopPropagation();openModal('${c.mint}','${sym.replace(/'/g,"\'")}',0,'buy')">&#9889; BUY</button><button class="bai" onclick="event.stopPropagation();aiToken('${sym}','${c.mint}')">&#129302;</button></div></div>`}).join('');
-el.innerHTML=html||'<div class="ldg">&#1053;&#1077;&#1090; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</div>';}
-catch(e){el.innerHTML='<div class="ldg">&#9888;&#65039; pump.fun &#1085;&#1077;&#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1077;&#1085;</div>'}}
-async function loadHot(){const el=G('fHot');el.innerHTML='<div class="ldg"><div class="spin"></div>&#160;&#1043;&#1086;&#1088;&#1103;&#1095;&#1080;&#1077;&#8230;</div>';
-try{const r=await fetch(DEX+'/token-boosts/top/v1');if(!r.ok)throw new Error('hot err');
-const d=await r.json();const mints=(d.slice?d:d.tokenProfiles||[]).slice(0,30).map(x=>x.tokenAddress||x.address).filter(Boolean);
-const r2=await fetch(DEX+'/tokens/solana/'+mints.join(','));if(!r2.ok)throw new Error();
-const td=await r2.json();const pairs=(td.pairs||[]).filter(p=>p.chainId==='solana').sort((a,b)=>(b.priceChange?.h1||0)-(a.priceChange?.h1||0));
-const html=pairs.map(p=>buildCard(p,'hot')).filter(Boolean).join('');
-el.innerHTML=html||'<div class="ldg">&#1053;&#1077;&#1090; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</div>';}
-catch(e){el.innerHTML='<div class="ldg">&#9888;&#65039; &#1054;&#1096;&#1080;&#1073;&#1082;&#1072;</div>'}}
-async function loadTrend(){const el=G('trendEl');if(!el)return;
+<div class="cbtns"><button class="bbuy" onclick="event.stopPropagation();openModal('${c.mint}','${symSafe}',0,'buy')">⚡ BUY</button><button class="bai" onclick="event.stopPropagation();aiToken('${sym}','${c.mint}')">🤖</button></div></div>`}).join('');
+}catch(e){
+// Fallback to DexScreener search for pump tokens
+try{const rs=await fetch(DEX+'/latest/dex/search?q=pump&rankBy=pairCreatedAt');
+if(!rs.ok)throw new Error();const ds=await rs.json();
+const pairs=(ds.pairs||[]).filter(p=>p.chainId==='solana').slice(0,30);
+el.innerHTML=pairs.map(p=>buildCard(p,'pump')).filter(Boolean).join('')||'<div class="ldg">Нет данных</div>';}
+catch(e2){el.innerHTML='<div class="ldg">⚠️ pump.fun недоступен</div>';}}}
+
+async function loadHot(){
+const el=G('fHot');el.innerHTML='<div class="ldg"><div class="spin"></div> Горячие…</div>';
+try{
+const r=await fetch(DEX+'/token-boosts/top/v1');
+if(!r.ok)throw new Error('hot '+r.status);
+const d=await r.json();
+const mints=(Array.isArray(d)?d:d.tokenProfiles||[]).slice(0,30).map(x=>x.tokenAddress||x.address).filter(Boolean);
+let pairs=[];
+if(mints.length){try{pairs=await fetchPairsForMints(mints);}catch(e){}}
+if(!pairs.length){const rs=await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH1');
+if(rs.ok){const ds=await rs.json();pairs=(ds.pairs||[]).filter(p=>p.chainId==='solana');}}
+pairs.sort((a,b)=>(parseFloat(b.priceChange?.h1||0))-(parseFloat(a.priceChange?.h1||0)));
+el.innerHTML=pairs.slice(0,40).map(p=>buildCard(p,'hot')).filter(Boolean).join('')||'<div class="ldg">Нет данных</div>';
+}catch(e){el.innerHTML='<div class="ldg">⚠️ '+e.message+'</div>';}}
+
+async function loadTrend(){
+const el=G('trendEl');if(!el)return;
 try{const r=await fetch(CG+'/coins/markets?vs_currency=usd&category=solana-meme-coins&order=volume_desc&per_page=15&sparkline=false');
 if(!r.ok)throw new Error();const coins=await r.json();
-el.innerHTML=coins.map((c,i)=>{const ch=c.price_change_percentage_24h||0;return`<div class="trow" onclick="aiToken('${c.symbol.toUpperCase()}','${c.id}')">
+el.innerHTML=coins.map((c,i)=>{const ch=c.price_change_percentage_24h||0;
+return`<div class="trow" onclick="aiToken('${c.symbol.toUpperCase()}','${c.id}')">
 <span style="font-size:11px;font-weight:800;color:var(--d);width:18px;font-family:monospace">${i+1}</span>
 <div style="flex:1"><span style="font-size:13px;font-weight:700;color:#fff;display:block">${c.name}</span><span style="font-size:10px;color:var(--d2)">${c.symbol.toUpperCase()}</span></div>
-<div style="text-align:right"><span style="font-size:12px;font-weight:700;color:#fff;display:block;font-family:monospace">${fP(c.current_price)}</span><span style="font-size:11px;font-weight:700;font-family:monospace;color:${ch>=0?'var(--g)':'var(--r)'}">${ch>=0?'+':''}${ch.toFixed(1)}%</span></div></div>`}).join('');}
-catch(e){el.innerHTML='<div class="ldg">&#8212;</div>'}}
+<div style="text-align:right"><span style="font-size:12px;font-weight:700;color:#fff;display:block;font-family:monospace">${fP(c.current_price)}</span>
+<span style="font-size:11px;font-weight:700;font-family:monospace;color:${ch>=0?'var(--g)':'var(--r)'}">${ch>=0?'+':''}${ch.toFixed(1)}%</span></div></div>`}).join('');
+}catch(e){if(el)el.innerHTML='<div class="ldg">—</div>';}}
 
-function chip(c){activeChip=c;['scan','pump','hot','snipe','market','wallet','ai'].forEach(x=>{const e=G('v'+x[0].toUpperCase()+x.slice(1));if(e)e.className='view'+(x===c?' on':'');});
+function chip(c){activeChip=c;
+const vmap={scan:'vScan',pump:'vPump',hot:'vHot',snipe:'vSnipe'};
+Object.values(vmap).forEach(v=>{const e=G(v);if(e)e.className='view'+(v===vmap[c]?' on':'')});
 ['Scan','Pump','Hot','Snipe'].forEach(x=>{const e=G('c'+x);if(e)e.className='chip '+(x==='Scan'?'cg':x==='Pump'?'co':x==='Hot'?'cy':'cp')+(c===x.toLowerCase()?' on':'')});
 if(c==='pump')loadPump();else if(c==='hot')loadHot();}
+
 function go(t){activeChip=t;
 const views={scan:'vScan',pump:'vPump',hot:'vHot',snipe:'vSnipe',market:'vMarket',wallet:'vWallet',ai:'vAI'};
 Object.values(views).forEach(v=>{const e=G(v);if(e)e.className='view'});
-if(views[t]){const e=G(views[t]);if(e)e.className='view on';}
+const target=views[t];if(target){const e=G(target);if(e)e.className='view on';}
 ['Scan','Market','Snipe','Wallet','AI'].forEach(x=>{const e=G('t'+x);if(e)e.className='tab'+(t===x.toLowerCase()?' on':'')});
 if(t==='market'){loadTrend();fetchSol();}else if(t==='wallet'&&wPub)loadWallet();}
+
 function toggleFlt(){const e=G('fltEl');const b=G('cFlt');if(!e)return;e.classList.toggle('open');b.classList.toggle('on')}
-function applyFlt(){filters={mnM:+G('fMnM').value||0,mxM:+G('fMxM').value||0,mnV:+G('fMnV').value||0,mxA:+G('fMxA').value||0,mnB:+G('fMnB').value||0};loadScan();toast('&#1060;&#1080;&#1083;&#1100;&#1090;&#1088; &#1087;&#1088;&#1080;&#1084;&#1077;&#1085;&#1105;&#1085;','ok')}
-function cpMint(a){navigator.clipboard?.writeText(a).then(()=>toast('&#1040;&#1076;&#1088;&#1077;&#1089; &#1089;&#1082;&#1086;&#1087;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;','ok'))}
-function setSlo(el,v){snSlip=v;G('snSlOpts').querySelectorAll('.slo').forEach(e=>e.classList.remove('on'));el.classList.add('on')}
-function addSnipe(){const a=G('snAdr').value.trim();const s=parseFloat(G('snSol').value)||0.1;if(!a){toast('&#1042;&#1074;&#1077;&#1076;&#1080; &#1072;&#1076;&#1088;&#1077;&#1089;','err');return}snipes.push({a,s,sl:snSlip});localStorage.setItem('s52sn',JSON.stringify(snipes));G('snAdr').value='';renderSnipes();toast('&#1046;&#1076;&#1091; &#1083;&#1080;&#1082;&#1074;&#1080;&#1076;&#1085;&#1086;&#1089;&#1090;&#1080;...','ok')}
-function renderSnipes(){const el=G('snList');if(!el)return;if(!snipes.length){el.innerHTML='<div style="font-size:11px;color:var(--d);text-align:center;padding:10px">&#1057;&#1087;&#1080;&#1089;&#1086;&#1082; &#1094;&#1077;&#1083;&#1077;&#1081; &#1087;&#1091;&#1089;&#1090;</div>';return}el.innerHTML=snipes.map((x,i)=>`<div class="sit"><span class="sa">${x.a}</span><span style="font-size:10px;font-weight:700;color:var(--y)">${x.s} SOL</span><span style="color:var(--r);font-size:14px;cursor:pointer;margin-left:6px" onclick="delSnipe(${i})">&#x2715;</span></div>`).join('')}
+function applyFlt(){filters={mnM:+G('fMnM').value||0,mxM:+G('fMxM').value||0,mnV:+G('fMnV').value||0,mxA:+G('fMxA').value||0,mnB:+G('fMnB').value||0};loadScan();toast('Фильтр применён','ok')}
+function cpMint(a){navigator.clipboard?.writeText(a).then(()=>toast('Адрес скопирован','ok'))}
+
+// FIXED: use el.closest('.slop') instead of G('snSlOpts')
+function setSlo(el,v){snSlip=v;el.closest('.slop').querySelectorAll('.slo').forEach(e=>e.classList.remove('on'));el.classList.add('on')}
+
+function addSnipe(){const a=G('snAdr').value.trim();const s=parseFloat(G('snSol').value)||0.1;if(!a){toast('Введи адрес','err');return}snipes.push({a,s,sl:snSlip});localStorage.setItem('s52sn',JSON.stringify(snipes));G('snAdr').value='';renderSnipes();toast('Жду ликвидности…','ok')}
+function renderSnipes(){const el=G('snList');if(!el)return;if(!snipes.length){el.innerHTML='<div style="font-size:11px;color:var(--d);text-align:center;padding:10px">Список целей пуст</div>';return}el.innerHTML=snipes.map((x,i)=>`<div class="sit"><span class="sa">${x.a}</span><span style="font-size:10px;font-weight:700;color:var(--y)">${x.s} SOL</span><span style="color:var(--r);font-size:14px;cursor:pointer;margin-left:6px" onclick="delSnipe(${i})">✕</span></div>`).join('')}
 function delSnipe(i){snipes.splice(i,1);localStorage.setItem('s52sn',JSON.stringify(snipes));renderSnipes()}
-function saveTpSl(){tpV=parseFloat(G('tpI').value)||100;slV=parseFloat(G('slI').value)||-30;localStorage.setItem('s52tp',tpV);localStorage.setItem('s52sl',slV);toast('TP/SL &#1089;&#1086;&#1093;&#1088;&#1072;&#1085;&#1077;&#1085;&#1086;','ok')}
-function saveWallet(){const pub=G('wPubI').value.trim();if(!pub){toast('&#1042;&#1074;&#1077;&#1076;&#1080; &#1072;&#1076;&#1088;&#1077;&#1089;','err');return}wPub=pub;wPrv=G('wPrvI').value.trim();localStorage.setItem('s52pub',wPub);if(wPrv)localStorage.setItem('s52prv',wPrv);initWallet();loadWallet();toast('&#1050;&#1086;&#1096;&#1077;&#1083;&#1105;&#1082; &#1087;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1105;&#1085;','ok')}
-function initWallet(){if(!wPub)return;G('wSetEl').style.display='none';G('wHdEl').style.display='block';const s=wPub;G('wAdEl').textContent=s.slice(0,6)+'...'+s.slice(-6)}
-function discWallet(){wPub='';wPrv='';localStorage.removeItem('s52pub');localStorage.removeItem('s52prv');G('wSetEl').style.display='block';G('wHdEl').style.display='none';G('holdEl').innerHTML='<div style="color:var(--d);font-size:12px;text-align:center;padding:20px">&#1055;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1080; &#1082;&#1086;&#1096;&#1077;&#1083;&#1105;&#1082;</div>';toast('&#1042;&#1099;&#1096;&#1077;&#1083;')}
-function cpAddr(){navigator.clipboard?.writeText(wPub).then(()=>toast('&#1040;&#1076;&#1088;&#1077;&#1089; &#1089;&#1082;&#1086;&#1087;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;','ok'))}
-async function loadWallet(){if(!wPub)return;try{const r=await fetch('https://mainnet.helius-rpc.com/?api-key=demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[wPub]})});const d=await r.json();const sol=(d.result?.value||0)/1e9;G('wSlEl').textContent=sol.toFixed(4)+' SOL';G('wUEl').textContent='≈ $'+(sol*solUsd).toFixed(2);}catch(e){G('wSlEl').textContent='?? SOL'}}
-function openModal(mint,sym,pr,mode='buy'){mMint=mint;mSym=sym;mMode=mode;
-G('mNm').textContent=sym;G('mPr').textContent='$'+Number(pr).toFixed(pr<0.01?7:pr<1?4:2);
-G('mIco').textContent='&#129689;';
+function saveTpSl(){tpV=parseFloat(G('tpI').value)||100;slV=parseFloat(G('slI').value)||-30;localStorage.setItem('s52tp',tpV);localStorage.setItem('s52sl',slV);toast('TP/SL сохранено','ok')}
+
+function saveWallet(){const pub=G('wPubI').value.trim();if(!pub){toast('Введи адрес','err');return}wPub=pub;wPrv=G('wPrvI').value.trim();localStorage.setItem('s52pub',wPub);if(wPrv)localStorage.setItem('s52prv',wPrv);initWallet();loadWallet();toast('Кошелёк подключён','ok')}
+function initWallet(){if(!wPub)return;G('wSetEl').style.display='none';G('wHdEl').style.display='block';G('wAdEl').textContent=wPub.slice(0,6)+'…'+wPub.slice(-6)}
+function discWallet(){wPub='';wPrv='';localStorage.removeItem('s52pub');localStorage.removeItem('s52prv');G('wSetEl').style.display='block';G('wHdEl').style.display='none';G('holdEl').innerHTML='<div style="color:var(--d);font-size:12px;text-align:center;padding:20px">Подключи кошелёк</div>';toast('Вышел')}
+function cpAddr(){navigator.clipboard?.writeText(wPub).then(()=>toast('Адрес скопирован','ok'))}
+
+async function loadWallet(){if(!wPub)return;
+try{const r=await fetch('https://api.mainnet-beta.solana.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[wPub]})});
+const d=await r.json();const sol=(d.result?.value||0)/1e9;
+G('wSlEl').textContent=sol.toFixed(4)+' SOL';G('wUEl').textContent='≈ $'+(sol*solUsd).toFixed(2);}
+catch(e){G('wSlEl').textContent='?? SOL';console.warn('wallet',e)}}
+
+function openModal(mint,sym,pr,mode){mode=mode||'buy';mMint=mint;mSym=sym;mMode=mode;
+G('mNm').textContent=sym;G('mPr').textContent=fP(parseFloat(pr||0));
+G('mIco').textContent='🐘';
 setMd(mode);G('ovEl').classList.add('open');if(mode==='buy')debQ();}
 function closeModal(){G('ovEl').classList.remove('open')}
-function setMd(m){mMode=m;G('mBuy').className='mmd buy'+(m==='buy'?' on':'');G('mSel').className='mmd sell'+(m==='sell'?' on':'');G('buyBlk').style.display=m==='buy'?'block':'none';G('sellBlk').style.display=m==='sell'?'block':'none';const eb=G('exBtn');eb.className='exb '+m;eb.textContent=m==='buy'?'&#9889; &#1057;&#1042;&#1054;&#1055; &#1095;&#1077;&#1088;&#1077;&#1079; Jupiter':'&#128308; &#1055;&#1056;&#1054;&#1044;&#1040;&#1058;&#1068; &#1095;&#1077;&#1088;&#1077;&#1079; Jupiter'}
-function setPr(v){solAmt=v;document.querySelectorAll('.pr').forEach(e=>e.classList.remove('on'));event.target.classList.add('on');G('mSA').value=v;debQ()}
+
+function setMd(m){mMode=m;G('mBuy').className='mmd buy'+(m==='buy'?' on':'');G('mSel').className='mmd sell'+(m==='sell'?' on':'');G('buyBlk').style.display=m==='buy'?'block':'none';G('sellBlk').style.display=m==='sell'?'block':'none';const eb=G('exBtn');eb.className='exb '+m;eb.textContent=m==='buy'?'⚡ СВОП через Jupiter':'🔴 ПРОДАТЬ через Jupiter'}
+function setPr(v){solAmt=v;document.querySelectorAll('#buyBlk .pr').forEach(e=>e.classList.remove('on'));event.target.classList.add('on');G('mSA').value=v;debQ()}
 function setSPct(v){sPct=v;document.querySelectorAll('#sellBlk .pr').forEach(e=>e.classList.remove('on'));event.target.classList.add('on')}
 function setMSl(el,v){mSlip=v;G('mSlOpts').querySelectorAll('.mso').forEach(e=>e.classList.remove('on'));el.classList.add('on')}
-function debQ(){clearTimeout(qTmr);qTmr=setTimeout(getQuote,600)}
+function debQ(){clearTimeout(qTmr);qTmr=setTimeout(getQuote,700)}
+
 async function getQuote(){const qbx=G('qBx');if(!mMint||mMode!=='buy')return;
 const amt=parseFloat(G('mSA').value)||0.25;solAmt=amt;
-qbx.innerHTML='<span class="spin" style="width:10px;height:10px"></span> &#1047;&#1072;&#1087;&#1088;&#1086;&#1089; Jupiter&#8230;';
-try{const lam=Math.floor(amt*1e9);const r=await fetch(`${JUP}/quote?inputMint=${WSOL}&outputMint=${mMint}&amount=${lam}&slippageBps=${mSlip*100}`);
-if(!r.ok)throw new Error('quote err');const d=await r.json();
-const out=parseInt(d.outAmount||0);const dec=d.routePlan?.[0]?.swapInfo?.outputMint===mMint?6:9;
-const outF=(out/10**dec).toFixed(4);const imp=((d.priceImpactPct||0)*100).toFixed(2);
-qbx.innerHTML=`<b>&#1055;&#1086;&#1083;&#1091;&#1095;&#1080;&#1096;&#1100;:</b> ${outF} ${mSym} | &#1074;&#1083;&#1080;&#1103;&#1085;&#1080;&#1077;: <span style="color:${imp>2?'var(--r)':'var(--g)'}">${imp}%</span>`;}
-catch(e){qbx.innerHTML='&#9888;&#65039; &#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1082;&#1086;&#1090;&#1080;&#1088;&#1086;&#1074;&#1082;&#1080;'}}
-async function execSwap(){if(!wPrv){toast('&#1044;&#1086;&#1073;&#1072;&#1074;&#1100; &#1087;&#1088;&#1080;&#1074;&#1072;&#1090;&#1085;&#1099;&#1081; &#1082;&#1083;&#1102;&#1095; &#1074; &#1050;&#1086;&#1096;&#1077;&#1083;&#1105;&#1082;','err');return}
-toast('&#128640; &#1054;&#1090;&#1087;&#1088;&#1072;&#1074;&#1082;&#1072; &#1095;&#1077;&#1088;&#1077;&#1079; Jupiter&#8230;');
-window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');closeModal()}
-function aiToken(sym,mint){go('ai');const q=`&#1055;&#1088;&#1086;&#1072;&#1085;&#1072;&#1083;&#1080;&#1079;&#1080;&#1088;&#1091;&#1081; &#1090;&#1086;&#1082;&#1077;&#1085; ${sym} (${mint})`;addMsg(q,'us');sendAIReq(q)}
+qbx.innerHTML='<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Запрос Jupiter…';
+try{const lam=Math.floor(amt*1e9);
+const r=await fetch(`${JUP}/quote?inputMint=${WSOL}&outputMint=${mMint}&amount=${lam}&slippageBps=${mSlip*100}`);
+if(!r.ok)throw new Error('quote '+r.status);const d=await r.json();
+const out=parseInt(d.outAmount||0);const outF=(out/1e6).toFixed(2);
+const imp=((parseFloat(d.priceImpactPct||0))*100).toFixed(2);
+qbx.innerHTML=`<b>Получишь:</b> ~${outF} ${mSym} | влияние: <span style="color:${parseFloat(imp)>2?'var(--r)':'var(--g)'}">${imp}%</span>`;}
+catch(e){qbx.innerHTML='Jupiter: открывает на jup.ag для совершения свопа';}}
+
+async function execSwap(){
+window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');closeModal();toast('Открыт Jupiter для свопа','ok')}
+
+function aiToken(sym,mint){go('ai');setTimeout(()=>{const q=`Проанализируй токен ${sym} (${mint})`;addMsg(q,'us');sendAIReq(q)},100)}
 function qa(q){addMsg(q,'us');sendAIReq(q)}
 function addMsg(t,role){const el=G('aiMs');const div=document.createElement('div');div.className='bbl '+role;div.innerHTML=t;el.appendChild(div);el.scrollTop=el.scrollHeight;return div}
 function arz(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,80)+'px'}
 function aiK(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI()}}
-async function sendAI(){const i=G('aiI');const q=i.value.trim();if(!q)return;i.value='';i.style.height='auto';addMsg(q,'us');sendAIReq(q)}
-async function sendAIReq(q){const el=G('aiMs');const typ=document.createElement('div');typ.className='typ';typ.innerHTML='<span></span><span></span><span></span>';el.appendChild(typ);el.scrollTop=el.scrollHeight;
-try{const r=await fetch('/api/think',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,context:'solana memecoin trader, tool: slonik52',sol_price:solUsd})});
-typ.remove();let txt='';
-if(r.ok){const d=await r.json();txt=d.response||d.text||d.message||JSON.stringify(d);}
-else txt='&#9888;&#65039; &#1054;&#1096;&#1080;&#1073;&#1082;&#1072; AI &#8212; &#1087;&#1088;&#1086;&#1073;&#1091;&#1081; &#1077;&#1097;&#1105; &#1088;&#1072;&#1079;';
-addMsg(txt,'ai');}catch(e){typ.remove();addMsg('&#9888;&#65039; &#1054;&#1096;&#1080;&#1073;&#1082;&#1072; &#1089;&#1086;&#1077;&#1076;&#1080;&#1085;&#1077;&#1085;&#1080;&#1103;','ai')}}
+function sendAI(){const i=G('aiI');const q=i.value.trim();if(!q)return;i.value='';i.style.height='auto';addMsg(q,'us');sendAIReq(q)}
+
+async function sendAIReq(q){
+const el=G('aiMs');const typ=document.createElement('div');typ.className='typ';
+typ.innerHTML='<span></span><span></span><span></span>';el.appendChild(typ);el.scrollTop=el.scrollHeight;
+// Detect token address in query
+const mintMatch=q.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+let extraCtx='';
+if(mintMatch){
+  try{const r=await fetch(DEX+'/tokens/v1/solana/'+mintMatch[0]);
+  if(r.ok){const d=await r.json();const p=d.pairs?.[0];
+  if(p)extraCtx=` Данные: цена=$${p.priceUsd||0}, mcap=${fN(parseFloat(p.fdv||0))}, vol1h=${fN(p.volume?.h1||0)}, liq=${fN(p.liquidity?.usd||0)}, изм1h=${p.priceChange?.h1||0}%`;}}
+  catch(e){}
+}
+try{const r=await fetch('/api/think',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({message:q+extraCtx,context:'Solana memecoin trader, slonik52 terminal',sol_price:solUsd})});
+typ.remove();
+if(r.ok){const d=await r.json();const txt=d.response||d.text||d.message||d.content||JSON.stringify(d);addMsg(txt,'ai');}
+else throw new Error(r.status);}
+catch(e){typ.remove();
+// Offline fallback: basic analysis without API
+const resp=aiOffline(q,mintMatch?.[0]);addMsg(resp,'ai');}}
+
+function aiOffline(q,mint){
+const ql=q.toLowerCase();
+if(ql.includes('топ')||ql.includes('горяч')||ql.includes('hot'))return'🔥 Открой вкладку <b>Горячие</b> — там топ мемкоинов Solana по росту за 1h в реальном времени.';
+if(ql.includes('rug')||ql.includes('скам'))return'⚠️ <b>Признаки rug pull:</b><br>• Ликвидность &lt; $5K<br>• Нет LP lock<br>• 1-2 холдера держат 80%+<br>• Объём резко упал после памп<br>• Dev wallet не заблокирован';
+if(ql.includes('sol')||ql.includes('цена'))return`⚡ SOL сейчас: <b>$${solUsd.toFixed(2)}</b><br>Данные обновляются каждые 30 сек через CoinGecko.`;
+if(ql.includes('купить')||ql.includes('buy'))return'⚡ Нажми <b>BUY</b> на любой карточке → выставь сумму SOL → СВОП откроет Jupiter с лучшим маршрутом.';
+if(mint)return`📊 <b>Адрес:</b> ${mint.slice(0,8)}…<br>Открой карточку токена → нажми 🤖 для детального анализа через DexScreener.<br><br>Данные: mcap, объём, rug-score — видны прямо на карточке.`;
+return'🤖 AI-анализ временно в оффлайн режиме.<br>Используй карточки токенов — там rug-score, B/S ratio и все метрики в реальном времени.';
+}
+
 window.addEventListener('DOMContentLoaded',()=>{
 fetchSol();setInterval(fetchSol,30000);
 initWallet();if(wPub)loadWallet();
-renderSnipes();G('tpI').value=tpV;G('slI').value=slV;
-loadScan();setInterval(()=>{if(activeChip==='scan')loadScan(false)},35000);
+renderSnipes();
+if(G('tpI'))G('tpI').value=tpV;
+if(G('slI'))G('slI').value=slV;
+loadScan();
+setInterval(()=>{if(activeChip==='scan')loadScan(false);},35000);
 });
 </script></body></html>
