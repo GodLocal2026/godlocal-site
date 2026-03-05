@@ -52,7 +52,6 @@ def _start_hitl_thread():
         logger.info("HITL: env vars missing — running without HITL")
         return
     try:
-        # Import here so missing packages don't crash Flask when HITL is unused
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "godlocal_hitl"))
         from task_queue import TaskQueue
         from telegram_hitl import HITLNotifier
@@ -73,7 +72,6 @@ def _start_hitl_thread():
         _HITL_READY = True
         logger.info("HITL: TaskQueue + HITLNotifier ready")
 
-        # Run telegram polling in this dedicated loop forever
         loop.run_until_complete(notifier.start_polling())
     except Exception as e:
         logger.warning("HITL thread error: %s", e)
@@ -81,7 +79,6 @@ def _start_hitl_thread():
 # HITL callbacks (sync wrappers — run in _hitl_loop)
 async def _on_hitl_approve(task):
     logger.info("HITL approved: %s", task.get("title"))
-    # If it was a social post, execute it now
     draft = task.get("draft_data") or {}
     dtype = task.get("draft_type", "")
     if dtype == "social_draft" and draft.get("platform") == "twitter":
@@ -238,7 +235,6 @@ def run_tool(name, args):
     try:
         if name == "post_tweet":
             text = args.get("text", "")
-            # Route through HITL if available
             if _HITL_READY and _hitl_tq and _hitl_notifier and _hitl_loop:
                 task = _hitl_tq.create(
                     title=f"Опубликовать твит @kitbtc",
@@ -252,14 +248,12 @@ def run_tool(name, args):
                 )
                 return json.dumps({"ok": True, "hitl": True, "task_id": task["id"],
                                    "note": "Tweet queued for HITL approval via Telegram"})
-            # Direct post if no HITL
             r = requests.post(f"{base}/TWITTER_CREATION_OF_A_POST/execute",
                 json={"input": {"text": text}},
                 headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
 
         if name == "send_telegram":
-            # Notify via HITL bot if available, else direct Composio
             if _HITL_READY and _hitl_notifier and _hitl_loop:
                 asyncio.run_coroutine_threadsafe(
                     _hitl_notifier.notify(args.get("text", "")), _hitl_loop
@@ -273,8 +267,8 @@ def run_tool(name, args):
         if name == "create_github_issue":
             r = requests.post(f"{base}/GITHUB_CREATE_AN_ISSUE/execute",
                 json={"input": {"owner": "GodLocal2026", "repo": "godlocal-site",
-                                "title": args.get("title", ""),
-                                "body":  args.get("body", "")}},
+                               "title": args.get("title", ""),
+                               "body":  args.get("body", "")}},
                 headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
     except Exception as e:
@@ -317,11 +311,54 @@ def react(prompt, history=None):
             text = msg.get("content") or ""
             with _lock:
                 _thoughts.append({"text": text[:200],
-                                   "ts": datetime.utcnow().isoformat(),
-                                   "model": used_model})
+                                  "ts": datetime.utcnow().isoformat(),
+                                  "model": used_model})
                 if len(_thoughts) > 20: _thoughts.pop(0)
             return text, steps, used_model
     return "Internal error", steps, used_model
+
+
+# ── Follow-up question generator ──────────────────────────────────────────────
+def generate_follow_up(prompt: str, response: str) -> list:
+    """
+    Generate 3 short guiding follow-up questions based on the conversation.
+    Returns a list of 3 strings. Falls back to [] on any error.
+    """
+    if not GROQ_KEY:
+        return []
+    try:
+        msgs = [
+            {"role": "system", "content":
+                "You are a helpful assistant. Based on the user's question and the AI's answer, "
+                "generate exactly 3 short follow-up questions the user might want to ask next. "
+                "Rules:\n"
+                "- Each question must be under 8 words\n"
+                "- Questions should deepen understanding or explore next steps\n"
+                "- Respond ONLY with a JSON array of 3 strings, no other text\n"
+                "- Example: [\"How does X work?\", \"What about Y?\", \"Can I do Z?\"]\n"
+                "- Match the language of the user's question (Russian or English)"},
+            {"role": "user", "content":
+                f"User asked: {prompt[:300]}\n\nAI answered: {response[:400]}\n\n"
+                f"Generate 3 short follow-up questions as JSON array:"}
+        ]
+        # Use the fastest model for follow-up generation
+        resp, err = groq_call(msgs, tools=None, idx=1)  # idx=1 → llama-3.1-8b-instant
+        if err or not resp:
+            return []
+        content = resp["choices"][0]["message"].get("content", "")
+        # Parse JSON array from response
+        start = content.find("[")
+        end   = content.rfind("]") + 1
+        if start == -1 or end == 0:
+            return []
+        questions = json.loads(content[start:end])
+        if isinstance(questions, list):
+            return [str(q) for q in questions[:3]]
+        return []
+    except Exception as e:
+        logger.warning("follow_up generation failed: %s", e)
+        return []
+
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/",        methods=["GET"])
@@ -362,7 +399,10 @@ def think():
     if not prompt:
         return jsonify({"error": "prompt required"}), 400
     response, steps, model = react(prompt, history)
-    return jsonify({"response": response, "steps": steps, "model": model})
+    # Generate 3 follow-up questions (fast, non-blocking)
+    follow_up = generate_follow_up(prompt, response)
+    return jsonify({"response": response, "steps": steps,
+                    "model": model, "follow_up_questions": follow_up})
 
 @app.route("/agent/tick", methods=["GET", "POST"])
 def tick():
@@ -385,7 +425,8 @@ def hitl_tasks():
 def hitl_create_task():
     """Manually create a HITL task and push to Telegram."""
     if not _HITL_READY or not _hitl_tq or not _hitl_notifier or not _hitl_loop:
-        return jsonify({"error": "HITL not ready", "hint": "Set SUPABASE_URL, SUPABASE_SERVICE_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID"}), 503
+        return jsonify({"error": "HITL not ready",
+                        "hint": "Set SUPABASE_URL, SUPABASE_SERVICE_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID"}), 503
     data = request.get_json() or {}
     task = _hitl_tq.create(
         title=data.get("title", "HITL Task"),
@@ -411,7 +452,6 @@ def hitl_status():
 # ── Entry ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    # Start HITL in background thread before Flask
     t = threading.Thread(target=_start_hitl_thread, daemon=True)
     t.start()
     app.run(host="0.0.0.0", port=port, debug=False)

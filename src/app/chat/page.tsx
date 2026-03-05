@@ -6,12 +6,19 @@ import { loadMessages, saveMessage, clearMessages, loadSoul, saveSoul, getSettin
 import { browserAgent } from '@/lib/browser-agent';
 
 interface ToolStep { tool: string; result: string; }
-interface Message { role: 'user' | 'assistant'; content: string; steps?: ToolStep[]; model?: string; mode?: 'server' | 'sovereign'; }
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  steps?: ToolStep[];
+  model?: string;
+  mode?: 'server' | 'sovereign';
+  followUpQuestions?: string[];
+}
 interface MarketData { bitcoin?: { usd: number; usd_24h_change: number }; ethereum?: { usd: number; usd_24h_change: number }; solana?: { usd: number; usd_24h_change: number }; }
 interface AgentStatus { status: string; model?: string; tools?: string[]; }
 
 const QUICK_PROMPTS = [
-  { label: '📈 Crypto', cmd: 'What are the current prices of Bitcoin, Ethereum and Solana?' },
+  { label: '📊 Crypto', cmd: 'What are the current prices of Bitcoin, Ethereum and Solana?' },
   { label: '🧠 Agent', cmd: 'Tell me about your capabilities and available tools' },
   { label: '🌐 Search', cmd: 'Find the latest news about AI agents in 2026' },
   { label: '⚡ Status', cmd: 'Check the status of all GodLocal systems' },
@@ -53,6 +60,47 @@ function ToolBadge({ tool, result }: ToolStep) {
           {result.length > 400 ? result.slice(0, 400) + '…' : result}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Follow-up question chips ──────────────────────────────────────────────────
+function FollowUpChips({ questions, onSelect }: { questions: string[]; onSelect: (q: string) => void }) {
+  if (!questions || questions.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+      {questions.map((q, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(q)}
+          style={{
+            background: 'rgba(0,255,157,0.05)',
+            border: '1px solid rgba(0,255,157,0.2)',
+            borderRadius: 20,
+            padding: '5px 12px',
+            cursor: 'pointer',
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.65)',
+            outline: 'none',
+            transition: 'all 0.18s',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            lineHeight: 1.35,
+            textAlign: 'left',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(0,255,157,0.12)';
+            e.currentTarget.style.borderColor = 'rgba(0,255,157,0.45)';
+            e.currentTarget.style.color = '#fff';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(0,255,157,0.05)';
+            e.currentTarget.style.borderColor = 'rgba(0,255,157,0.2)';
+            e.currentTarget.style.color = 'rgba(255,255,255,0.65)';
+          }}
+        >
+          {q}
+        </button>
+      ))}
     </div>
   );
 }
@@ -114,7 +162,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Load persisted messages from IndexedDB on mount ──────────────────────
+  // ── Load persisted messages from IndexedDB on mount ───────────────────────
   useEffect(() => {
     loadMessages().then(stored => {
       if (stored.length > 0) {
@@ -124,6 +172,7 @@ export default function ChatPage() {
           steps: m.steps,
           model: m.model,
           mode: m.mode,
+          followUpQuestions: (m as StoredMessage & { followUpQuestions?: string[] }).followUpQuestions,
         })));
       }
     });
@@ -133,13 +182,12 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // ── Backend health check ─────────────────────────────────────────────────
+  // ── Backend health check ──────────────────────────────────────────────────
   const checkBackend = useCallback(async () => {
     try {
       const r = await fetch('https://godlocal-api.onrender.com/health', { signal: AbortSignal.timeout(5000) });
       const alive = r.ok;
       setBackendAlive(alive);
-      // Auto-enable sovereign mode if backend is down and user has Groq key
       if (!alive) {
         const key = await getSetting('groqKey');
         if (key) setSovereignMode(true);
@@ -188,7 +236,6 @@ export default function ChatPage() {
     setInput('');
     setLoading(true);
 
-    // Persist user message to IndexedDB
     await saveMessage({ role: 'user', content: msg, ts: Date.now() });
 
     try {
@@ -196,7 +243,7 @@ export default function ChatPage() {
       const mode = sovereignMode ? 'sovereign' : 'server';
 
       if (sovereignMode) {
-        // ── Sovereign Mode: direct Groq API from browser ─────────────
+        // ── Sovereign Mode: direct Groq API from browser ──
         const groqKey = await getSetting('groqKey');
         if (!groqKey) throw new Error('No Groq API key. Open ⚙ Settings → add key.');
         const soul = await loadSoul();
@@ -204,7 +251,7 @@ export default function ChatPage() {
         const result = await browserAgent(history, soul, groqKey);
         assistantMsg = { role: 'assistant', content: result.response, model: result.model, mode: 'sovereign' };
       } else {
-        // ── Server Mode: Next.js proxy → Render backend ──────────────
+        // ── Server Mode: Next.js proxy → Render backend ──
         const history = messages.map(m => ({ role: m.role, content: m.content }));
         const res = await fetch('/api/think', {
           method: 'POST',
@@ -213,12 +260,18 @@ export default function ChatPage() {
           signal: AbortSignal.timeout(90_000),
         });
         const data = await res.json();
-        assistantMsg = { role: 'assistant', content: data.response || data.error || 'No response', steps: data.steps, model: data.model, mode: 'server' };
+        assistantMsg = {
+          role: 'assistant',
+          content: data.response || data.error || 'No response',
+          steps: data.steps,
+          model: data.model,
+          mode: 'server',
+          followUpQuestions: data.follow_up_questions || [],
+        };
       }
 
       setMessages(prev => [...prev, assistantMsg]);
 
-      // Persist assistant message to IndexedDB
       await saveMessage({
         role: 'assistant',
         content: assistantMsg.content,
@@ -226,7 +279,8 @@ export default function ChatPage() {
         model: assistantMsg.model,
         ts: Date.now(),
         mode,
-      });
+        ...(assistantMsg.followUpQuestions ? { followUpQuestions: assistantMsg.followUpQuestions } : {}),
+      } as StoredMessage & { followUpQuestions?: string[] });
 
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Unavailable';
@@ -246,7 +300,7 @@ export default function ChatPage() {
   };
 
   const modeBadgeColor = sovereignMode ? '#6C5CE7' : (backendAlive ? '#00FF9D' : '#FF6B6B');
-  const modeLabel = sovereignMode ? '⚡ Sovereign' : (backendAlive ? '● Server' : '⚠ Offline');
+  const modeLabel = sovereignMode ? '⚡ Sovereign' : (backendAlive ? '🟢 Server' : '⚠ Offline');
 
   return (
     <div style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', background: '#0A0C0F', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -349,6 +403,10 @@ export default function ChatPage() {
                   <div style={{ marginTop: 5, paddingLeft: 2 }}>
                     {m.steps.map((s, si) => <ToolBadge key={si} {...s} />)}
                   </div>
+                )}
+                {/* Follow-up question chips — only for assistant messages */}
+                {m.role === 'assistant' && m.followUpQuestions && m.followUpQuestions.length > 0 && (
+                  <FollowUpChips questions={m.followUpQuestions} onSelect={send} />
                 )}
                 {m.role === 'assistant' && (m.model || m.mode) && (
                   <div style={{ marginTop: 3, paddingLeft: 4, fontSize: 10, fontFamily: 'monospace', color: 'rgba(255,255,255,0.18)', display: 'flex', gap: 8 }}>
