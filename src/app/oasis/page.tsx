@@ -208,6 +208,13 @@ export default function OasisPage() {
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${connected ? 'bg-[#00FF9D] animate-pulse' : 'bg-white/25'}`} />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">{connected ? 'online' : 'connecting…'}</span>
+          <a href="/oasis/settings" title="Подключения"
+            className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 1 21 12a10 10 0 0 1-1.93 7.07M4.93 4.93A10 10 0 0 0 3 12a10 10 0 0 0 1.93 7.07"/>
+              <path d="m16.24 7.76-1.22 1.22M7.76 16.24l-1.22 1.22M16.24 16.24l-1.22-1.22M7.76 7.76 6.54 6.54"/>
+            </svg>
+          </a>
         </div>
       </header>
 
