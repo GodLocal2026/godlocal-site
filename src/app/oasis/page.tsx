@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
+
+const OasisAvatar = dynamic(() => import('@/components/OasisAvatar'), { ssr: false })
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://godlocal-api.onrender.com'
 const WS_BASE  = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://')
@@ -121,6 +124,11 @@ export default function OasisPage() {
   const scroll = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(scroll, [msgs])
 
+  // Talking state: true when AI is actively streaming a response
+  const isTalking = loading || (msgs.length > 0 &&
+    msgs[msgs.length - 1]?.role === 'ai' &&
+    msgs[msgs.length - 1]?.streaming === true)
+
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
     const ws = new WebSocket(`${WS_BASE}/ws/oasis`)
@@ -180,17 +188,15 @@ export default function OasisPage() {
   }
 
   return (
-    // ── Root: full screen, bg image with dark overlay ──────────────────────────
     <div
       className="flex flex-col h-screen text-[#E0E0E0] font-sans relative overflow-hidden"
-      style={{
-        backgroundImage: 'url(/oasis-bg.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
+      style={{ backgroundImage: 'url(/oasis-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
-      {/* Dark overlay for readability */}
+      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
+
+      {/* Live2D Avatar — desktop only, floating bottom-right */}
+      <OasisAvatar talking={isTalking} />
 
       {/* ── Header ── */}
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
@@ -201,13 +207,11 @@ export default function OasisPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${connected ? 'bg-[#00FF9D] animate-pulse' : 'bg-white/25'}`} />
-          <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">
-            {connected ? 'online' : 'connecting…'}
-          </span>
+          <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">{connected ? 'online' : 'connecting…'}</span>
         </div>
       </header>
 
-      {/* ── Desktop layout wrapper: center chat column on large screens ── */}
+      {/* ── Desktop layout: centred column ── */}
       <div className="relative z-10 flex flex-1 overflow-hidden justify-center">
         <div className="flex flex-col w-full md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-hidden">
 
@@ -217,16 +221,14 @@ export default function OasisPage() {
 
             {msgs.length === 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                 className="flex flex-col items-center justify-center h-full gap-6 md:gap-10 pb-12"
               >
                 <div className="text-center px-4">
-                  <motion.div
-                    className="text-4xl md:text-6xl mb-3 md:mb-5"
-                    animate={{ scale: [1, 1.08, 1] }}
-                    transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                  >⚡</motion.div>
+                  <motion.div className="text-4xl md:text-6xl mb-3 md:mb-5"
+                    animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
+                    ⚡
+                  </motion.div>
                   <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">GodLocal OASIS</h1>
                   <p className="text-white/45 text-xs md:text-sm">Твой AI — с памятью, поиском и инструментами</p>
                 </div>
@@ -244,8 +246,7 @@ export default function OasisPage() {
             <AnimatePresence initial={false}>
               {msgs.map(m => (
                 <motion.div key={m.id}
-                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18 }}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
                   className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {m.role === 'system' ? (
@@ -289,18 +290,12 @@ export default function OasisPage() {
           {/* ── Image preview ── */}
           <AnimatePresence>
             {imgPreview && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="shrink-0 px-3 md:px-4 pb-2"
-              >
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} className="shrink-0 px-3 md:px-4 pb-2">
                 <div className="relative inline-block">
                   <img src={imgPreview} alt="" className="h-16 md:h-20 rounded-xl object-cover border border-white/15" />
-                  <button
-                    onClick={() => { setImgPreview(null); setImgBase64(null) }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">
-                    ×
-                  </button>
+                  <button onClick={() => { setImgPreview(null); setImgBase64(null) }}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">×</button>
                 </div>
               </motion.div>
             )}
@@ -309,31 +304,19 @@ export default function OasisPage() {
           {/* ── Input ── */}
           <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
             <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#00FF9D]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
-              {/* Image attach */}
               <button onClick={() => fileRef.current?.click()}
                 className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-white/35 hover:text-white/65 hover:bg-white/10 transition-all"
                 title="Прикрепить изображение">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                  <circle cx="9" cy="9" r="2"/>
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/>
                   <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
                 </svg>
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-
-              {/* Text input */}
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={onKey}
-                placeholder="Напиши что-нибудь…"
-                rows={1}
+              <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
+                placeholder="Напиши что-нибудь…" rows={1}
                 className="flex-1 bg-transparent resize-none outline-none text-sm text-white placeholder-white/30 leading-relaxed max-h-28 md:max-h-36 overflow-y-auto py-0.5"
-                style={{ scrollbarWidth: 'none' }}
-              />
-
-              {/* Send button */}
+                style={{ scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || !connected}
                 className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-[#00FF9D]/20 border border-[#00FF9D]/40 text-[#00FF9D] disabled:opacity-20 disabled:cursor-not-allowed hover:bg-[#00FF9D]/35 hover:border-[#00FF9D]/60 transition-all active:scale-95">
@@ -343,7 +326,7 @@ export default function OasisPage() {
               </button>
             </div>
             <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
-              Enter — отправить · Shift+Enter — новая строка
+              Enter — отправить · Shift+Enter — новая строка
             </p>
           </div>
 
