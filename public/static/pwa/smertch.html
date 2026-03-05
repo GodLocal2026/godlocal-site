@@ -396,13 +396,10 @@ const ch24=parseFloat(p.priceChange?.h24||0);if(Math.abs(ch24)<300){s+=20;chk.pu
 return{s:Math.min(100,s),chk}}
 function buildCard(p,chip){
 let mint=p.baseToken?.address||'';let sym=p.baseToken?.symbol||'???';
-// Skip stablecoins/major tokens as base
 if(SKIP_SYMS.has(sym.toUpperCase())){
-  // Try quote token instead
   const qsym=p.quoteToken?.symbol||'';
   if(!SKIP_SYMS.has(qsym.toUpperCase())){mint=p.quoteToken?.address||mint;sym=qsym||sym;}
-  else return null;
-}
+  else return null;}
 const pr=parseFloat(p.priceUsd||0);const mc=parseFloat(p.fdv||p.marketCap||0);
 const vol1=(p.volume?.h1||0);const lp=(p.liquidity?.usd||0);
 const ch1=parseFloat(p.priceChange?.h1||0);const ch24=parseFloat(p.priceChange?.h24||0);
@@ -456,27 +453,22 @@ async function fetchPairsForMints(mints){
 const r=await fetch(DEX+'/tokens/v1/solana/'+mints.slice(0,30).join(','));
 if(!r.ok)throw new Error('dex '+r.status);
 const d=await r.json();
-return(d.pairs||[]).filter(p=>p.chainId==='solana');
-}
+return(d.pairs||[]).filter(p=>p.chainId==='solana');}
 
 async function loadScan(full=true){
 const el=G('fScan');
 if(full)el.innerHTML='<div class="ldg"><div class="spin"></div> Загрузка…</div>';
 try{
 G('tickEl').textContent='DexScreener…';
-const [r1,r2]=await Promise.allSettled([
-  fetch(DEX+'/token-boosts/latest/v1'),
-  fetch(DEX+'/token-profiles/latest/v1')]);
+const [r1,r2]=await Promise.allSettled([fetch(DEX+'/token-boosts/latest/v1'),fetch(DEX+'/token-profiles/latest/v1')]);
 let mints=[];
 if(r1.status==='fulfilled'&&r1.value.ok){const d=await r1.value.json();mints=[...mints,...(Array.isArray(d)?d:d.tokenProfiles||[]).map(x=>x.tokenAddress||x.address).filter(Boolean)];}
 if(r2.status==='fulfilled'&&r2.value.ok){const d=await r2.value.json();mints=[...mints,...(Array.isArray(d)?d:d.tokenProfiles||[]).map(x=>x.tokenAddress||x.address).filter(Boolean)];}
 mints=[...new Set(mints)].slice(0,30);
 let pairs=[];
 if(mints.length){try{pairs=await fetchPairsForMints(mints);}catch(e){console.warn(e);}}
-if(!pairs.length){
-  const rs=await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6');
-  if(rs.ok){const ds=await rs.json();pairs=(ds.pairs||[]).filter(p=>p.chainId==='solana');}
-}
+if(!pairs.length){const rs=await fetch(DEX+'/latest/dex/search?q=solana&rankBy=trendingScoreH6');
+if(rs.ok){const ds=await rs.json();pairs=(ds.pairs||[]).filter(p=>p.chainId==='solana');}}
 if(!pairs.length)throw new Error('Нет данных');
 pairs.sort((a,b)=>(b.volume?.h1||0)-(a.volume?.h1||0));
 const html=pairs.slice(0,40).map(p=>buildCard(p,'new')).filter(Boolean).join('');
@@ -486,8 +478,7 @@ G('tickEl').textContent=`Обновлено ${new Date().toLocaleTimeString('ru'
 
 async function loadPump(){
 const el=G('fPump');el.innerHTML='<div class="ldg"><div class="spin"></div> pump.fun…</div>';
-try{
-const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),6000);
+try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),6000);
 const r=await fetch(PUMP+'/coins?offset=0&limit=32&sort=last_trade_timestamp&order=DESC&includeNsfw=false',{signal:ctrl.signal});
 if(!r.ok)throw new Error('pump '+r.status);
 const coins=await r.json();
@@ -511,8 +502,7 @@ catch(e2){el.innerHTML='<div class="ldg">⚠️ pump.fun недоступен</d
 
 async function loadHot(){
 const el=G('fHot');el.innerHTML='<div class="ldg"><div class="spin"></div> Горячие…</div>';
-try{
-const r=await fetch(DEX+'/token-boosts/top/v1');if(!r.ok)throw new Error();
+try{const r=await fetch(DEX+'/token-boosts/top/v1');if(!r.ok)throw new Error();
 const d=await r.json();
 const mints=(Array.isArray(d)?d:d.tokenProfiles||[]).slice(0,30).map(x=>x.tokenAddress||x.address).filter(Boolean);
 let pairs=[];
@@ -537,124 +527,168 @@ return`<div class="trow" onclick="aiToken('${c.symbol.toUpperCase()}','${c.id}')
 
 async function loadNews(){
 const el=G('fNews');if(!el)return;
-el.innerHTML='<div class="ldg"><div class="spin"></div> Загрузка новостей…</div>';
-try{
-const r=await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=Meme,SOL,Trading,Blockchain&sortOrder=popular',{signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
+el.innerHTML='<div class="ldg"><div class="spin"></div> Загрузка…</div>';
+try{const r=await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=Meme,SOL,Trading,Blockchain&sortOrder=popular');
 if(!r.ok)throw new Error();
 const d=await r.json();const arts=(d.Data||[]).slice(0,25);
-const twitterLinks=[
-  {q:'Solana memecoin pump',l:'🔥 Solana Meme Pump'},
-  {q:'pump.fun new token today',l:'🚀 pump.fun Hot'},
-  {q:'$WIF $BONK Solana',l:'💎 WIF BONK'},
-  {q:'Solana DEX trading signal',l:'📊 Solana Сигналы'},
-  {q:'crypto rug pull alert',l:'⚠️ Rug Alert'},
-  {q:'memecoin 100x Solana',l:'🎯 100x Meme'},
-];
-const twHtml='<div style="padding:0 10px 10px"><div class="shdr" style="margin-bottom:8px">🐦 Twitter поиск</div>'+
-  twitterLinks.map(t=>`<div class="ncrd" style="margin:0 0 7px" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')">
-  <div class="nh">${t.l}</div>
-  <div class="nf"><span class="ntag">Twitter Live</span><span class="ntwt">Открыть 🐦</span></div></div>`).join('')+'</div>';
+const twLinks=[{q:'Solana memecoin pump',l:'🔥 Solana Meme Pump'},{q:'pump.fun new token today',l:'🚀 pump.fun Hot'},{q:'$WIF $BONK Solana',l:'💎 WIF BONK'},{q:'Solana DEX trading signal',l:'📊 Solana Сигналы'},{q:'crypto rug pull alert',l:'⚠️ Rug Alert'},{q:'memecoin 100x Solana',l:'🎯 100x Meme'}];
+const twHtml='<div style="padding:0 10px 10px"><div class="shdr" style="margin-bottom:8px">🐦 Twitter поиск</div>'+twLinks.map(t=>`<div class="ncrd" style="margin:0 0 7px" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')"><div class="nh">${t.l}</div><div class="nf"><span class="ntag">Twitter Live</span><span class="ntwt">Открыть 🐦</span></div></div>`).join('')+'</div>';
 let newsHtml='';
 if(arts.length){
-  newsHtml='<div style="padding:0 10px 4px"><div class="shdr" style="margin-bottom:8px">📰 Крипто-новости</div></div>';
-  newsHtml+=arts.map(a=>{
-    const title=a.title||'';const src=a.source_info?.name||a.source||'';
-    const url=a.url||'#';const ts=a.published_on?new Date(a.published_on*1000).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}):'';
-    const tq=encodeURIComponent(title.split(' ').slice(0,4).join(' ')+' Solana');
-    const tl=title.toLowerCase();
-    const bull=['bull','surge','pump','moon','gain','ath','rise','breakout'].some(w=>tl.includes(w));
-    const bear=['dump','crash','bear','drop','fall','fear','low','liquidat'].some(w=>tl.includes(w));
-    const sntHtml=bull?'<span class="ntag nbull">🟢 BULL</span>':bear?'<span class="ntag nbear">🔴 BEAR</span>':'';
-    return`<div class="ncrd" onclick="window.open('${url}','_blank')">
-    <div class="nh">${title}</div>
-    <div class="nf"><span class="ntag">${src}</span>${sntHtml}<span style="font-size:10px;color:var(--d)">${ts}</span>
-    <button class="ntwt" onclick="event.stopPropagation();window.open('https://twitter.com/search?q=${tq}&src=typed_query&f=live','_blank')">🐦 Тви</button>
-    </div></div>`;}).join('');
-}
+newsHtml='<div style="padding:0 10px 4px"><div class="shdr" style="margin-bottom:8px">📰 Крипто-новости</div></div>';
+newsHtml+=arts.map(a=>{const title=a.title||'';const src=a.source_info?.name||a.source||'';
+const url=a.url||'#';const ts=a.published_on?new Date(a.published_on*1000).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}):'';
+const tq=encodeURIComponent(title.split(' ').slice(0,4).join(' ')+' Solana');
+const tl=title.toLowerCase();
+const bull=['bull','surge','pump','moon','gain','ath','rise','breakout'].some(w=>tl.includes(w));
+const bear=['dump','crash','bear','drop','fall','fear','low','liquidat'].some(w=>tl.includes(w));
+return`<div class="ncrd" onclick="window.open('${url}','_blank')"><div class="nh">${title}</div>
+<div class="nf"><span class="ntag">${src}</span>${bull?'<span class="ntag nbull">🟢 BULL</span>':bear?'<span class="ntag nbear">🔴 BEAR</span>':''}<span style="font-size:10px;color:var(--d)">${ts}</span><button class="ntwt" onclick="event.stopPropagation();window.open('https://twitter.com/search?q=${tq}&src=typed_query&f=live','_blank')">🐦 Тви</button></div></div>`;}).join('');}
 el.innerHTML=twHtml+(newsHtml||'');
 }catch(e){
-// Fallback: Twitter search links only
-const links=[
-  {q:'Solana memecoin pump today',l:'🔥 Горячие Solana мемы'},
-  {q:'pump.fun token launch',l:'🚀 Новые на pump.fun'},
-  {q:'$WIF $BONK $POPCAT price',l:'💎 WIF / BONK / POPCAT'},
-  {q:'Solana whale wallet snipe',l:'🐋 Киты Solana'},
-  {q:'crypto rug pull Solana',l:'⚠️ Rug Alert Solana'},
-  {q:'Solana DEX volume spike',l:'📊 Volume Spike DEX'},
-  {q:'memecoin 100x gem',l:'🎯 100x Gems'},
-  {q:'blknoiz06 Solana trade',l:'👁 blknoiz06'},
-];
-el.innerHTML='<div style="padding:10px 10px 4px"><div class="shdr" style="margin-bottom:8px">🐦 Twitter — торговля на новостях</div></div>'+
-  links.map(t=>`<div class="ncrd" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')">
-  <div class="nh">${t.l}</div>
-  <div class="nf"><span class="ntag">Twitter Live</span><span class="ntwt">Открыть 🐦</span></div></div>`).join('');}}
+const links=[{q:'Solana memecoin pump today',l:'🔥 Горячие Solana мемы'},{q:'pump.fun token launch',l:'🚀 Новые на pump.fun'},{q:'$WIF $BONK $POPCAT price',l:'💎 WIF / BONK / POPCAT'},{q:'Solana whale wallet snipe',l:'🐋 Киты Solana'},{q:'crypto rug pull Solana',l:'⚠️ Rug Alert'},{q:'Solana DEX volume spike',l:'📊 Volume Spike DEX'},{q:'memecoin 100x gem',l:'🎯 100x Gems'},{q:'blknoiz06 Solana trade',l:'👁 blknoiz06'}];
+el.innerHTML='<div style="padding:10px 10px 4px"><div class="shdr" style="margin-bottom:8px">🐦 Twitter — торговля на новостях</div></div>'+links.map(t=>`<div class="ncrd" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')"><div class="nh">${t.l}</div><div class="nf"><span class="ntag">Twitter Live</span><span class="ntwt">Открыть 🐦</span></div></div>`).join('');}}
+
+// ═══════════════════════════════════════════════
+//  SLONIK52 HEDGE FUND — MULTI-AGENT ANALYSIS
+//  Inspired by ai-hedge-fund (45K stars GitHub)
+//  Агенты анализируют с разных углов → Portfolio Manager = финальный сигнал
+// ═══════════════════════════════════════════════
+
+// Agent 1: 🔒 RUG DETECTIVE (Michael Burry style — contrarian, finds hidden risks)
+function agentBurry(p){
+const liq=parseFloat(p.liquidity?.usd||0);const vol1=p.volume?.h1||0;
+const tx=p.txns?.h1||{};const b=tx.buys||0,s=tx.sells||0,tot=b+s;
+const age=Date.now()-(p.pairCreatedAt||0);const ch24=Math.abs(parseFloat(p.priceChange?.h24||0));
+let score=0;const findings=[];
+if(liq<2000){score-=2;findings.push('⛔ Ликвидность критически низкая: '+fN(liq));}
+else if(liq<10000){score-=1;findings.push('⚠️ Ликвидность слабая: '+fN(liq));}
+else{score+=1;findings.push('✅ Ликвидность ок: '+fN(liq));}
+if(age<1800000){score-=2;findings.push('⚠️ Возраст <30 мин — высокий риск');}
+else if(age<3600000){score-=1;findings.push('⚠️ Очень молодой токен');}
+else{score+=1;findings.push('✅ Возраст: '+fA(age));}
+if(tot>0&&s/tot>0.7){score-=2;findings.push(`⛔ Sells ${(s/tot*100).toFixed(0)}% — dump pattern`);}
+else if(tot>0&&b/tot>0.6){score+=1;findings.push(`✅ Buyers ${(b/tot*100).toFixed(0)}% dominant`);}
+if(ch24>500){score-=1;findings.push('⚠️ 24h +'+ch24.toFixed(0)+'% — возможен pump&dump');}
+if(vol1<100){score-=1;findings.push('⚠️ Почти нет объёма — нет интереса');}
+const verdict=score>=1?'SAFE':score>=-1?'NEUTRAL':'RUG RISK';
+const color=score>=1?'var(--g)':score>=-1?'var(--y)':'var(--r)';
+return{name:'🔒 Rug Detective',style:'(Burry)',score,verdict,color,findings};}
+
+// Agent 2: 📈 MOMENTUM TRADER (Druckenmiller — asymmetric, macro momentum)
+function agentDruck(p){
+const c1=parseFloat(p.priceChange?.h1||0),c6=parseFloat(p.priceChange?.h6||0),c24=parseFloat(p.priceChange?.h24||0);
+const v1=p.volume?.h1||0,v6=p.volume?.h6||0,v24=p.volume?.h24||0;
+const liq=parseFloat(p.liquidity?.usd||0);
+let score=0;const findings=[];
+// Acceleration: h1 faster than h6 average
+if(v6>0&&v1>v6/6*1.5){score+=2;findings.push(`🚀 Объём ускоряется: H1 ${fN(v1)} vs 6h avg ${fN(v6/6)}`);}
+else if(v1>100){score+=1;findings.push(`📊 Объём: H1 ${fN(v1)} | H24 ${fN(v24)}`);}
+else{score-=1;findings.push('📉 Слабый объём — нет импульса');}
+// Multi-TF trend alignment
+if(c1>5&&c6>0&&c24>0){score+=3;findings.push(`🔥 Тренд ВВЕРХ на всех ТФ: 1h${c1>=0?'+':''}${c1.toFixed(0)}% / 6h${c6>=0?'+':''}${c6.toFixed(0)}% / 24h${c24>=0?'+':''}${c24.toFixed(0)}%`);}
+else if(c1>3&&c6>0){score+=2;findings.push(`📈 Тренд ВВЕРХ: 1h +${c1.toFixed(1)}% 6h ${c6>=0?'+':''}${c6.toFixed(1)}%`);}
+else if(c1<-10&&c6<-5){score-=2;findings.push(`💥 Тренд ВНИЗ: 1h ${c1.toFixed(1)}% 6h ${c6.toFixed(1)}%`);}
+else{score+=0;findings.push(`➡️ Диапазон: 1h ${c1>=0?'+':''}${c1.toFixed(1)}% 6h ${c6>=0?'+':''}${c6.toFixed(1)}%`);}
+// Liquidity as position size validator
+if(liq>50000){score+=1;findings.push('✅ Лик. позволяет крупный вход: '+fN(liq));}
+const verdict=score>=3?'STRONG BULL':score>=1?'BULL':score>=-1?'NEUTRAL':'BEAR';
+const color=score>=3?'var(--g)':score>=1?'#9dff9d':score>=-1?'var(--y)':'var(--r)';
+return{name:'📈 Momentum',style:'(Druckenmiller)',score,verdict,color,findings};}
+
+// Agent 3: 🏦 VALUE AGENT (Charlie Munger — quality at fair price)
+function agentMunger(p){
+const mc=parseFloat(p.fdv||p.marketCap||0);const liq=parseFloat(p.liquidity?.usd||0);
+const v24=p.volume?.h24||0;const v1=p.volume?.h1||0;
+let score=0;const findings=[];
+// P/L ratio: mcap vs liquidity
+if(liq>0){const pl=mc/liq;
+if(pl<10){score+=2;findings.push(`✅ Mcap/Liq = ${pl.toFixed(1)}x — недооценён`);}
+else if(pl<50){score+=1;findings.push(`📊 Mcap/Liq = ${pl.toFixed(1)}x — норма`);}
+else{score-=1;findings.push(`⚠️ Mcap/Liq = ${pl.toFixed(1)}x — переоценён`);}}
+// Volume/Mcap ratio (activity)
+if(mc>0){const vm=v24/mc;
+if(vm>0.5){score+=2;findings.push(`🔥 Vol/Mcap = ${(vm*100).toFixed(0)}% — очень активный`);}
+else if(vm>0.1){score+=1;findings.push(`📊 Vol/Mcap = ${(vm*100).toFixed(0)}% — норма`);}
+else{score-=1;findings.push(`💤 Vol/Mcap = ${(vm*100).toFixed(1)}% — низкая активность`);}}
+// Mcap range sweet spot for meme flip
+if(mc>0&&mc<500000){score+=1;findings.push('✅ Mcap < $500K — потенциал 10x+');}
+else if(mc>5000000){score-=1;findings.push('⚠️ Mcap >$5M — рост сложнее');}
+const verdict=score>=2?'UNDERVALUED':score>=-1?'FAIR':score<-1?'OVERVALUED':'NEUTRAL';
+const color=score>=2?'var(--g)':score>=-1?'var(--y)':'var(--r)';
+return{name:'🏦 Value',style:'(Munger)',score,verdict,color,findings};}
+
+// Agent 4: 🐦 SENTIMENT AGENT (Social + B/S flow as sentiment proxy)
+function agentSentiment(p,sym){
+const tx1=p.txns?.h1||{};const b=tx1.buys||0,s=tx1.sells||0,tot=b+s;
+const c1=parseFloat(p.priceChange?.h1||0);const v1=p.volume?.h1||0;
+let score=0;const findings=[];
+if(tot>0){const br=b/tot;
+if(br>0.65){score+=2;findings.push(`🟢 B/S = ${(br*100).toFixed(0)}% — покупатели ${b}B/${s}S`);}
+else if(br>0.5){score+=1;findings.push(`📊 B/S = ${(br*100).toFixed(0)}% — небольшой перевес покупателей`);}
+else if(br<0.35){score-=2;findings.push(`🔴 B/S = ${(br*100).toFixed(0)}% — продавцы ${b}B/${s}S`);}
+else{score-=1;findings.push(`⚠️ B/S = ${(br*100).toFixed(0)}% — продавцы доминируют`);}}
+if(c1>10){score+=1;findings.push('📣 Цена +'+c1.toFixed(1)+'% 1h — FOMO сигнал');}
+if(tot>100){score+=1;findings.push('✅ '+tot+' транзакций/час — живой рынок');}
+else{score-=1;findings.push('💤 '+tot+' транзакций/час — мало активности');}
+findings.push(`🐦 <a href="https://twitter.com/search?q=%24${sym}&f=live" target="_blank">Twitter $${sym} →</a>`);
+const verdict=score>=2?'BULLISH':score>=-1?'NEUTRAL':'BEARISH';
+const color=score>=2?'var(--g)':score>=-1?'var(--y)':'var(--r)';
+return{name:'🐦 Sentiment',style:'(Social Flow)',score,verdict,color,findings};}
+
+// Portfolio Manager — combines all agents into ONE final decision
+function portfolioManager(agents,p,sym,mint){
+const totalScore=agents.reduce((s,a)=>s+a.score,0);
+const maxScore=agents.length*3;const pct=Math.max(0,Math.min(100,Math.round((totalScore/maxScore+1)/2*100)));
+let verdict,cls,entry,risk,emoji;
+if(totalScore>=5){verdict='STRONG BUY';cls='bull';emoji='🚀';entry='Сейчас';risk='Средний';}
+else if(totalScore>=2){verdict='BUY';cls='bull';emoji='📈';entry='Сейчас / ждём -5%';risk='Средний';}
+else if(totalScore<=-4){verdict='SELL / AVOID';cls='bear';emoji='🔴';entry='—';risk='Высокий';}
+else if(totalScore<=-1){verdict='CAUTION';cls='bear';emoji='⚠️';entry='Ждём разворота';risk='Высокий';}
+else{verdict='HOLD / WATCH';cls='neut';emoji='⚡';entry='Ждём сигнала';risk='Умеренный';}
+const pr=parseFloat(p.priceUsd||0),mc=parseFloat(p.fdv||p.marketCap||0),age=p.pairCreatedAt?fA(Date.now()-p.pairCreatedAt):'?';
+const agentRows=agents.map(a=>`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.06)">
+<span style="font-size:11px;color:var(--d2)">${a.name} <span style="font-size:9px;opacity:.6">${a.style}</span></span>
+<span style="font-size:11px;font-weight:800;color:${a.color}">${a.verdict}</span></div>`).join('');
+const detailRows=agents.map(a=>`<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:800;color:var(--d2);letter-spacing:.3px;margin-bottom:4px">${a.name} ${a.style}</div>${a.findings.map(f=>`<div style="font-size:11px;color:var(--t);margin-bottom:2px;line-height:1.4">• ${f}</div>`).join('')}</div>`).join('');
+return`<div class="air">
+<div style="border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px;margin-bottom:10px">
+<span class="sig ${cls}" style="margin-bottom:4px">${emoji} ${verdict} — $${sym}</span>
+<div style="font-size:11px;color:var(--d2)">${fP(pr)} &nbsp;·&nbsp; mcap ${fN(mc)} &nbsp;·&nbsp; возраст ${age}</div>
+</div>
+<div style="margin-bottom:10px">${agentRows}</div>
+<div style="background:rgba(0,0,0,.2);border-radius:8px;padding:8px 10px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
+<div><div style="font-size:9px;color:var(--d2);margin-bottom:2px">ВХОД</div><div style="font-size:11px;font-weight:700;color:#fff">${entry}</div></div>
+<div><div style="font-size:9px;color:var(--d2);margin-bottom:2px">РИСК</div><div style="font-size:11px;font-weight:700;color:#fff">${risk}</div></div>
+<div><div style="font-size:9px;color:var(--d2);margin-bottom:2px">УВЕРЕННОСТЬ</div><div style="font-size:11px;font-weight:700;color:#fff">${pct}%</div></div>
+</div>
+<details style="cursor:pointer"><summary style="font-size:11px;color:var(--d2);padding:4px 0">📋 Полный разбор агентов</summary><div style="padding-top:8px">${detailRows}</div></details>
+<div style="margin-top:10px;font-size:11px;display:flex;gap:10px">
+<a href="https://dexscreener.com/solana/${mint}" target="_blank" style="color:var(--b);text-decoration:none">📊 DexScreener</a>
+<a href="https://jup.ag/swap/SOL-${mint}" target="_blank" style="color:var(--g);text-decoration:none">⚡ Jupiter Buy</a>
+<a href="https://twitter.com/search?q=%24${sym}&f=live" target="_blank" style="color:#1d9bf0;text-decoration:none">🐦 Twitter</a>
+</div></div>`;}
 
 async function aiAnalyze(sym,mint){
-go('ai');
-await new Promise(r=>setTimeout(r,120));
-const lm=addMsg('🔍 Анализирую '+sym+'…','ai');
-try{
-const r=await fetch(DEX+'/tokens/v1/solana/'+mint);
+go('ai');await new Promise(r=>setTimeout(r,120));
+const lm=addMsg(`<span style="color:var(--d2)">🤖 Запускаю 4 агентов для $${sym}…</span>`,'ai');
+try{const r=await fetch(DEX+'/tokens/v1/solana/'+mint);
 if(!r.ok)throw new Error('no data');
 const d=await r.json();const p=d.pairs?.[0];
 if(!p)throw new Error('no pair');
-const pr=parseFloat(p.priceUsd||0),mc=parseFloat(p.fdv||p.marketCap||0);
-const liq=parseFloat(p.liquidity?.usd||0);
-const v1=p.volume?.h1||0,v6=p.volume?.h6||0,v24=p.volume?.h24||0;
-const c1=parseFloat(p.priceChange?.h1||0),c6=parseFloat(p.priceChange?.h6||0),c24=parseFloat(p.priceChange?.h24||0);
-const txH1=p.txns?.h1||{};const buys=txH1.buys||0,sells=txH1.sells||0;
-const age=p.pairCreatedAt?fA(Date.now()-p.pairCreatedAt):'?';
-const {s:rs}=rugScore(p);
-let score=0;const sig=[];
-// Volume vs liquidity ratio
-if(liq>0&&v1/liq>0.3){sig.push('📈 Объём 1h >30% лик. — активная торговля');score+=2;}
-else if(v1<100){sig.push('📉 Очень низкий объём — осторожно');score-=1;}
-else{sig.push('➡️ Объём умеренный');}
-// Buy/Sell ratio
-const tot=buys+sells;
-if(tot>0){const br=buys/tot;
-if(br>0.65){sig.push(`🟢 B/S = ${(br*100).toFixed(0)}% — покупки доминируют (${buys}B/${sells}S)`);score+=2;}
-else if(br<0.4){sig.push(`🔴 B/S = ${(br*100).toFixed(0)}% — продажи доминируют`);score-=2;}
-else{sig.push(`🟡 B/S = ${(br*100).toFixed(0)}% — нейтральный поток`);}}
-// Multi-timeframe trend
-if(c1>5&&c6>0){sig.push(`🚀 Тренд ВВЕРХ: 1h ${c1>=0?'+':''}${c1.toFixed(1)}%, 6h ${c6>=0?'+':''}${c6.toFixed(1)}%`);score+=2;}
-else if(c1<-10&&c6<-10){sig.push(`💥 Тренд ВНИЗ: 1h ${c1.toFixed(1)}%, 6h ${c6.toFixed(1)}%`);score-=2;}
-else{sig.push(`➡️ Консолидация: 1h ${c1>=0?'+':''}${c1.toFixed(1)}%, 24h ${c24>=0?'+':''}${c24.toFixed(1)}%`);}
-// Liquidity check
-if(liq>50000){sig.push('🟢 Ликвидность сильная: '+fN(liq));score+=1;}
-else if(liq<5000){sig.push('🔴 Ликвидность критически низкая: '+fN(liq));score-=2;}
-else{sig.push('🟡 Ликвидность умеренная: '+fN(liq));}
-// Rug score
-if(rs>=80){sig.push('✅ Rug Score '+rs+'% — БЕЗОПАСНО');score+=1;}
-else if(rs<50){sig.push('⚠️ Rug Score '+rs+'% — ВЫСОКИЙ РИСК');score-=1;}
-// Volume trend
-if(v24>0&&v1>v24/24*2){sig.push('📊 Объём H1 ускоряется vs суточный');score+=1;}
-let overall,cls;
-if(score>=4){overall='🚀 BULLISH';cls='bull';}
-else if(score<=-2){overall='🔴 BEARISH';cls='bear';}
-else{overall='⚡ НЕЙТРАЛЬНО';cls='neut';}
-const tq=encodeURIComponent('$'+sym+' Solana');
-const report=`<div class="air"><span class="sig ${cls}">${overall} — ${sym}</span>
-<b>Цена:</b> ${fP(pr)} | <b>Mcap:</b> ${fN(mc)} | <b>Возраст:</b> ${age}<br>
-<b>Тренд:</b> 1h <span style="color:${c1>=0?'var(--g)':'var(--r)'}">${c1>=0?'+':''}${c1.toFixed(1)}%</span> | 6h <span style="color:${c6>=0?'var(--g)':'var(--r)'}">${c6>=0?'+':''}${c6.toFixed(1)}%</span> | 24h <span style="color:${c24>=0?'var(--g)':'var(--r)'}">${c24>=0?'+':''}${c24.toFixed(1)}%</span><br>
-<b>Объём:</b> 1h ${fN(v1)} | 24h ${fN(v24)}<br>
-<b>Ликвидность:</b> ${fN(liq)}<br><br>
-<b>Сигналы:</b><br>${sig.map(s=>'• '+s+'<br>').join('')}<br>
-<b>Rug score:</b> ${rs}%<br><br>
-<a href="https://dexscreener.com/solana/${mint}" target="_blank">📊 DexScreener</a> &nbsp;
-<a href="https://twitter.com/search?q=${tq}&f=live" target="_blank">🐦 Twitter $${sym}</a>
-</div>`;
+const agents=[agentBurry(p),agentDruck(p),agentMunger(p),agentSentiment(p,sym)];
+const report=portfolioManager(agents,p,sym,mint);
 lm.remove();addMsg(report,'ai');}
-catch(e){lm.remove();addMsg(aiOffline(sym,mint),'ai');}}
+catch(e){lm.remove();addMsg(aiOfflineReport(sym,mint),'ai');}}
 
-function aiOffline(sym,mint){
-const sl=solUsd?`SOL сейчас $${solUsd.toFixed(2)}. `:'';
-if(mint&&mint.length>20)return`📊 <b>${sym}</b><br>${sl}Подробный анализ недоступен офлайн.<br><br>Проверь токен:<br>• <a href="https://dexscreener.com/solana/${mint}" target="_blank">DexScreener 📊</a><br>• <a href="https://twitter.com/search?q=%24${sym}&f=live" target="_blank">Twitter 🐦</a>`;
+function aiOfflineReport(sym,mint){
+if(mint&&mint.length>20)return`<div class="air"><span class="sig neut">⚡ $${sym} — офлайн</span>Данные DexScreener недоступны.<br><br><a href="https://dexscreener.com/solana/${mint}" target="_blank">📊 DexScreener</a> &nbsp; <a href="https://twitter.com/search?q=%24${sym}&f=live" target="_blank">🐦 Twitter</a></div>`;
+const sol=solUsd?`SOL = $${solUsd.toFixed(2)}. `:'';
 const ql=(sym||'').toLowerCase();
-if(ql.includes('топ')||ql.includes('hot'))return'🔥 Открой вкладку <b>Горячие</b> — топ мемкоинов по росту H1 в реальном времени.';
-if(ql.includes('rug'))return'⚠️ <b>Признаки rug:</b><br>• Liq &lt; $5K<br>• 80%+ холдеров у 1-2 кошельков<br>• Продажи >60% в B/S ratio<br>• Объём упал после памп<br>• Dev wallet не заблокирован';
-if(ql.includes('sol'))return`⚡ SOL: <b>$${solUsd.toFixed(2)}</b>. Данные с CoinGecko, обновляются 30 сек.`;
-return`🤖 ${sl}Для полного ТА — нажми <b>🎭</b> на карточке токена или вставь mint адрес.`;}
+if(ql.includes('топ')||ql.includes('hot'))return'🔥 Открой <b>Горячие</b> — топ по росту H1 в реальном времени.';
+if(ql.includes('rug'))return'<div class="air"><span class="sig bear">🔒 Rug Detective — памятка</span>• Liq &lt; $5K = красный флаг<br>• Продажи >70% B/S = dump<br>• Возраст &lt;30 мин = ultra risk<br>• Mcap/Liq &gt;100x = перегрет<br>• Нет истории транзакций = ghost token</div>';
+if(ql.includes('sol'))return`⚡ SOL: <b>$${solUsd.toFixed(2)}</b>. Обновляется каждые 30с.`;
+return`<div class="air"><span class="sig neut">🤖 ${sol}Анализ</span>Вставь mint адрес — запущу 4 агентов:<br>🔒 Rug Detective · 📈 Momentum · 🏦 Value · 🐦 Sentiment<br><br>Или нажми <b>🎭</b> на карточке.</div>`;}
 
 function chip(c){activeChip=c;
 const vmap={scan:'vScan',pump:'vPump',hot:'vHot',snipe:'vSnipe'};
@@ -674,16 +708,12 @@ else if(t==='wallet'&&wPub)loadWallet();}
 function toggleFlt(){const e=G('fltEl');const b=G('cFlt');if(!e)return;e.classList.toggle('open');b&&b.classList.toggle('on')}
 function applyFlt(){filters={mnM:+G('fMnM').value||0,mxM:+G('fMxM').value||0,mnV:+G('fMnV').value||0,mxA:+G('fMxA').value||0,mnB:+G('fMnB').value||0};loadScan();toast('Фильтр применён','ok')}
 function cpMint(a){navigator.clipboard?.writeText(a).then(()=>toast('Контракт скопирован ✓','ok')).catch(()=>toast(a,'ok'))}
-
-// FIXED: use el.closest('.slop')
 function setSlo(el,v){snSlip=v;el.closest('.slop').querySelectorAll('.slo').forEach(e=>e.classList.remove('on'));el.classList.add('on')}
-
 function addSnipe(){const a=G('snAdr').value.trim();const s=parseFloat(G('snSol').value)||0.1;if(!a){toast('Введи адрес','err');return}snipes.push({a,s,sl:snSlip});localStorage.setItem('s52sn',JSON.stringify(snipes));G('snAdr').value='';renderSnipes();toast('Жду ликвидности…','ok')}
 function renderSnipes(){const el=G('snList');if(!el)return;if(!snipes.length){el.innerHTML='<div style="font-size:11px;color:var(--d);text-align:center;padding:10px">Список целей пуст</div>';return}el.innerHTML=snipes.map((x,i)=>`<div class="sit"><span class="sa">${x.a}</span><span style="font-size:10px;font-weight:700;color:var(--y)">${x.s} SOL</span><span style="color:var(--r);font-size:14px;cursor:pointer;margin-left:6px" onclick="delSnipe(${i})">✕</span></div>`).join('')}
 function delSnipe(i){snipes.splice(i,1);localStorage.setItem('s52sn',JSON.stringify(snipes));renderSnipes()}
 function saveTpSl(){tpV=parseFloat(G('tpI').value)||100;slV=parseFloat(G('slI').value)||-30;localStorage.setItem('s52tp',tpV);localStorage.setItem('s52sl',slV);toast('TP/SL сохранено','ok')}
 
-// Phantom wallet
 async function connectPhantom(){
 const ph=window.solana||window.phantom?.solana;
 if(!ph||!ph.isPhantom){toast('Установи Phantom','err');setTimeout(()=>window.open('https://phantom.app','_blank'),500);return;}
@@ -696,7 +726,6 @@ function saveWallet(){const pub=G('wPubI')?.value.trim();if(!pub){toast('Вве�
 function initWallet(){if(!wPub)return;G('wSetEl').style.display='none';G('wHdEl').style.display='block';const short=wPub.slice(0,6)+'…'+wPub.slice(-6);G('wAdEl').textContent=short}
 function discWallet(){wPub='';localStorage.removeItem('s52pub');G('wSetEl').style.display='block';G('wHdEl').style.display='none';if(G('holdEl'))G('holdEl').innerHTML='<div style="color:var(--d);font-size:12px;text-align:center;padding:20px">Подключи кошелёк</div>';toast('Вышел')}
 function cpAddr(){navigator.clipboard?.writeText(wPub).then(()=>toast('Адрес скопирован ✓','ok'))}
-
 async function loadWallet(){if(!wPub)return;
 try{const r=await fetch('https://api.mainnet-beta.solana.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[wPub]})});
 const d=await r.json();const sol=(d.result?.value||0)/1e9;
@@ -707,13 +736,11 @@ function openModal(mint,sym,pr,mode){mode=mode||'buy';mMint=mint;mSym=sym;mMode=
 G('mNm').textContent=sym;G('mPr').textContent=fP(parseFloat(pr||0));
 G('mIco').textContent='🐘';setMd(mode);G('ovEl').classList.add('open');if(mode==='buy')debQ();}
 function closeModal(){G('ovEl').classList.remove('open')}
-
 function setMd(m){mMode=m;G('mBuy').className='mmd buy'+(m==='buy'?' on':'');G('mSel').className='mmd sell'+(m==='sell'?' on':'');G('buyBlk').style.display=m==='buy'?'block':'none';G('sellBlk').style.display=m==='sell'?'block':'none';const eb=G('exBtn');eb.className='exb '+m;eb.textContent=m==='buy'?'⚡ СВОП через Jupiter':'🔴 ПРОДАТЬ через Jupiter'}
 function setPr(v){solAmt=v;document.querySelectorAll('#buyBlk .pr').forEach(e=>e.classList.remove('on'));event.target.classList.add('on');G('mSA').value=v;debQ()}
 function setSPct(v){sPct=v;document.querySelectorAll('#sellBlk .pr').forEach(e=>e.classList.remove('on'));event.target.classList.add('on')}
 function setMSl(el,v){mSlip=v;G('mSlOpts').querySelectorAll('.mso').forEach(e=>e.classList.remove('on'));el.classList.add('on')}
 function debQ(){clearTimeout(qTmr);qTmr=setTimeout(getQuote,700)}
-
 async function getQuote(){const qbx=G('qBx');if(!mMint||mMode!=='buy')return;
 const amt=parseFloat(G('mSA').value)||0.25;solAmt=amt;
 qbx.innerHTML='<span class="spin" style="width:10px;height:10px;border-width:2px"></span> Jupiter…';
@@ -724,7 +751,6 @@ const out=parseInt(d.outAmount||0);const outF=(out/1e6).toFixed(2);
 const imp=((parseFloat(d.priceImpactPct||0))*100).toFixed(2);
 qbx.innerHTML=`<b>Получишь:</b> ~${outF} ${mSym} | влияние: <span style="color:${parseFloat(imp)>2?'var(--r)':'var(--g)'}">${imp}%</span>`;}
 catch(e){qbx.innerHTML='Откроет jup.ag с лучшим маршрутом';}}
-
 function execSwap(){window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');closeModal();toast('Открыт Jupiter ⚡','ok')}
 
 function aiToken(sym,mint){aiAnalyze(sym,mint)}
@@ -735,28 +761,30 @@ function aiK(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI()}}
 function sendAI(){const i=G('aiI');const q=i.value.trim();if(!q)return;i.value='';i.style.height='auto';addMsg(q,'us');sendAIReq(q)}
 
 async function sendAIReq(q){
-// Check for mint address in query
-const mintMatch=q.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+// Mint address → full multi-agent analysis
+const mintMatch=q.match(/[1-9A-HJ-NP-Za-km-z]{40,44}/);
 if(mintMatch){aiAnalyze(mintMatch[0].slice(0,6)+'…',mintMatch[0]);return;}
+// Keyword routing → right agent answers
+const ql=q.toLowerCase();
+if(ql.includes('rug')||ql.includes('скам')||ql.includes('безопас')){addMsg(aiOfflineReport('rug check',null),'ai');return;}
+if(ql.includes('sol ')&&ql.includes('цена')||ql.includes('sol price')){addMsg(`⚡ SOL: <b>$${solUsd.toFixed(2)}</b> — обновляется 30с.`,'ai');return;}
+if(ql.includes('топ')||ql.includes('горяч')){addMsg('🔥 Открой вкладку <b>Горячие</b> — топ по росту 1h в реальном времени.','ai');return;}
+// Try backend
 const el=G('aiMs');const typ=document.createElement('div');typ.className='typ';
 typ.innerHTML='<span></span><span></span><span></span>';el.appendChild(typ);el.scrollTop=el.scrollHeight;
 try{const r=await fetch('/api/think',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({message:q,context:'Solana memecoin trader terminal slonik52',sol_price:solUsd})});
+body:JSON.stringify({message:q,context:'Solana memecoin trader. Be concise. Give clear BUY/SELL/HOLD signals with reasoning.',sol_price:solUsd})});
 typ.remove();
 if(r.ok){const d=await r.json();const txt=d.response||d.text||d.message||d.content||JSON.stringify(d);addMsg(txt,'ai');}
 else throw new Error(r.status);}
-catch(e){typ.remove();addMsg(aiOffline(q,null),'ai');}}
+catch(e){typ.remove();addMsg(aiOfflineReport(q,null),'ai');}}
 
 window.addEventListener('DOMContentLoaded',()=>{
 fetchSol();setInterval(fetchSol,30000);
 initWallet();if(wPub)loadWallet();
 renderSnipes();
-if(G('tpI'))G('tpI').value=tpV;
-if(G('slI'))G('slI').value=slV;
-loadScan();
-setInterval(()=>{if(activeChip==='scan')loadScan(false);},35000);
-// Auto-reconnect Phantom if was connected
+if(G('tpI'))G('tpI').value=tpV;if(G('slI'))G('slI').value=slV;
+loadScan();setInterval(()=>{if(activeChip==='scan')loadScan(false);},35000);
 if(!wPub){const ph=window.solana||window.phantom?.solana;
-if(ph?.isPhantom&&ph.isConnected){ph.connect({onlyIfTrusted:true}).then(r=>{wPub=r.publicKey.toString();localStorage.setItem('s52pub',wPub);initWallet();}).catch(()=>{});}}
-});
+if(ph?.isPhantom&&ph.isConnected){ph.connect({onlyIfTrusted:true}).then(r=>{wPub=r.publicKey.toString();localStorage.setItem('s52pub',wPub);initWallet();}).catch(()=>{});}}});
 </script></body></html>
