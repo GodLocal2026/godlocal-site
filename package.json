@@ -15,7 +15,9 @@
     "framer-motion": "^11.3.19",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.4.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "pixi.js": "^7.4.2",
+    "pixi-live2d-display": "^0.4.0"
   },
   "devDependencies": {
     "@types/node": "^20",
