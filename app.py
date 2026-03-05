@@ -831,6 +831,41 @@ async def council(request: Request):
     return StreamingResponse(generate(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+
+# ── User API Keys Store (per session_id) ─────────────────────────────────────
+_user_keys: dict = {}   # { session_id: { "TELEGRAM_BOT_TOKEN": "...", ... } }
+
+def get_user_env(session_id: str, key: str) -> str:
+    """Get user-provided key, fall back to server env var."""
+    val = _user_keys.get(session_id, {}).get(key, "")
+    return val or os.environ.get(key, "")
+
+@app.get("/settings")
+def get_settings(session_id: str = "default"):
+    with _lock:
+        keys = _user_keys.get(session_id, {})
+    # Mask values: return asterisks for set keys, empty string for unset
+    masked = {}
+    for k, v in keys.items():
+        masked[k] = "••••••••" if v else ""
+    return JSONResponse({"ok": True, "keys": masked})
+
+@app.post("/settings")
+async def save_settings(request: Request):
+    data = await request.json()
+    sid  = data.get("session_id", "default")
+    keys = data.get("keys", {})
+    with _lock:
+        if sid not in _user_keys:
+            _user_keys[sid] = {}
+        for k, v in keys.items():
+            if v == "":          # disconnect — clear key
+                _user_keys[sid].pop(k, None)
+            elif v != "••••••••":  # real value (not masked placeholder)
+                _user_keys[sid][k] = v
+    return JSONResponse({"ok": True})
+
+
 @app.get("/market")
 async def market():
     try:
