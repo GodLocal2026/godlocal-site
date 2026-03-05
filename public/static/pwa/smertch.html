@@ -82,6 +82,28 @@ body{height:100dvh;display:flex;flex-direction:column;background:var(--bg);color
 @keyframes rot{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--bo2);border-top-color:var(--g);border-radius:50%;animation:rot .7s linear infinite}
 .ldg{display:flex;align-items:center;gap:8px;padding:24px;color:var(--d);font-size:12px;justify-content:center}
+/* ── LIVE WebSocket feed ── */
+@keyframes wsPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,75,110,.5)}70%{box-shadow:0 0 0 6px rgba(255,75,110,0)}}
+.livebar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,30,30,.07);border-bottom:1px solid rgba(255,60,60,.18);font-size:11px;font-weight:700;color:var(--r);flex-shrink:0;cursor:default}
+.lbdot{width:8px;height:8px;border-radius:50%;background:var(--r);animation:wsPulse 1.4s ease-in-out infinite;flex-shrink:0}
+.lbdot.conn{background:var(--g);animation:pulse 1.4s infinite}
+.lbcnt{background:rgba(255,75,110,.2);color:var(--r);font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;margin-left:2px}
+.lbcnt.conn{background:rgba(0,255,178,.15);color:var(--g)}
+.lbcls{margin-left:auto;background:none;border:none;color:var(--d);cursor:pointer;font-size:14px;padding:0 2px;line-height:1}
+.lfeed{padding:6px 10px 0}
+@keyframes lIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.lcard{background:rgba(255,30,30,.06);border:1px solid rgba(255,75,110,.25);border-radius:11px;padding:9px 12px;margin-bottom:7px;animation:lIn .2s ease both;overflow:hidden}
+.lcard:active{transform:scale(.98)}
+.lchead{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.lcsym{font-size:14px;font-weight:900;color:#fff}
+.freshbdg{background:rgba(255,75,110,.2);color:var(--r);font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:.4px}
+.lctime{font-size:10px;color:var(--d2);margin-left:auto;font-family:monospace}
+.lcrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.lcbtns{display:flex;gap:5px}
+.lcbuy{padding:6px 12px;background:linear-gradient(135deg,var(--g),var(--g2));color:var(--bg);font-size:11px;font-weight:900;border:none;border-radius:7px;cursor:pointer;flex:1}
+.lcai{padding:6px 10px;background:var(--bg3);border:1px solid rgba(124,111,247,.3);color:var(--p);font-size:11px;font-weight:700;border-radius:7px;cursor:pointer}
+.lcpump{padding:6px 10px;background:none;border:1px solid var(--bo2);color:var(--d2);font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;text-decoration:none}
+.btwt{padding:7px 9px;background:rgba(29,155,240,.1);border:1px solid rgba(29,155,240,.25);color:#1d9bf0;font-size:11px;border-radius:9px;cursor:pointer}
 
 .wrap{padding:10px 10px 90px}
 .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
@@ -241,7 +263,16 @@ body{height:100dvh;display:flex;flex-direction:column;background:var(--bg);color
 </div>
 <div class="tick"><div class="tdot"></div><span class="ttxt" id="tickEl">&#1057;&#1082;&#1072;&#1085;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;&#1080;&#1077; Solana&#8230;</span></div>
 <div class="main">
-  <div class="view on" id="vScan"><div class="feed" id="fScan"><div class="ldg"><div class="spin"></div>&#160;&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072;&#8230;</div></div></div>
+  <div class="view on" id="vScan">
+    <div class="livebar" id="liveBar" style="display:none">
+      <div class="lbdot" id="lbDot"></div>
+      <span id="lbStatus">&#1055;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1077;&#1085;&#1080;&#1077;&#8230;</span>
+      <span class="lbcnt" id="lbCnt">0</span>
+      <button class="lbcls" onclick="clearLive()" title="&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100;">&#x2715;</button>
+    </div>
+    <div class="lfeed" id="liveFeed"></div>
+    <div class="feed" id="fScan"><div class="ldg"><div class="spin"></div>&#160;&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072;&#8230;</div></div>
+  </div>
   <div class="view" id="vPump"><div class="feed" id="fPump"><div class="ldg"><div class="spin"></div>&#160;pump.fun&#8230;</div></div></div>
   <div class="view" id="vHot"><div class="feed" id="fHot"><div class="ldg"><div class="spin"></div>&#160;&#1043;&#1086;&#1088;&#1103;&#1095;&#1080;&#1077;&#8230;</div></div></div>
   <div class="view" id="vSnipe">
@@ -779,12 +810,138 @@ if(r.ok){const d=await r.json();const txt=d.response||d.text||d.message||d.conte
 else throw new Error(r.status);}
 catch(e){typ.remove();addMsg(aiOfflineReport(q,null),'ai');}}
 
+// ════════════════════════════════════════════
+//  LIVE WebSocket — pump.fun новые токены
+//  Sources (by latency):
+//  1. wss://pumpportal.fun/api/data  (~0.3–1.5s)
+//  2. wss://pump.fun/api/data        (~0.5–2s)
+// ════════════════════════════════════════════
+const WS_URLS=['wss://pumpportal.fun/api/data','wss://pump.fun/api/data'];
+let ws=null,wsUrlIdx=0,wsRetries=0,liveNewCount=0,liveTimers=[];
+
+function wsSetStatus(connected,text){
+  const bar=G('liveBar'),dot=G('lbDot'),lbl=G('lbStatus'),cnt=G('lbCnt');
+  if(!bar)return;
+  bar.style.display='flex';
+  if(connected){dot.className='lbdot conn';cnt.className='lbcnt conn';}
+  else{dot.className='lbdot';cnt.className='lbcnt';}
+  if(lbl)lbl.textContent=text||'';}
+
+function initWS(){
+  if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;
+  const url=WS_URLS[wsUrlIdx%WS_URLS.length];
+  wsSetStatus(false,'Подключение к pump.fun WS…');
+  try{
+    ws=new WebSocket(url);
+    ws.onopen=()=>{
+      wsRetries=0;
+      ws.send(JSON.stringify({method:'subscribeNewToken'}));
+      wsSetStatus(true,'🔴 LIVE · pump.fun');
+      console.log('[WS] connected:',url);
+    };
+    ws.onmessage=e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // pumpportal format: txType==="create"
+        if(d.txType==='create'||d.type==='token_create'||d.event==='create'||(d.mint&&d.symbol&&!d.txType)){
+          addLiveToken(d);
+        }
+      }catch(err){}
+    };
+    ws.onclose=()=>{
+      wsSetStatus(false,'Переподключение…');
+      wsUrlIdx++;
+      const delay=Math.min(2000+wsRetries*2000,15000);
+      wsRetries++;
+      setTimeout(initWS,delay);
+    };
+    ws.onerror=()=>{ try{ws.close();}catch(e){} };
+  }catch(e){
+    wsUrlIdx++;wsRetries++;
+    setTimeout(initWS,5000);
+  }
+}
+
+function addLiveToken(d){
+  const mint=(d.mint||d.tokenAddress||d.address||'').trim();
+  if(!mint||mint.length<20)return;
+  const sym=((d.symbol||d.sym||'???')+'').toUpperCase().slice(0,12);
+  const name=(d.name||sym).slice(0,28);
+  const solAmt=parseFloat(d.solAmount||d.initialBuy||d.sol_amount||0);
+  const mcSol=parseFloat(d.marketCapSol||d.market_cap_sol||0);
+  const creator=(d.traderPublicKey||d.creator||d.dev||'');
+  const creatorShort=creator?creator.slice(0,6)+'…'+creator.slice(-4):'';
+  const symSafe=sym.replace(/'/g,"\'").replace(/"/g,'&quot;');
+  const shortMint=mint.slice(0,6)+'…'+mint.slice(-4);
+  const ts=Date.now();const tid='lt'+ts;
+
+  // Build card
+  const card=document.createElement('div');
+  card.className='lcard';
+  card.innerHTML=`
+<div class="lchead">
+  <span class="lcsym">${name}</span>
+  <span style="font-size:11px;color:var(--d2);font-weight:600">${sym}</span>
+  <span class="freshbdg">НОВЫЙ</span>
+  <span class="lctime" id="${tid}">0s</span>
+</div>
+<div class="lcrow">
+  <span style="font-size:10px;color:var(--d2);font-family:monospace;cursor:pointer" onclick="cpMint('${mint}')">${shortMint} 📋</span>
+  ${solAmt>0?`<span style="font-size:11px;font-weight:700;color:var(--y)">+${solAmt.toFixed(3)} SOL</span>`:''}
+  ${mcSol>0?`<span style="font-size:10px;color:var(--d2)">${mcSol.toFixed(1)} SOL mcap</span>`:''}
+  ${creatorShort?`<span style="font-size:9px;color:var(--d)">dev: ${creatorShort}</span>`:''}
+</div>
+<div class="lcbtns">
+  <button class="lcbuy" onclick="openModal('${mint}','${symSafe}',0,'buy')">⚡ BUY</button>
+  <button class="lcai" onclick="aiToken('${symSafe}','${mint}')">🤖 TA</button>
+  <a class="lcpump" href="https://pump.fun/${mint}" target="_blank">pump.fun →</a>
+</div>`;
+
+  // Live age timer
+  const tmr=setInterval(()=>{
+    const el2=G(tid);
+    if(!el2){clearInterval(tmr);return;}
+    const s=Math.floor((Date.now()-ts)/1000);
+    el2.textContent=s<60?s+'s':Math.floor(s/60)+'m '+s%60+'s';
+    // Fade old cards
+    if(s>120)el2.style.color='var(--d)';
+  },1000);
+  liveTimers.push(tmr);
+
+  // Insert at top of live feed
+  const feed=G('liveFeed');
+  if(feed){
+    feed.insertBefore(card,feed.firstChild);
+    // Keep max 15 fresh cards
+    while(feed.children.length>15){
+      feed.removeChild(feed.lastChild);
+    }
+  }
+
+  // Counter
+  liveNewCount++;
+  const cnt=G('lbCnt');if(cnt)cnt.textContent=liveNewCount;
+
+  // Sound-like flash on top bar
+  const bar=G('liveBar');
+  if(bar){bar.style.background='rgba(255,75,110,.18)';setTimeout(()=>{bar.style.background='rgba(255,30,30,.07)';},400);}
+}
+
+function clearLive(){
+  liveNewCount=0;
+  const f=G('liveFeed');if(f)f.innerHTML='';
+  const cnt=G('lbCnt');if(cnt)cnt.textContent='0';
+  liveTimers.forEach(t=>clearInterval(t));liveTimers=[];
+}
+
 window.addEventListener('DOMContentLoaded',()=>{
 fetchSol();setInterval(fetchSol,30000);
 initWallet();if(wPub)loadWallet();
 renderSnipes();
 if(G('tpI'))G('tpI').value=tpV;if(G('slI'))G('slI').value=slV;
 loadScan();setInterval(()=>{if(activeChip==='scan')loadScan(false);},35000);
+// Start WebSocket live feed
+setTimeout(initWS,800);
 if(!wPub){const ph=window.solana||window.phantom?.solana;
 if(ph?.isPhantom&&ph.isConnected){ph.connect({onlyIfTrusted:true}).then(r=>{wPub=r.publicKey.toString();localStorage.setItem('s52pub',wPub);initWallet();}).catch(()=>{});}}});
 </script></body></html>
