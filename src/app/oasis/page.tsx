@@ -16,6 +16,9 @@ interface Msg {
   streaming?: boolean
   ts: number
   image?: string
+  thinkingSteps?: string[]
+  thinkingOpen?: boolean
+  thinkingDone?: boolean
 }
 
 const QUICK = [
@@ -27,7 +30,7 @@ const QUICK = [
 
 function uid() { return Math.random().toString(36).slice(2) }
 
-// ── Markdown renderer ─────────────────────────────────────────────────────────
+// -- Markdown renderer ------------------------------------------------------
 function renderMarkdown(text: string): React.ReactNode[] {
   const lines = text.split('\n')
   const nodes: React.ReactNode[] = []
@@ -68,10 +71,10 @@ function renderMarkdown(text: string): React.ReactNode[] {
     if (line.startsWith('# '))  { nodes.push(<h1 key={i} className="text-base font-bold text-white mt-2 mb-1">{inlineRender(line.slice(2))}</h1>); i++; continue }
     if (line.startsWith('## ')) { nodes.push(<h2 key={i} className="text-sm font-bold text-white/90 mt-2 mb-0.5">{inlineRender(line.slice(3))}</h2>); i++; continue }
     if (line.startsWith('### ')){ nodes.push(<h3 key={i} className="text-sm font-semibold text-white/75 mt-1">{inlineRender(line.slice(4))}</h3>); i++; continue }
-    if (line.match(/^[-*•] /)) {
+    if (line.match(/^[\-*\u2022] /)) {
       const items: React.ReactNode[] = []
-      while (i < lines.length && lines[i].match(/^[-*•] /)) {
-        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-[#00FF9D]/60 mt-0.5 shrink-0">·</span><span>{inlineRender(lines[i].replace(/^[-*•] /,''))}</span></li>)
+      while (i < lines.length && lines[i].match(/^[\-*\u2022] /)) {
+        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-[#00FF9D]/60 mt-0.5 shrink-0">&middot;</span><span>{inlineRender(lines[i].replace(/^[\-*\u2022] /,''))}</span></li>)
         i++
       }
       nodes.push(<ul key={`ul-${i}`} className="space-y-1 my-1">{items}</ul>); continue
@@ -106,15 +109,71 @@ function MsgContent({ content, streaming }: { content: string; streaming?: boole
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -- ThinkingBlock ----------------------------------------------------------
+function ThinkingBlock({
+  steps, streaming, open, onToggle,
+}: {
+  steps: string[]; streaming?: boolean; open: boolean; onToggle: () => void
+}) {
+  if (!steps || steps.length === 0) return null
+  return (
+    <div className="mb-2">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 text-[10px] font-mono px-2.5 py-1 rounded-full border border-[#00FF9D]/15 bg-[#00FF9D]/5 text-[#00FF9D]/50 hover:text-[#00FF9D]/80 hover:border-[#00FF9D]/30 transition-all"
+      >
+        {streaming
+          ? <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9D]/70 animate-pulse" />
+          : <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9D]/35" />}
+        {streaming ? 'Думает...' : `Процесс мышления · ${steps.length} шагов`}
+        <span className="opacity-40">{open ? '▲' : '▼'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mt-1.5 px-3 py-2.5 bg-black/40 border border-white/8 rounded-xl font-mono text-[10px] md:text-[11px] text-white/40 leading-relaxed space-y-1 max-h-52 overflow-y-auto"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.1) transparent' }}
+            >
+              {steps.map((s, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-[#00FF9D]/25 shrink-0 select-none">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="text-white/45 break-words">{s}</span>
+                </div>
+              ))}
+              {streaming && (
+                <div className="flex gap-2 items-center">
+                  <span className="text-[#00FF9D]/25 shrink-0">--</span>
+                  <span className="inline-flex gap-1">
+                    {[0, 0.2, 0.4].map((d, i) => (
+                      <span key={i} className="w-1 h-1 rounded-full bg-[#00FF9D]/40 animate-bounce"
+                        style={{ animationDelay: `${d}s` }} />
+                    ))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
+// ---------------------------------------------------------------------------
 export default function OasisPage() {
-  const [msgs, setMsgs]             = useState<Msg[]>([])
-  const [input, setInput]           = useState('')
-  const [connected, setConnected]   = useState(false)
-  const [loading, setLoading]       = useState(false)
-  const [imgPreview, setImgPreview] = useState<string | null>(null)
-  const [imgBase64, setImgBase64]   = useState<string | null>(null)
+  const [msgs, setMsgs]                 = useState<Msg[]>([])
+  const [input, setInput]               = useState('')
+  const [connected, setConnected]       = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [imgPreview, setImgPreview]     = useState<string | null>(null)
+  const [imgBase64, setImgBase64]       = useState<string | null>(null)
 
   const wsRef     = useRef<WebSocket | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -124,7 +183,6 @@ export default function OasisPage() {
   const scroll = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(scroll, [msgs])
 
-  // Talking state: true when AI is actively streaming a response
   const isTalking = loading || (msgs.length > 0 &&
     msgs[msgs.length - 1]?.role === 'ai' &&
     msgs[msgs.length - 1]?.streaming === true)
@@ -137,22 +195,59 @@ export default function OasisPage() {
     ws.onclose = () => { setConnected(false); setTimeout(connect, 4000) }
     ws.onerror = () => ws.close()
     ws.onmessage = (e) => {
-      const d = JSON.parse(e.data)
+      const d    = JSON.parse(e.data)
       const type = d.t || d.type
       const val  = d.v ?? d.content ?? ''
-      if (type === 'token') {
+
+      if (type === 'thinking_start') {
+        // Spawn AI message stub with empty thinking
+        setMsgs(prev => [
+          ...prev,
+          { id: uid(), role: 'ai', content: '', streaming: true,
+            thinkingSteps: [], thinkingOpen: true, thinkingDone: false, ts: Date.now() }
+        ])
+
+      } else if (type === 'thinking') {
+        setMsgs(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'ai')
+            return [...prev.slice(0, -1), {
+              ...last, thinkingSteps: [...(last.thinkingSteps || []), val]
+            }]
+          return prev
+        })
+
+      } else if (type === 'thinking_done') {
+        setMsgs(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'ai')
+            return [...prev.slice(0, -1), {
+              ...last, thinkingDone: true, thinkingOpen: false
+            }]
+          return prev
+        })
+
+      } else if (type === 'token') {
         setMsgs(prev => {
           const last = prev[prev.length - 1]
           if (last?.role === 'ai' && last.streaming)
             return [...prev.slice(0, -1), { ...last, content: last.content + val }]
-          return [...prev, { id: uid(), role: 'ai', content: val, streaming: true, ts: Date.now() }]
+          return [...prev, { id: uid(), role: 'ai', content: val, streaming: true,
+                             thinkingSteps: [], thinkingOpen: false, thinkingDone: true, ts: Date.now() }]
         })
+
       } else if (type === 'done') {
-        setMsgs(prev => { const l = prev[prev.length - 1]; if (l?.role === 'ai') return [...prev.slice(0, -1), { ...l, streaming: false }]; return prev })
+        setMsgs(prev => {
+          const l = prev[prev.length - 1]
+          if (l?.role === 'ai') return [...prev.slice(0, -1), { ...l, streaming: false }]
+          return prev
+        })
         setLoading(false)
+
       } else if (type === 'error') {
         setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ ' + val, ts: Date.now() }])
         setLoading(false)
+
       } else if (type === 'tool_start' || type === 'tool_done') {
         setMsgs(prev => [...prev, { id: uid(), role: 'system', content: val, ts: Date.now() }])
       }
@@ -169,7 +264,8 @@ export default function OasisPage() {
     const msg = (text ?? input).trim()
     if (!msg && !imgBase64) return
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-    setMsgs(prev => [...prev, { id: uid(), role: 'user', content: msg, image: imgPreview ?? undefined, ts: Date.now() }])
+    setMsgs(prev => [...prev, { id: uid(), role: 'user', content: msg,
+                                image: imgPreview ?? undefined, ts: Date.now() }])
     setInput('')
     setLoading(true)
     wsRef.current.send(JSON.stringify({ message: msg, image_base64: imgBase64 ?? undefined }))
@@ -183,9 +279,15 @@ export default function OasisPage() {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
-    reader.onload = () => { const r = reader.result as string; setImgPreview(r); setImgBase64(r.split(',')[1]) }
+    reader.onload = () => {
+      const r = reader.result as string
+      setImgPreview(r); setImgBase64(r.split(',')[1])
+    }
     reader.readAsDataURL(file)
   }
+
+  const toggleThinking = (id: string) =>
+    setMsgs(prev => prev.map(m => m.id === id ? { ...m, thinkingOpen: !m.thinkingOpen } : m))
 
   return (
     <div
@@ -195,10 +297,10 @@ export default function OasisPage() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
 
-      {/* Live2D Avatar — desktop only, floating bottom-right */}
+      {/* Live2D Avatar */}
       <OasisAvatar talking={isTalking} />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
           <span className="text-lg md:text-xl">⚡</span>
@@ -208,8 +310,8 @@ export default function OasisPage() {
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${connected ? 'bg-[#00FF9D] animate-pulse' : 'bg-white/25'}`} />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">{connected ? 'online' : 'connecting…'}</span>
-          <a href="/oasis/settings" title="Подключения"
-            className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
+          <a href="/oasis/settings" title="Настройки"
+             className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 1 21 12a10 10 0 0 1-1.93 7.07M4.93 4.93A10 10 0 0 0 3 12a10 10 0 0 0 1.93 7.07"/>
               <path d="m16.24 7.76-1.22 1.22M7.76 16.24l-1.22 1.22M16.24 16.24l-1.22-1.22M7.76 7.76 6.54 6.54"/>
@@ -218,11 +320,11 @@ export default function OasisPage() {
         </div>
       </header>
 
-      {/* ── Desktop layout: centred column ── */}
+      {/* Main layout */}
       <div className="relative z-10 flex flex-1 overflow-hidden justify-center">
         <div className="flex flex-col w-full md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-hidden">
 
-          {/* ── Messages ── */}
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 md:py-6 space-y-3 md:space-y-4"
             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.15) transparent' }}>
 
@@ -263,6 +365,17 @@ export default function OasisPage() {
                   ) : (
                     <div className={`max-w-[88%] md:max-w-[78%] ${m.role === 'user' ? 'order-2' : ''}`}>
                       {m.image && <img src={m.image} alt="" className="rounded-xl mb-2 max-h-44 md:max-h-56 object-cover" />}
+
+                      {/* ThinkingBlock — only for AI messages */}
+                      {m.role === 'ai' && (
+                        <ThinkingBlock
+                          steps={m.thinkingSteps || []}
+                          streaming={!m.thinkingDone}
+                          open={m.thinkingOpen || false}
+                          onToggle={() => toggleThinking(m.id)}
+                        />
+                      )}
+
                       <div className={`rounded-2xl px-3.5 md:px-4 py-2.5 md:py-3 ${
                         m.role === 'user'
                           ? 'bg-[#00FF9D]/15 border border-[#00FF9D]/25 text-white ml-auto backdrop-blur-sm'
@@ -270,8 +383,7 @@ export default function OasisPage() {
                       }`}>
                         {m.role === 'user'
                           ? <span className="text-sm leading-relaxed">{m.content}</span>
-                          : <MsgContent content={m.content} streaming={m.streaming} />
-                        }
+                          : <MsgContent content={m.content} streaming={m.streaming} />}
                       </div>
                     </div>
                   )}
@@ -294,7 +406,7 @@ export default function OasisPage() {
             <div ref={bottomRef} />
           </div>
 
-          {/* ── Image preview ── */}
+          {/* Image preview */}
           <AnimatePresence>
             {imgPreview && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
@@ -302,13 +414,13 @@ export default function OasisPage() {
                 <div className="relative inline-block">
                   <img src={imgPreview} alt="" className="h-16 md:h-20 rounded-xl object-cover border border-white/15" />
                   <button onClick={() => { setImgPreview(null); setImgBase64(null) }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">×</button>
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">✕</button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── Input ── */}
+          {/* Input */}
           <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
             <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#00FF9D]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
               <button onClick={() => fileRef.current?.click()}
@@ -333,7 +445,7 @@ export default function OasisPage() {
               </button>
             </div>
             <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
-              Enter — отправить · Shift+Enter — новая строка
+              Enter — отправить &middot; Shift+Enter — новая строка
             </p>
           </div>
 

@@ -2,6 +2,7 @@
 GodLocal API Backend — Flask / Gunicorn for Render
 Routes: /health /status /mobile/status /mobile/kill-switch /market /think /agent/tick
         /hitl/task  /hitl/tasks
+        /ws/oasis   WebSocket — streams thinking + token events to Oasis UI
 
 HITL layer:
   - TaskQueue   → Supabase (SUPABASE_URL + SUPABASE_SERVICE_KEY)
@@ -20,7 +21,7 @@ logger = logging.getLogger("godlocal.server")
 app = Flask(__name__)
 CORS(app)
 
-# ── State ─────────────────────────────────────────────────────────────────────
+# -- State ------------------------------------------------------------------
 _lock         = threading.Lock()
 _kill_switch  = os.environ.get("XZERO_KILL_SWITCH", "false").lower() == "true"
 _thoughts: list = []
@@ -31,11 +32,11 @@ GROQ_KEY      = os.environ.get("GROQ_API_KEY", "")
 COMPOSIO_KEY  = os.environ.get("COMPOSIO_API_KEY", "")
 MODELS        = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-8b-8192"]
 
-# ── HITL bootstrap ────────────────────────────────────────────────────────────
+# -- HITL bootstrap ---------------------------------------------------------
 _HITL_READY   = False
-_hitl_loop    = None   # asyncio event loop running in background thread
-_hitl_tq      = None   # TaskQueue instance (if HITL active)
-_hitl_notifier= None   # HITLNotifier instance (if HITL active)
+_hitl_loop    = None
+_hitl_tq      = None
+_hitl_notifier= None
 
 SUPABASE_URL  = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -46,7 +47,6 @@ def _hitl_available():
     return bool(SUPABASE_URL and SUPABASE_KEY and TG_BOT_TOKEN and TG_CHAT_ID)
 
 def _start_hitl_thread():
-    """Boot HITL in a dedicated asyncio thread so Flask stays sync."""
     global _HITL_READY, _hitl_loop, _hitl_tq, _hitl_notifier
     if not _hitl_available():
         logger.info("HITL: env vars missing — running without HITL")
@@ -55,13 +55,10 @@ def _start_hitl_thread():
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "godlocal_hitl"))
         from task_queue import TaskQueue
         from telegram_hitl import HITLNotifier
-
         loop = asyncio.new_event_loop()
         _hitl_loop = loop
-
         tq = TaskQueue(cell_id="godlocal-main")
         _hitl_tq = tq
-
         notifier = HITLNotifier(
             tq,
             on_approve=_on_hitl_approve,
@@ -71,12 +68,10 @@ def _start_hitl_thread():
         _hitl_notifier = notifier
         _HITL_READY = True
         logger.info("HITL: TaskQueue + HITLNotifier ready")
-
         loop.run_until_complete(notifier.start_polling())
     except Exception as e:
         logger.warning("HITL thread error: %s", e)
 
-# HITL callbacks (sync wrappers — run in _hitl_loop)
 async def _on_hitl_approve(task):
     logger.info("HITL approved: %s", task.get("title"))
     draft = task.get("draft_data") or {}
@@ -91,7 +86,6 @@ async def _on_hitl_cancel(task):
     logger.info("HITL cancelled: %s", task.get("title"))
 
 def _fire_and_forget_tweet(text: str):
-    """Post tweet via Composio (best-effort)."""
     if not COMPOSIO_KEY or not text:
         return
     try:
@@ -104,7 +98,7 @@ def _fire_and_forget_tweet(text: str):
     except Exception as e:
         logger.warning("Tweet fire-and-forget failed: %s", e)
 
-# ── Market ────────────────────────────────────────────────────────────────────
+# -- Market -----------------------------------------------------------------
 def get_market():
     now = time.time()
     if now - _market_cache["ts"] < 300 and _market_cache["data"]:
@@ -114,7 +108,7 @@ def get_market():
             "https://api.coingecko.com/api/v3/simple/price",
             params={"ids": "bitcoin,ethereum,solana,binancecoin,sui",
                     "vs_currencies": "usd", "include_24hr_change": "true"},
-            timeout=8
+            timeout=8,
         )
         data = r.json()
         _market_cache["data"] = data
@@ -123,7 +117,7 @@ def get_market():
     except Exception as e:
         return {"error": str(e)}
 
-# ── Groq ──────────────────────────────────────────────────────────────────────
+# -- Groq -------------------------------------------------------------------
 def groq_call(messages, tools=None, idx=0):
     if idx >= len(MODELS):
         return None, "all models exhausted"
@@ -140,16 +134,16 @@ def groq_call(messages, tools=None, idx=0):
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            json=body, headers=headers, timeout=30
+            json=body, headers=headers, timeout=30,
         )
         if r.status_code == 429:
             return groq_call(messages, tools, idx + 1)
         r.raise_for_status()
         return r.json(), None
     except Exception as e:
-        return groq_call(messages, tools, idx + 1) if idx < len(MODELS)-1 else (None, str(e))
+        return groq_call(messages, tools, idx + 1) if idx < len(MODELS) - 1 else (None, str(e))
 
-# ── Tool schemas ──────────────────────────────────────────────────────────────
+# -- Tool schemas -----------------------------------------------------------
 BASE_TOOLS = [
     {"type": "function", "function": {
         "name": "get_market_data",
@@ -205,7 +199,7 @@ COMPOSIO_TOOLS = [
 def all_tools():
     return BASE_TOOLS + (COMPOSIO_TOOLS if COMPOSIO_KEY else [])
 
-# ── Tool executor ─────────────────────────────────────────────────────────────
+# -- Tool executor ----------------------------------------------------------
 def run_tool(name, args):
     global _kill_switch
     if name == "get_market_data":
@@ -227,7 +221,6 @@ def run_tool(name, args):
             if len(_sparks) > 50: _sparks.pop(0)
         return json.dumps({"ok": True, "spark": spark})
 
-    # ── Composio tools ──
     if not COMPOSIO_KEY:
         return json.dumps({"error": "COMPOSIO_API_KEY not set"})
     headers = {"x-api-key": COMPOSIO_KEY, "Content-Type": "application/json"}
@@ -237,27 +230,23 @@ def run_tool(name, args):
             text = args.get("text", "")
             if _HITL_READY and _hitl_tq and _hitl_notifier and _hitl_loop:
                 task = _hitl_tq.create(
-                    title=f"Опубликовать твит @kitbtc",
+                    title="Опубликовать твит @kitbtc",
                     executor="human",
                     draft_type="social_draft",
                     draft_data={"platform": "twitter", "message": text},
                     why_human="Агент хочет опубликовать твит — подтвердите"
                 )
                 asyncio.run_coroutine_threadsafe(
-                    _hitl_notifier.send_card(task["id"]), _hitl_loop
-                )
-                return json.dumps({"ok": True, "hitl": True, "task_id": task["id"],
-                                   "note": "Tweet queued for HITL approval via Telegram"})
+                    _hitl_notifier.send_card(task["id"]), _hitl_loop)
+                return json.dumps({"ok": True, "hitl": True, "task_id": task["id"]})
             r = requests.post(f"{base}/TWITTER_CREATION_OF_A_POST/execute",
-                json={"input": {"text": text}},
-                headers=headers, timeout=15)
+                json={"input": {"text": text}}, headers=headers, timeout=15)
             return json.dumps({"ok": r.status_code < 300})
 
         if name == "send_telegram":
             if _HITL_READY and _hitl_notifier and _hitl_loop:
                 asyncio.run_coroutine_threadsafe(
-                    _hitl_notifier.notify(args.get("text", "")), _hitl_loop
-                )
+                    _hitl_notifier.notify(args.get("text", "")), _hitl_loop)
                 return json.dumps({"ok": True, "via": "hitl_bot"})
             r = requests.post(f"{base}/TELEGRAM_SEND_MESSAGE/execute",
                 json={"input": {"text": args.get("text", "")}},
@@ -275,14 +264,21 @@ def run_tool(name, args):
         return json.dumps({"error": str(e)})
     return json.dumps({"error": f"unknown tool: {name}"})
 
-# ── ReAct loop ────────────────────────────────────────────────────────────────
-def react(prompt, history=None):
+# -- ReAct loop (with optional ws_emit for Oasis thinking stream) -----------
+def react(prompt, history=None, ws_emit=None):
+    """
+    Run ReAct loop.
+    ws_emit(event_type, value) -- optional callback for WebSocket streaming.
+    Called with ('thinking', text) before each step and ('tool_done', result)
+    after each tool call, so Oasis can display live reasoning.
+    """
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     msgs = [{"role": "system", "content":
         f"You are GodLocal autonomous AI agent.\n"
         f"Date: {now_str}\nUse ReAct: think → tool → observe → respond.\n"
         f"Max 8 steps. Last step MUST be plain text.\n"
-        f"HITL active: {_HITL_READY} (tweets require human approval via Telegram)."}]
+        f"HITL active: {_HITL_READY} (tweets require human approval via Telegram)."
+    }]
     if history:
         msgs.extend(history[-6:])
     msgs.append({"role": "user", "content": prompt})
@@ -293,6 +289,8 @@ def react(prompt, history=None):
         force_text = (step == 7)
         resp, err = groq_call(msgs, tools=None if force_text else tools)
         if err or not resp:
+            if ws_emit:
+                ws_emit("thinking", f"[error] {err}")
             break
         choice = resp["choices"][0]
         msg    = choice["message"]
@@ -302,7 +300,11 @@ def react(prompt, history=None):
             for tc in msg["tool_calls"]:
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"].get("arguments") or "{}")
+                if ws_emit:
+                    ws_emit("thinking", f"→ {fn_name}({json.dumps(fn_args)[:100]})")
                 result  = run_tool(fn_name, fn_args)
+                if ws_emit:
+                    ws_emit("thinking", f"✓ {fn_name}: {result[:120]}")
                 steps.append({"tool": fn_name, "result": result[:300]})
                 msgs.append({"role": "tool",
                              "tool_call_id": tc["id"],
@@ -318,12 +320,8 @@ def react(prompt, history=None):
     return "Internal error", steps, used_model
 
 
-# ── Follow-up question generator ──────────────────────────────────────────────
+# -- Follow-up question generator -------------------------------------------
 def generate_follow_up(prompt: str, response: str) -> list:
-    """
-    Generate 3 short guiding follow-up questions based on the conversation.
-    Returns a list of 3 strings. Falls back to [] on any error.
-    """
     if not GROQ_KEY:
         return []
     try:
@@ -341,12 +339,10 @@ def generate_follow_up(prompt: str, response: str) -> list:
                 f"User asked: {prompt[:300]}\n\nAI answered: {response[:400]}\n\n"
                 f"Generate 3 short follow-up questions as JSON array:"}
         ]
-        # Use the fastest model for follow-up generation
-        resp, err = groq_call(msgs, tools=None, idx=1)  # idx=1 → llama-3.1-8b-instant
+        resp, err = groq_call(msgs, tools=None, idx=1)
         if err or not resp:
             return []
         content = resp["choices"][0]["message"].get("content", "")
-        # Parse JSON array from response
         start = content.find("[")
         end   = content.rfind("]") + 1
         if start == -1 or end == 0:
@@ -360,13 +356,68 @@ def generate_follow_up(prompt: str, response: str) -> list:
         return []
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# -- WebSocket (flask-sock) -------------------------------------------------
+try:
+    from flask_sock import Sock
+    sock = Sock(app)
+    _WS_AVAILABLE = True
+except ImportError:
+    _WS_AVAILABLE = False
+    logger.info("flask-sock not installed — /ws/oasis WebSocket disabled")
+
+if _WS_AVAILABLE:
+    @sock.route("/ws/oasis")
+    def ws_oasis(ws):
+        """Stream thinking + tokens to Oasis UI in real time."""
+        while True:
+            try:
+                raw = ws.receive()
+                if raw is None:
+                    break
+                data    = json.loads(raw)
+                message = data.get("message", "").strip()
+                img_b64 = data.get("image_base64")
+                if not message and not img_b64:
+                    continue
+
+                def emit(t, v=""):
+                    try:
+                        ws.send(json.dumps({"t": t, "v": v}))
+                    except Exception:
+                        pass
+
+                def ws_emit(event_type, value):
+                    emit("thinking", value)
+
+                prompt = message or "[Image] Describe this."
+
+                emit("thinking_start")
+                response_text, steps, model = react(prompt, ws_emit=ws_emit)
+                emit("thinking_done")
+
+                # Stream response word-by-word
+                words = response_text.split(" ")
+                for i, word in enumerate(words):
+                    emit("token", word + (" " if i < len(words) - 1 else ""))
+
+                emit("done")
+
+            except Exception as e:
+                try:
+                    ws.send(json.dumps({"t": "error", "v": str(e)}))
+                except Exception:
+                    pass
+                break
+
+
+# -- REST Routes ------------------------------------------------------------
 @app.route("/",        methods=["GET"])
 @app.route("/health",  methods=["GET"])
 def health():
     return jsonify({"status": "ok", "models": MODELS,
                     "composio": bool(COMPOSIO_KEY),
                     "hitl_ready": _HITL_READY,
+                    "ws_oasis": _WS_AVAILABLE,
                     "ts": datetime.utcnow().isoformat()})
 
 @app.route("/status",         methods=["GET"])
@@ -391,6 +442,10 @@ def kill_switch_toggle():
 def market():
     return jsonify(get_market())
 
+@app.route("/ping", methods=["GET"])
+def ping():
+    return jsonify({"pong": True})
+
 @app.route("/think", methods=["POST"])
 def think():
     data    = request.get_json() or {}
@@ -399,7 +454,6 @@ def think():
     if not prompt:
         return jsonify({"error": "prompt required"}), 400
     response, steps, model = react(prompt, history)
-    # Generate 3 follow-up questions (fast, non-blocking)
     follow_up = generate_follow_up(prompt, response)
     return jsonify({"response": response, "steps": steps,
                     "model": model, "follow_up_questions": follow_up})
@@ -413,7 +467,6 @@ def tick():
     return jsonify({"response": response, "steps": steps,
                     "model": model, "tick": True})
 
-# ── HITL REST endpoints ───────────────────────────────────────────────────────
 @app.route("/hitl/tasks", methods=["GET"])
 def hitl_tasks():
     if not _HITL_READY or not _hitl_tq:
@@ -423,10 +476,8 @@ def hitl_tasks():
 
 @app.route("/hitl/task", methods=["POST"])
 def hitl_create_task():
-    """Manually create a HITL task and push to Telegram."""
     if not _HITL_READY or not _hitl_tq or not _hitl_notifier or not _hitl_loop:
-        return jsonify({"error": "HITL not ready",
-                        "hint": "Set SUPABASE_URL, SUPABASE_SERVICE_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID"}), 503
+        return jsonify({"error": "HITL not ready"}), 503
     data = request.get_json() or {}
     task = _hitl_tq.create(
         title=data.get("title", "HITL Task"),
@@ -437,25 +488,23 @@ def hitl_create_task():
         draft_data=data.get("draft_data"),
     )
     asyncio.run_coroutine_threadsafe(
-        _hitl_notifier.send_card(task["id"]), _hitl_loop
-    )
+        _hitl_notifier.send_card(task["id"]), _hitl_loop)
     return jsonify({"ok": True, "task_id": task["id"]})
 
 @app.route("/hitl/status", methods=["GET"])
 def hitl_status():
     return jsonify({
-        "hitl_ready":    _HITL_READY,
-        "supabase":      bool(SUPABASE_URL and SUPABASE_KEY),
-        "telegram_bot":  bool(TG_BOT_TOKEN and TG_CHAT_ID),
+        "hitl_ready":   _HITL_READY,
+        "supabase":     bool(SUPABASE_URL and SUPABASE_KEY),
+        "telegram_bot": bool(TG_BOT_TOKEN and TG_CHAT_ID),
     })
 
-# ── Entry ─────────────────────────────────────────────────────────────────────
+# -- Entry ------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     t = threading.Thread(target=_start_hitl_thread, daemon=True)
     t.start()
     app.run(host="0.0.0.0", port=port, debug=False)
 else:
-    # Gunicorn entry point
     t = threading.Thread(target=_start_hitl_thread, daemon=True)
     t.start()
