@@ -246,11 +246,15 @@ export default function OasisPage() {
       setConn(true);setConning(false)
       const pi=setInterval(()=>ws.readyState===WebSocket.OPEN?ws.send(JSON.stringify({t:'ping'})):clearInterval(pi),10000)
     }
-    ws.onclose=()=>{setConn(false);setConning(false);if(rtRef.current)clearTimeout(rtRef.current);rtRef.current=setTimeout(()=>connectWS(),4000)}
+    ws.onclose=()=>{setConn(false);setConning(false);if(rtRef.current)clearTimeout(rtRef.current);rtRef.current=setTimeout(()=>connectWS(),8000)}
     ws.onerror=()=>{setConn(false);setConning(false)}
     ws.onmessage=e=>{try{hmRef.current(JSON.parse(e.data))}catch{}}
   },[sid])
-  useEffect(()=>{connectWS();return()=>{wsRef.current?.close();if(rtRef.current)clearTimeout(rtRef.current)}},[connectWS])
+  useEffect(()=>{
+    // Wake up Render backend before WS connect (prevents cold-start failures)
+    fetch(`${API_BASE}/ping`).catch(()=>{}).finally(()=>connectWS())
+    return()=>{wsRef.current?.close();if(rtRef.current)clearTimeout(rtRef.current)}
+  },[connectWS])
 
   useEffect(()=>{
     const vv=(window as any).visualViewport
@@ -281,8 +285,8 @@ export default function OasisPage() {
     const iv=setInterval(()=>{
       tries++
       if(wsRef.current?.readyState===WebSocket.OPEN){clearInterval(iv);go()}
-      else if(tries>20){clearInterval(iv);clearTimeout(safe);setWaiting(false)}
-      else connectWS()
+      else if(tries>30){clearInterval(iv);clearTimeout(safe);setWaiting(false)}
+      else if(tries===1||tries%5===0){connectWS()}
     },3000)
     setXp(p=>({...p,[agent.id]:(p[agent.id]||0)+1}))
   },[input,atts,agent,sid,connectWS,lang])
