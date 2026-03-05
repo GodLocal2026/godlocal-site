@@ -1,7 +1,7 @@
-# GodLocal API Backend v15.0 — Clean Rebuild
+# GodLocal API Backend v16.0 — Vision + Rich Prompts + Memory Fix
 # WebSocket: /ws/oasis /ws/deep
 # REST: /health /memory /profile /v2/council /market
-import os, sys, time, json, threading, asyncio, logging, uuid
+import os, sys, time, json, threading, asyncio, logging, uuid, base64
 import requests
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
@@ -11,34 +11,62 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("godlocal")
 
-app = FastAPI(title="GodLocal API", version="15.0.0")
+app = FastAPI(title="GodLocal API", version="16.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# ─── Config ─────────────────────────────────────────────────────────────────
 
 GROQ_KEY   = os.environ.get("GROQ_API_KEY", "")
 SERPER_KEY = os.environ.get("SERPER_API_KEY", "")
 TG_TOKEN   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT    = os.environ.get("TELEGRAM_CHAT_ID", "")
 
+# Text-only models (fallback chain)
 MODELS = [
     "llama-3.3-70b-versatile",
+    "llama-3.1-70b-versatile",
     "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+    "mixtral-8x7b-32768",
 ]
 
-SYSTEM_PROMPT = """Ты — GodLocal AI. Умный, честный, дружелюбный ИИ-ассистент.
-Отвечай на языке пользователя. Будь краток и конкретен.
-Если нужен поиск — используй инструмент web_search.
-Если нужно запомнить — используй remember.
-Дата: {date}"""
+# Vision models (for image analysis)
+VISION_MODELS = [
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+]
 
-# ─── In-memory storage ────────────────────────────────────────────────────────
+SYSTEM_PROMPT = """Ты — GodLocal AI ⚡, умный и живой ИИ-ассистент на платформе OASIS.
+
+ЛИЧНОСТЬ:
+- Отвечай тепло, умно, с огоньком — не сухо
+- Используй язык пользователя (русский/украинский/английский)
+- Пиши структурировано: заголовки, списки, выделение **жирным**
+
+ССЫЛКИ — ВСЕГДА в формате Markdown:
+- Кликабельная ссылка: [Название сайта](https://example.com)
+- Никогда не пиши "голые" URL — всегда оборачивай в [текст](url)
+- Пример: [YouTube канал Дудя](https://www.youtube.com/@yurydud)
+- Пример: [Bitcoin на CoinGecko](https://www.coingecko.com/en/coins/bitcoin)
+- Если пользователь просит ссылку — дай её в формате [текст](url)
+
+ВОЗМОЖНОСТИ:
+- Веб-поиск через web_search (для новостей, цен, текущих данных)
+- Сохранение в память через remember
+- Анализ изображений (если прислали фото)
+
+ВАЖНО:
+- Если задан поиск — используй web_search, потом отвечай с конкретными данными
+- Если прислали изображение — опиши что на нём, проанализируй
+- Дата: {date}"""
+
+# ─── In-memory storage ───────────────────────────────────────────────────────
 
 _lock = threading.Lock()
 _memories: dict = {}
 _profiles: dict = {}
 
-# ─── Memory ───────────────────────────────────────────────────────────────────
+# ─── Memory ──────────────────────────────────────────────────────────────────
 
 def mem_add(sid: str, text: str):
     with _lock:
@@ -61,7 +89,57 @@ def mem_delete(sid: str, mid: str):
         if sid in _memories:
             _memories[sid] = [m for m in _memories[sid] if m["id"] != mid]
 
-# ─── Groq LLM ─────────────────────────────────────────────────────────────────
+# ─── Vision (image analysis) ─────────────────────────────────────────────────
+
+def analyze_image(image_base64: str, prompt: str) -> str:
+    """Analyze image using Groq vision model."""
+    if not GROQ_KEY:
+        return "GROQ_API_KEY not set"
+    # Strip data URI prefix if present
+    if "," in image_base64:
+        image_base64 = image_base64.split(",", 1)[1]
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
+    }
+    for model in VISION_MODELS:
+        body = {
+            "model": model,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt or "Опиши что на этом изображении подробно."
+                    }
+                ]
+            }],
+            "max_tokens": 1024,
+        }
+        try:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                json=body, headers=headers, timeout=30
+            )
+            if r.status_code == 429:
+                logger.warning(f"Rate limit on vision model {model}")
+                time.sleep(1)
+                continue
+            if r.status_code in (400, 404):
+                logger.warning(f"Vision model {model} error {r.status_code}")
+                continue
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"].get("content", "") or ""
+        except Exception as e:
+            logger.warning(f"Vision error on {model}: {e}")
+            continue
+    return "Не смог проанализировать изображение (vision модели недоступны)."
+
+# ─── Groq LLM ────────────────────────────────────────────────────────────────
 
 def groq_chat(messages: list, tools: list = None, max_tokens: int = 1024) -> tuple:
     if not GROQ_KEY:
@@ -87,7 +165,7 @@ def groq_chat(messages: list, tools: list = None, max_tokens: int = 1024) -> tup
             )
             if r.status_code == 429:
                 logger.warning(f"Rate limit on {model}, trying next...")
-                time.sleep(1)
+                time.sleep(2)
                 continue
             if r.status_code in (400, 404):
                 err_msg = r.json().get("error", {}).get("message", "")
@@ -103,7 +181,7 @@ def groq_chat(messages: list, tools: list = None, max_tokens: int = 1024) -> tup
             continue
     return None, "All models failed"
 
-# ─── Tools ────────────────────────────────────────────────────────────────────
+# ─── Tools ───────────────────────────────────────────────────────────────────
 
 TOOL_DEFS = [
     {
@@ -156,7 +234,13 @@ def run_tool(name: str, args: dict, sid: str) -> str:
             data = r.json()
             results = []
             for item in data.get("organic", [])[:5]:
-                results.append(f"{item.get('title','')}: {item.get('snippet','')[:200]}")
+                title = item.get('title', '')
+                snippet = item.get('snippet', '')[:200]
+                link = item.get('link', '')
+                if link:
+                    results.append(f"[{title}]({link}): {snippet}")
+                else:
+                    results.append(f"{title}: {snippet}")
             return "\n".join(results) if results else "No results found"
         except Exception as e:
             return f"Search error: {e}"
@@ -166,16 +250,16 @@ def run_tool(name: str, args: dict, sid: str) -> str:
         return f"Remembered: {text}"
     return f"Unknown tool: {name}"
 
-# ─── Core chat ────────────────────────────────────────────────────────────────
+# ─── Core chat ───────────────────────────────────────────────────────────────
 
 SEARCH_KEYWORDS = [
     'поиск', 'найди', 'найти', 'search', 'курс', 'цена', 'price',
-    'btc', 'bitcoin', 'eth', 'крипт', 'что сейчас', 'актуальн',
-    'последн', 'новост', 'сегодня новост', 'расскажи о',
+    'btc', 'bitcoin', 'eth', 'крипто', 'что сейчас', 'актуально',
+    'последний', 'новости', 'сегодня новост', 'расскажи о',
 ]
 
 async def chat(ws: WebSocket, prompt: str, session_id: str,
-               history: list, lang: str = "ru"):
+               history: list, lang: str = "ru", image_base64: str = None):
     mems = mem_get(session_id)
     mem_block = ""
     if mems:
@@ -189,11 +273,26 @@ async def chat(ws: WebSocket, prompt: str, session_id: str,
             if m.get("role") in ("user", "assistant")
             and isinstance(m.get("content"), str)]
 
-    messages = (
-        [{"role": "system", "content": sys_content}]
-        + hist
-        + [{"role": "user", "content": prompt}]
-    )
+    # If image attached — analyze it first
+    if image_base64:
+        await ws.send_json({"t": "tool_start", "v": "🖼 анализирую фото"})
+        vision_result = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: analyze_image(image_base64, prompt)
+        )
+        await ws.send_json({"t": "tool_done", "v": "🖼 анализирую фото"})
+        # Inject vision result as context
+        enhanced_prompt = f"{prompt}\n\n[Анализ изображения]: {vision_result}"
+        messages = (
+            [{"role": "system", "content": sys_content}]
+            + hist
+            + [{"role": "user", "content": enhanced_prompt}]
+        )
+    else:
+        messages = (
+            [{"role": "system", "content": sys_content}]
+            + hist
+            + [{"role": "user", "content": prompt}]
+        )
 
     needs_search = any(kw in prompt.lower() for kw in SEARCH_KEYWORDS)
     tools = TOOL_DEFS if needs_search else None
@@ -264,7 +363,7 @@ async def chat(ws: WebSocket, prompt: str, session_id: str,
                 f"[{today}] Q: {prompt[:60]} → A: {full_text[:100]}")
         )
 
-# ─── WebSocket /ws/oasis ──────────────────────────────────────────────────────
+# ─── WebSocket /ws/oasis ─────────────────────────────────────────────────────
 
 @app.websocket("/ws/oasis")
 async def ws_oasis(websocket: WebSocket, sid: str = "default"):
@@ -287,8 +386,9 @@ async def ws_oasis(websocket: WebSocket, sid: str = "default"):
             if not prompt.strip():
                 continue
             lang = data.get("lang", "ru")
+            image_base64 = data.get("image_base64")  # NEW: accept image
             history.append({"role": "user", "content": prompt})
-            await chat(websocket, prompt, session_id, history[:-1], lang)
+            await chat(websocket, prompt, session_id, history[:-1], lang, image_base64)
     except WebSocketDisconnect:
         logger.info(f"WS disconnected: {session_id}")
     except Exception as e:
@@ -298,7 +398,7 @@ async def ws_oasis(websocket: WebSocket, sid: str = "default"):
         except:
             pass
 
-# ─── WebSocket /ws/deep ───────────────────────────────────────────────────────
+# ─── WebSocket /ws/deep ──────────────────────────────────────────────────────
 
 @app.websocket("/ws/deep")
 async def ws_deep(websocket: WebSocket, sid: str = "default"):
@@ -321,7 +421,7 @@ async def ws_deep(websocket: WebSocket, sid: str = "default"):
             await websocket.send_json({"t": "tool_done", "v": "🌐 исследую"})
             today = datetime.utcnow().strftime("%Y-%m-%d")
             messages = [
-                {"role": "system", "content": f"Ты — GodLocal Deep Research AI. Дата: {today}. Дай развёрнутый структурированный ответ."},
+                {"role": "system", "content": f"Ты — GodLocal Deep Research AI. Дата: {today}. Давай развёрнутый структурированный ответ. Ссылки оформляй как [текст](url)."},
                 {"role": "user", "content": f"Вопрос: {prompt}\n\nРезультаты поиска:\n{search_result}\n\nДай подробный ответ."}
             ]
             resp, err = groq_chat(messages, tools=None, max_tokens=2048)
@@ -338,13 +438,14 @@ async def ws_deep(websocket: WebSocket, sid: str = "default"):
     except Exception as e:
         logger.error(f"WS /ws/deep error: {e}")
 
-# ─── REST ─────────────────────────────────────────────────────────────────────
+# ─── REST ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return JSONResponse({"status": "ok", "version": "15.0.0",
-                         "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY)})
+    return JSONResponse({"status": "ok", "version": "16.0.0",
+                         "groq": bool(GROQ_KEY), "serper": bool(SERPER_KEY),
+                         "vision": "llama-4-scout"})
 
 @app.get("/ping")
 def ping():
@@ -386,9 +487,9 @@ async def council(request: Request):
     prompt = data.get("prompt", "")
 
     archetypes = [
-        ("🧠 Стратег", "Ты — Стратег. Думаешь системно, на перспективу. Отвечай кратко (2-3 предложения)."),
-        ("⚔️ Воин", "Ты — Воин. Решителен, прямолинеен. Отвечай кратко (2-3 предложения)."),
-        ("🎨 Творец", "Ты — Творец. Нестандартное мышление. Отвечай кратко (2-3 предложения)."),
+        ("🧭 Стратег", "Ты — Стратег. Думай системно, на перспективу. Отвечай кратко (2-3 предложения). Ссылки как [текст](url)."),
+        ("⚔️ Воин", "Ты — Воин. Решителен, прямолинеен. Отвечай кратко (2-3 предложения). Ссылки как [текст](url)."),
+        ("🌟 Творец", "Ты — Творец. Нестандартное мышление. Отвечай кратко (2-3 предложения). Ссылки как [текст](url)."),
     ]
 
     async def generate():
