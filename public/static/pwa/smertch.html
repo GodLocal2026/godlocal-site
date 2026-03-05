@@ -643,36 +643,27 @@ ${agRows}
 
 // ─── AI Analysis ─────────────────────────────────────────
 async function fetchPairData(mint){
-  // Try DexScreener tokens endpoint (primary)
   try{const r=await fetch(`${DEX}/tokens/v1/solana/${mint}`);
   if(r.ok){const d=await r.json();
   const pairs=(d.pairs||[]).filter(x=>x.chainId==='solana').sort((a,b)=>(b.volume?.h24||0)-(a.volume?.h24||0));
-  if(pairs.length)return pairs[0];}
-  }catch(e){}
-  // Fallback: DexScreener search
+  if(pairs.length)return pairs[0];}}catch(e){}
   try{const r=await fetch(`${DEX}/latest/dex/search?q=${mint}`);
   if(r.ok){const d=await r.json();
   const pairs=(d.pairs||[]).filter(x=>x.chainId==='solana').sort((a,b)=>(b.volume?.h24||0)-(a.volume?.h24||0));
-  if(pairs.length)return pairs[0];}
-  }catch(e){}
+  if(pairs.length)return pairs[0];}}catch(e){}
   return null;}
 
 async function aiAnalyze(sym,mint){
   go('ai');await new Promise(r=>setTimeout(r,80));
   const lm=addMsg(`<div style="display:flex;align-items:center;gap:8px"><div class="spin" style="width:14px;height:14px;border-width:2px"></div> Анализирую $${sym}…</div>`,'ai');
-  try{
-    const p=await fetchPairData(mint);
-    if(!p)throw new Error('pair_not_found');
-    const agents=[agentBurry(p),agentDruck(p),agentMunger(p),agentSentiment(p)];
-    lm.remove();addMsg(portfolioManager(agents,p,sym,mint),'ai');
-  }catch(e){
-    lm.remove();
-    // Show useful fallback with external links
-    const twUrl=mTwitterUrl||`https://twitter.com/search?q=%24${sym}&f=live`;
-    addMsg(`<div class="air">
-<div class="verdict neut">⚠️ Данные временно недоступны</div>
-<div style="font-size:13px;color:var(--t2);margin:8px 0 12px;line-height:1.6">Открой напрямую для анализа:</div>
-<div class="alinks" style="flex-wrap:wrap;gap:10px">
+  try{const p=await fetchPairData(mint);
+  if(!p)throw new Error('pair_not_found');
+  const agents=[agentBurry(p),agentDruck(p),agentMunger(p),agentSentiment(p)];
+  lm.remove();addMsg(portfolioManager(agents,p,sym,mint),'ai');}
+  catch(e){lm.remove();
+  const twUrl=mTwitterUrl||`https://twitter.com/search?q=%24${sym}&f=live`;
+  addMsg(`<div class="air"><div class="verdict neut">⚠️ Данные временно недоступны</div>
+<div class="alinks" style="flex-wrap:wrap;gap:10px;padding-top:4px">
   <a href="https://dexscreener.com/solana/${mint}" target="_blank" style="font-size:14px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--blue);text-decoration:none">📊 DexScreener</a>
   <a href="https://axiom.trade/meme/${mint}" target="_blank" style="font-size:14px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--blue);text-decoration:none">⚡ Axiom</a>
   ${mPumpUrl?`<a href="${mPumpUrl}" target="_blank" style="font-size:14px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--orange);text-decoration:none">🔥 pump.fun</a>`:''}
@@ -680,9 +671,8 @@ async function aiAnalyze(sym,mint){
 </div></div>`,'ai');}}
 
 function aiOffline(sym,mint){
-  if(mint&&mint.length>20){
-    const twUrl=mTwitterUrl||`https://twitter.com/search?q=%24${sym}&f=live`;
-    return`<div class="air"><div class="verdict neut">⚠️ Данные недоступны</div>
+  if(mint&&mint.length>20){const twUrl=mTwitterUrl||`https://twitter.com/search?q=%24${sym}&f=live`;
+  return`<div class="air"><div class="verdict neut">⚠️ Данные недоступны</div>
 <div class="alinks" style="flex-wrap:wrap;gap:10px;padding-top:4px">
   <a href="https://dexscreener.com/solana/${mint}" target="_blank" style="font-size:14px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--blue);text-decoration:none">📊 DexScreener</a>
   <a href="https://axiom.trade/meme/${mint}" target="_blank" style="font-size:14px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--blue);text-decoration:none">⚡ Axiom</a>
@@ -716,13 +706,19 @@ function go(t){activeTab=t;
 
 function cpMint(a){navigator.clipboard?.writeText(a).then(()=>toast('Контракт скопирован ✓')).catch(()=>toast(a))}
 
-async function connectPhantom(){
+// ─── Phantom Wallet ──────────────────────────────────────
+async function getPhantom(){
   const ph=window.solana||window.phantom?.solana;
-  if(!ph||!ph.isPhantom){toast('Установи Phantom');setTimeout(()=>window.open('https://phantom.app','_blank'),500);return;}
-  try{const r=await ph.connect();
-  wPub=r.publicKey.toString();localStorage.setItem('s52pub',wPub);
+  if(!ph||!ph.isPhantom){toast('Установи Phantom');setTimeout(()=>window.open('https://phantom.app','_blank'),800);return null;}
+  if(!ph.isConnected){
+    try{await ph.connect();}
+    catch(e){toast('Phantom: отклонено');return null;}}
+  return ph;}
+
+async function connectPhantom(){
+  const ph=await getPhantom();if(!ph)return;
+  wPub=ph.publicKey.toString();localStorage.setItem('s52pub',wPub);
   initWallet();loadWallet();toast('Phantom подключён ✓');}
-  catch(e){toast('Phantom отклонил');}}
 
 function saveWallet(){const pub=G('wPubI')?.value.trim();if(!pub){toast('Введи адрес');return}wPub=pub;localStorage.setItem('s52pub',wPub);initWallet();loadWallet();toast('Кошелёк подключён')}
 function cpAddr(){navigator.clipboard?.writeText(wPub).then(()=>toast('Адрес скопирован ✓'))}
@@ -739,42 +735,140 @@ function handleOvClick(e){if(e.target.id==='ov'||e.target.id==='ovBg')closeModal
 
 function openModal(mint,sym,pr,twUrl,pumpUrl){
   mMint=mint;mSym=sym;mMode='buy';
-  mTwitterUrl=twUrl||'';
-  mPumpUrl=pumpUrl||'';
+  mTwitterUrl=twUrl||'';mPumpUrl=pumpUrl||'';
   G('mNm').textContent='$'+sym;
   G('mPr').textContent=fP(parseFloat(pr||0));
   G('mIco').textContent='🐘';
   G('mAddr').textContent=mint.slice(0,8)+'…'+mint.slice(-6);
-  // Update external links row
   const lnk=G('mExtLinks');
   if(lnk){
-    let h='';
     const pUrl=pumpUrl||`https://pump.fun/coin/${mint}`;
-    h+=`<a href="${pUrl}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(255,159,10,.12);border-radius:10px;font-size:12px;font-weight:700;color:var(--orange);text-decoration:none">🔥 pump.fun</a>`;
-    h+=`<a href="https://axiom.trade/meme/${mint}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(10,132,255,.12);border-radius:10px;font-size:12px;font-weight:700;color:var(--blue);text-decoration:none">⚡ Axiom</a>`;
     const tUrl=twUrl||`https://twitter.com/search?q=%24${sym}&f=live`;
-    h+=`<a href="${tUrl}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(100,210,255,.1);border-radius:10px;font-size:12px;font-weight:700;color:var(--teal);text-decoration:none">🐦 Twitter</a>`;
-    h+=`<a href="https://dexscreener.com/solana/${mint}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:var(--bg3);border-radius:10px;font-size:12px;font-weight:700;color:var(--t2);text-decoration:none">📊 Dex</a>`;
-    lnk.innerHTML=h;}
+    lnk.innerHTML=
+      `<a href="${pUrl}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(255,159,10,.12);border-radius:10px;font-size:12px;font-weight:700;color:var(--orange);text-decoration:none">🔥 pump.fun</a>`+
+      `<a href="https://axiom.trade/meme/${mint}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(10,132,255,.12);border-radius:10px;font-size:12px;font-weight:700;color:var(--blue);text-decoration:none">⚡ Axiom</a>`+
+      `<a href="${tUrl}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:rgba(100,210,255,.1);border-radius:10px;font-size:12px;font-weight:700;color:var(--teal);text-decoration:none">🐦 Twitter</a>`+
+      `<a href="https://dexscreener.com/solana/${mint}" target="_blank" style="display:flex;align-items:center;gap:4px;padding:7px 12px;background:var(--bg3);border-radius:10px;font-size:12px;font-weight:700;color:var(--t2);text-decoration:none">📊 Dex</a>`;}
   setMd('buy');G('ov').classList.add('open');debQ();}
 function closeModal(){G('ov').classList.remove('open')}
 
-function setMd(m){mMode=m;G('mBuy').className='sseg-btn'+(m==='buy'?' on':'');G('mSel').className='sseg-btn'+(m==='sell'?' on':'');G('buyBlk').style.display=m==='buy'?'block':'none';G('sellBlk').style.display=m==='sell'?'block':'none';const eb=G('exBtn');eb.className='exbtn '+m;eb.textContent=m==='buy'?'⚡ Купить на Jupiter':'📤 Продать на Jupiter';}
+function setMd(m){mMode=m;
+  G('mBuy').className='sseg-btn'+(m==='buy'?' on':'');
+  G('mSel').className='sseg-btn'+(m==='sell'?' on':'');
+  G('buyBlk').style.display=m==='buy'?'block':'none';
+  G('sellBlk').style.display=m==='sell'?'block':'none';
+  const eb=G('exBtn');eb.className='exbtn '+m;
+  eb.textContent=m==='buy'?'⚡ Купить через Phantom':'📤 Продать через Phantom';}
 function setPr(el,v){solAmt=v;G('buyBlk').querySelectorAll('.ap').forEach(e=>e.classList.remove('on'));el.classList.add('on');G('mSA').value=v;debQ();}
 function setSPct(el,v){sPct=v;G('sellBlk').querySelectorAll('.ap').forEach(e=>e.classList.remove('on'));el.classList.add('on');}
 function setMSl(el,v){mSlip=v;G('sheet').querySelectorAll('.slbtn').forEach(e=>e.classList.remove('on'));el.classList.add('on');}
 function debQ(){clearTimeout(qTmr);qTmr=setTimeout(getQuote,600);}
-async function getQuote(){const qbx=G('qBx');if(!mMint||mMode!=='buy')return;
-  qbx.innerHTML='<div class="spin" style="width:14px;height:14px;border-width:2px"></div>';
+
+async function getQuote(){
+  const qbx=G('qBx');if(!mMint||mMode!=='buy')return;
+  qbx.innerHTML='<div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block"></div>';
   try{const lam=Math.floor((parseFloat(G('mSA').value)||0.1)*1e9);
-  const r=await fetch(`${JUP}/quote?inputMint=${WSOL}&outputMint=${mMint}&amount=${lam}&slippageBps=${mSlip*100}`);
+  const r=await fetch(`${JUP}/quote?inputMint=${WSOL}&outputMint=${mMint}&amount=${lam}&slippageBps=${mSlip*100}&onlyDirectRoutes=false`);
   if(!r.ok)throw new Error();const d=await r.json();
   const out=parseInt(d.outAmount||0);const imp=((parseFloat(d.priceImpactPct||0))*100).toFixed(2);
-  qbx.innerHTML=`Получишь ~${(out/1e6).toFixed(2)} · влияние <span style="color:${parseFloat(imp)>2?'var(--red)':'var(--green)'}">${imp}%</span>`;}
-  catch(e){qbx.innerHTML='Jupiter откроется автоматически';}}
-function execSwap(){window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');closeModal();}
+  const units=out>1e9?((out/1e9).toFixed(4)+'B'):out>1e6?((out/1e6).toFixed(3)+'M'):(out/1e6).toFixed(4);
+  qbx.innerHTML=`Получишь ~<b>${units}</b> · влияние <span style="color:${parseFloat(imp)>2?'var(--red)':'var(--green)'}">${imp}%</span>`;
+  qbx._quoteData=d;
+  }catch(e){qbx.innerHTML='Нет маршрута';qbx._quoteData=null;}}
+
+// ─── Jupiter Swap via Phantom ─────────────────────────────
+async function execSwap(){
+  const ph=await getPhantom();
+  if(!ph){
+    // fallback — open Jupiter Web
+    window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');return;}
+
+  const eb=G('exBtn');
+  const origTxt=eb.textContent;
+  eb.disabled=true;
+  eb.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px"><div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block"></div> Подготовка…</span>';
+
+  try{
+    // 1) Get fresh quote
+    const lam=Math.floor((parseFloat(G('mSA').value)||0.1)*1e9);
+    const slip=mSlip*100;
+    const qUrl=`${JUP}/quote?inputMint=${WSOL}&outputMint=${mMint}&amount=${lam}&slippageBps=${slip}`;
+    const qRes=await fetch(qUrl);
+    if(!qRes.ok)throw new Error('Нет квоты');
+    const quote=await qRes.json();
+
+    // 2) Build swap transaction via Jupiter swap API
+    eb.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px"><div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block"></div> Строю транзакцию…</span>';
+    const userPk=ph.publicKey.toString();
+    const swapRes=await fetch('https://quote-api.jup.ag/v6/swap',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        quoteResponse:quote,
+        userPublicKey:userPk,
+        wrapAndUnwrapSol:true,
+        dynamicComputeUnitLimit:true,
+        prioritizationFeeLamports:'auto'
+      })});
+    if(!swapRes.ok){const err=await swapRes.text();throw new Error('Jupiter: '+err.slice(0,80));}
+    const swapData=await swapRes.json();
+    const txBase64=swapData.swapTransaction;
+    if(!txBase64)throw new Error('Транзакция не получена');
+
+    // 3) Decode to Uint8Array and send to Phantom
+    eb.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px"><div class="spin" style="width:14px;height:14px;border-width:2px;display:inline-block"></div> Подпиши в Phantom…</span>';
+    const txBytes=Uint8Array.from(atob(txBase64),c=>c.charCodeAt(0));
+
+    // signAndSendTransaction — works on both mobile (Phantom in-app browser) and desktop
+    let txSig;
+    if(ph.signAndSendTransaction){
+      const result=await ph.signAndSendTransaction({message:txBytes},{skipPreflight:false,maxRetries:2});
+      txSig=result.signature||result;
+    } else if(ph.signTransaction){
+      // older Phantom API fallback
+      const signedTx=await ph.signTransaction({data:txBytes});
+      const sendRes=await fetch('https://api.mainnet-beta.solana.com',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',
+          params:[btoa(String.fromCharCode(...signedTx.serialize())),{encoding:'base64',skipPreflight:false}]})});
+      const sendJson=await sendRes.json();
+      if(sendJson.error)throw new Error(sendJson.error.message||'RPC error');
+      txSig=sendJson.result;
+    } else throw new Error('Phantom не поддерживает подпись');
+
+    // 4) Success
+    eb.disabled=false;eb.textContent=origTxt;
+    closeModal();
+    const solscan=`https://solscan.io/tx/${txSig}`;
+    toast('✅ Своп отправлен!');
+    // Show success in AI tab
+    go('ai');
+    setTimeout(()=>{addMsg(`<div class="air">
+<div class="verdict bull">✅ Куплено $${mSym}</div>
+<div style="font-size:13px;color:var(--t2);line-height:1.7;margin-top:4px">
+  Транзакция отправлена в сеть.<br>
+  <a href="${solscan}" target="_blank" style="color:var(--blue);text-decoration:none">🔗 Смотреть на Solscan</a>
+</div>
+<div style="font-size:11px;color:var(--t3);margin-top:6px;word-break:break-all">${txSig.slice(0,20)}…</div>
+</div>`,'ai');},100);
+    loadWallet(); // refresh balance
+
+  }catch(err){
+    eb.disabled=false;eb.textContent=origTxt;
+    const msg=err.message||String(err);
+    if(msg.includes('User rejected')||msg.includes('отклонено')||msg.includes('cancel')){
+      toast('Транзакция отклонена');
+    } else {
+      toast('Ошибка: '+msg.slice(0,50));
+      // Fallback to Jupiter Web
+      setTimeout(()=>{
+        if(confirm('Прямой своп не удался. Открыть Jupiter?')){
+          window.open(`https://jup.ag/swap/SOL-${mMint}`,'_blank');}
+      },300);}}}
+
 function aiToken(sym,mint){go('ai');setTimeout(()=>aiAnalyze(sym,mint),100);}
 
+// ─── AI Chat ─────────────────────────────────────────────
 function qa(q){addMsg(q,'us');sendAIReq(q);}
 function addMsg(t,role){const el=G('aiMs');const d=document.createElement('div');d.className='bbl '+role;d.innerHTML=t;el.appendChild(d);el.scrollTop=el.scrollHeight;return d;}
 function arz(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,80)+'px';}
@@ -805,8 +899,7 @@ function wsStatus(ok,txt){
   dot.className='ldot'+(ok?' ok':'');if(lbl)lbl.textContent=txt||'';}
 function initWS(){
   if(ws&&ws.readyState<2)return;
-  const url=WS_URLS[wsIdx%WS_URLS.length];
-  wsStatus(false,'Подключение…');
+  const url=WS_URLS[wsIdx%WS_URLS.length];wsStatus(false,'Подключение…');
   try{ws=new WebSocket(url);
   ws.onopen=()=>{wsRetry=0;ws.send(JSON.stringify({method:'subscribeNewToken'}));wsStatus(true,'LIVE · pump.fun');};
   ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.txType==='create'||d.type==='token_create'||(d.mint&&d.symbol))addLiveToken(d);}catch(err){}};
@@ -825,10 +918,8 @@ function addLiveToken(d){
   const card=document.createElement('div');card.className='lcard';
   card.onclick=()=>openModal(mint,symSafe,0,twCreator?'https://twitter.com/'+twCreator.replace('@',''):'',pumpUrl);
   card.innerHTML=`<div class="tico"><span style="font-size:20px">🔥</span></div>
-<div class="cmeta">
-  <div class="csym">${name} <span class="lbadge">НОВЫЙ</span></div>
-  <div class="cname">${mint.slice(0,6)}…${mint.slice(-4)}${sol>0?' · +'+sol.toFixed(3)+' SOL':''}</div>
-</div>
+<div class="cmeta"><div class="csym">${name} <span class="lbadge">НОВЫЙ</span></div>
+<div class="cname">${mint.slice(0,6)}…${mint.slice(-4)}${sol>0?' · +'+sol.toFixed(3)+' SOL':''}</div></div>
 <div class="cright"><div class="cprice" style="font-size:11px;color:var(--t2)" id="${tid}">0s</div><div style="font-size:10px;color:var(--orange)">pump.fun</div></div>`;
   const tmr=setInterval(()=>{const e=G(tid);if(!e){clearInterval(tmr);return;}const s=Math.floor((Date.now()-ts)/1000);e.textContent=s<60?s+'s':Math.floor(s/60)+'m';},1000);
   liveTimers.push(tmr);
