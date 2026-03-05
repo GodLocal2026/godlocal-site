@@ -110,7 +110,7 @@ export default function OasisAvatar({ talking }: Props) {
     <div
       className={`
         fixed bottom-20 right-3 z-30
-        hidden md:block
+        block
         transition-all duration-300
         ${visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95 pointer-events-none'}
       `}
@@ -155,7 +155,7 @@ export default function OasisAvatar({ talking }: Props) {
       <button
         onClick={() => setVisible(v => !v)}
         className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/70 border border-white/15 text-white/50 hover:text-white text-xs flex items-center justify-center transition-all hover:border-[#00FF9D]/40"
-        title={visible ? 'Скрыть аватар' : 'Показать аватар'}
+        title={visible ? 'Скрыть аватат' : 'Показать аватар'}
       >
         {visible ? '×' : '⚡'}
       </button>
