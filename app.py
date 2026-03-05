@@ -297,8 +297,10 @@ async def chat(ws: WebSocket, prompt: str, session_id: str,
     needs_search = any(kw in prompt.lower() for kw in SEARCH_KEYWORDS)
     tools = TOOL_DEFS if needs_search else None
 
-    # Call Groq
-    resp, err = groq_chat(messages, tools=tools, max_tokens=1024)
+    # Call Groq (non-blocking)
+    resp, err = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: groq_chat(messages, tools=tools, max_tokens=1024)
+    )
 
     if err or not resp:
         logger.error(f"groq_chat error: {err}")
@@ -336,8 +338,10 @@ async def chat(ws: WebSocket, prompt: str, session_id: str,
                 "name": fn,
                 "content": str(tool_result)
             })
-        # Final synthesis
-        resp2, err2 = groq_chat(messages, tools=None, max_tokens=1024)
+        # Final synthesis (non-blocking)
+        resp2, err2 = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: groq_chat(messages, tools=None, max_tokens=1024)
+        )
         if err2 or not resp2:
             full_text = "Нашёл данные, но не смог сформировать ответ."
         else:
