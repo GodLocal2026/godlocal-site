@@ -10,12 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Override git author for Vercel
-        run: |
-          git config user.email "provodnikx100@gmail.com"
-          git config user.name "GodLocal"
-          git commit --amend --reset-author --no-edit
-
       - name: Install Vercel CLI
         run: npm install --global vercel
 
