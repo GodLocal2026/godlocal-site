@@ -318,7 +318,7 @@ export default function OasisPage() {
 
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
-          <span className="text-lg md:text-xl">\u26a1</span>
+          <span className="text-lg md:text-xl">{"⚡"}</span>
           <span className="font-bold text-white tracking-tight text-sm md:text-base">GodLocal</span>
           <span className="text-[10px] md:text-xs font-mono text-[#00FF9D]/70 border border-[#00FF9D]/25 px-2 py-0.5 rounded-full">OASIS</span>
         </div>
@@ -349,7 +349,7 @@ export default function OasisPage() {
                 <div className="text-center px-4">
                   <motion.div className="text-4xl md:text-6xl mb-3 md:mb-5"
                     animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
-                    \u26a1
+                    {"\u26a1"}
                   </motion.div>
                   <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">GodLocal OASIS</h1>
                   <p className="text-white/45 text-xs md:text-sm">Your AI with memory, search, and tools</p>
@@ -453,7 +453,7 @@ export default function OasisPage() {
               </button>
             </div>
             <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
-              Enter \u2014 send \u00b7 Shift+Enter \u2014 new line
+              Enter — send · Shift+Enter — new line
             </p>
           </div>
 
