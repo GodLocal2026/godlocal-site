@@ -1,44 +1,40 @@
-"use client";
-import { motion } from "framer-motion";
+'use client';
 
 const tiers = [
-  { id:"WASM", emoji:"⚡", speed:"~1k tok/s", desc:"Browser-native, zero install.", color:"from-blue-500/20 to-blue-500/5", border:"border-blue-500/30", text:"text-blue-400" },
-  { id:"MICRO", emoji:"🪶", speed:"BitNet 0.4GB", desc:"Ultralight. Any hardware.", color:"from-cyan-500/20 to-cyan-500/5", border:"border-cyan-500/30", text:"text-cyan-400" },
-  { id:"FAST", emoji:"🚀", speed:"17k tok/s", desc:"Taalas + Cerebras.", color:"from-[#00FF9D]/20 to-[#00FF9D]/5", border:"border-[#00FF9D]/30", text:"text-[#00FF9D]", featured:true },
-  { id:"FULL", emoji:"☁️", speed:"Groq / Cerebras", desc:"Cloud smart fallback.", color:"from-[#6C5CE7]/20 to-[#6C5CE7]/5", border:"border-[#6C5CE7]/30", text:"text-[#6C5CE7]" },
-  { id:"GIANT", emoji:"🧠", speed:"AirLLM 70B+", desc:"Massive models on demand.", color:"from-purple-500/20 to-purple-500/5", border:"border-purple-500/30", text:"text-purple-400" },
+  { name: 'WASM', speed: '~1k tok/s', desc: 'Быстрый старт, малый вес', color: 'from-blue-400 to-cyan-400' },
+  { name: 'Micro', speed: 'BitNet 0.4GB', desc: 'Экстремально лёгкие модели', color: 'from-cyan-400 to-teal-400' },
+  { name: 'Fast', speed: '17k tok/s', desc: 'Taalas — максимальная скорость', color: 'from-green-400 to-emerald-400' },
+  { name: 'Full', speed: 'Groq/Cerebras', desc: 'Облачные ускорители', color: 'from-yellow-400 to-orange-400' },
+  { name: 'Giant', speed: 'AirLLM 70B', desc: 'Гигантские модели', color: 'from-orange-400 to-red-400' },
 ];
 
 export default function TieredRouter() {
   return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="container">
+    <section className="py-24 bg-[#060810]">
+      <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
-          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
-            className="inline-block px-3 py-1 rounded-full border border-[#00FF9D]/20 bg-[#00FF9D]/5 text-[#00FF9D] text-xs font-mono mb-4">TieredRouter</motion.div>
-          <motion.h2 initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:0.1}}
-            className="section-title mb-4">Smart routing. <span className="text-[#00FF9D]">5 levels deep.</span></motion.h2>
-          <motion.p initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:0.2}}
-            className="text-[#E0E0E0]/50 text-lg max-w-2xl mx-auto">Auto-routes every request to the optimal tier. Up to 85% token savings.</motion.p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">Архитектура</div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+            Умная маршрутизация: <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">5 уровней</span>
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">TieredRouter автоматически выбирает оптимальный бэкенд в зависимости от задачи, модели и устройства.</p>
         </div>
-        <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-0">
-          {tiers.map((tier, i) => (
-            <div key={tier.id} className="flex items-center gap-2 md:gap-0">
-              <motion.div initial={{opacity:0,scale:0.9}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{delay:i*0.1}}
-                className={`relative w-44 card bg-gradient-to-b ${tier.color} border ${tier.border} ${tier.featured ? "scale-105 shadow-lg shadow-[#00FF9D]/10" : ""}`}>
-                {tier.featured && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#00FF9D] text-[#0A0C0F] text-xs font-bold rounded-full">FASTEST</div>}
-                <div className="text-2xl mb-2">{tier.emoji}</div>
-                <div className={`font-mono font-bold text-lg ${tier.text} mb-1`}>{tier.id}</div>
-                <div className="text-xs font-semibold text-[#E0E0E0]/60 mb-2">{tier.speed}</div>
-                <div className="text-xs text-[#E0E0E0]/40 leading-relaxed">{tier.desc}</div>
-              </motion.div>
-              {i < tiers.length - 1 && <div className="hidden md:block mx-2 text-[#E0E0E0]/20 text-xl">→</div>}
-              {i < tiers.length - 1 && <div className="md:hidden my-1 text-[#E0E0E0]/20 text-xl">↓</div>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {tiers.map((t, i) => (
+            <div key={t.name} className="group relative bg-[#0d1017] border border-white/[0.06] rounded-2xl p-6 hover:border-green-500/30 transition-all duration-300 hover:-translate-y-1">
+              <div className="text-xs text-gray-500 font-mono mb-3">TIER {i + 1}</div>
+              <h3 className={`text-2xl font-black mb-2 bg-gradient-to-r ${t.color} bg-clip-text text-transparent`}>{t.name}</h3>
+              <div className="text-sm text-green-400 font-mono mb-3">{t.speed}</div>
+              <p className="text-gray-400 text-sm">{t.desc}</p>
+              {i < tiers.length - 1 && (
+                <div className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 text-gray-600 z-10">→</div>
+              )}
             </div>
           ))}
         </div>
-        <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
-          className="text-center mt-8 text-sm text-[#E0E0E0]/30 font-mono">~80-85% token cost savings // auto-fallback // zero config</motion.p>
+        <div className="mt-8 text-center">
+          <code className="text-xs text-gray-500 font-mono">WASM → Micro → Fast → Full → Giant · auto-fallback · < 50ms routing</code>
+        </div>
       </div>
     </section>
   );
