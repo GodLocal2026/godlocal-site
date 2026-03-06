@@ -171,6 +171,11 @@ export default function OasisPage() {
   const [imgPreview, setImgPreview]     = useState<string | null>(null)
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
 
+  const [isListening, setIsListening] = useState(false)
+  const [radioOpen, setRadioOpen] = useState(false)
+  const [radioPlaying, setRadioPlaying] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const recognitionRef = useRef<ReturnType<typeof Object> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const fileRef   = useRef<HTMLInputElement>(null)
@@ -181,6 +186,57 @@ export default function OasisPage() {
 
   const scroll = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(scroll, [msgs])
+
+  // Speech recognition setup
+  const toggleVoice = useCallback(() => {
+    const SR = (globalThis as Record<string, unknown>).SpeechRecognition || (globalThis as Record<string, unknown>).webkitSpeechRecognition
+    if (!SR) { alert('Speech recognition not supported'); return }
+    if (isListening && recognitionRef.current) {
+      (recognitionRef.current as { stop: () => void }).stop()
+      setIsListening(false)
+      return
+    }
+    const recognition = new (SR as { new(): Record<string, unknown> })()
+    recognition.lang = 'ru-RU'
+    recognition.interimResults = true
+    recognition.continuous = true
+    recognition.onresult = (e: Record<string, unknown>) => {
+      const ev = e as { results: SpeechRecognitionResultList }
+      let transcript = ''
+      for (let i = 0; i < ev.results.length; i++) {
+        transcript += ev.results[i][0].transcript
+      }
+      setInput(transcript)
+    }
+    recognition.onend = () => setIsListening(false)
+    recognition.onerror = () => setIsListening(false)
+    recognition.start()
+    recognitionRef.current = recognition
+    setIsListening(true)
+  }, [isListening])
+
+  // Radio stations
+  const RADIO_STATIONS = [
+    { name: 'Record FM', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp', emoji: '🔴' },
+    { name: 'Europa Plus', url: 'https://ep128.hostingradio.ru:8030/ep128', emoji: '🟡' },
+    { name: 'Energy NRJ', url: 'https://cast.radiogroup.com.ua/nrj_mp3_128', emoji: '⚡' },
+    { name: 'Lofi Hip Hop', url: 'https://live.musopen.org:8085/streamvbr0', emoji: '🎵' },
+    { name: 'Chillout', url: 'https://streams.ilovemusic.de/iloveradio17.mp3', emoji: '🌊' },
+  ]
+
+  const toggleRadio = (stationUrl: string) => {
+    if (radioPlaying === stationUrl) {
+      audioRef.current?.pause()
+      setRadioPlaying(null)
+      return
+    }
+    if (audioRef.current) audioRef.current.pause()
+    const audio = new Audio(stationUrl)
+    audio.play().catch(() => {})
+    audio.onerror = () => setRadioPlaying(null)
+    audioRef.current = audio
+    setRadioPlaying(stationUrl)
+  }
 
   const isTalking = loading || (msgs.length > 0 &&
     msgs[msgs.length - 1]?.role === 'ai' &&
@@ -256,7 +312,7 @@ export default function OasisPage() {
       const res = await fetch('/api/oasis/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('oasis_session_id') || '' : '' }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('oasis_session_id') || '' : '', image: imgBase64 || undefined }),
         signal: ac.signal,
       })
 
@@ -289,7 +345,10 @@ export default function OasisPage() {
     }
 
     setImgPreview(null); setImgBase64(null)
-    setTimeout(() => inputRef.current?.focus(), 50)
+    // Mobile: dismiss keyboard, Desktop: keep focus
+    const isMobile = 'ontouchstart' in globalThis
+    if (isMobile) { inputRef.current?.blur() }
+    else { setTimeout(() => inputRef.current?.focus(), 50) }
   }, [input, imgBase64, imgPreview, handleEvent])
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -325,6 +384,10 @@ export default function OasisPage() {
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#00FF9D] animate-pulse" />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
+          <button onClick={() => setRadioOpen(r => !r)} title="Radio"
+             className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#00FF9D]/40 bg-[#00FF9D]/10 text-[#00FF9D] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
+            <span className="text-xs">📻</span>
+          </button>
           <a href="/oasis/settings" title="Settings"
              className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -429,6 +492,31 @@ export default function OasisPage() {
             )}
           </AnimatePresence>
 
+          
+          {/* Radio Panel */}
+          <AnimatePresence>
+            {radioOpen && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} className="shrink-0 px-3 md:px-4 pb-2">
+                <div className="bg-black/60 border border-white/15 backdrop-blur-md rounded-2xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">📻 Radio</span>
+                    <button onClick={() => { setRadioOpen(false); audioRef.current?.pause(); setRadioPlaying(null) }}
+                      className="text-white/30 hover:text-white/60 text-xs">✕</button>
+                  </div>
+                  {RADIO_STATIONS.map(s => (
+                    <button key={s.url} onClick={() => toggleRadio(s.url)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs transition-all ${radioPlaying === s.url ? 'bg-[#00FF9D]/15 border border-[#00FF9D]/30 text-white' : 'bg-white/5 border border-white/8 text-white/50 hover:text-white/80 hover:bg-white/10'}`}>
+                      <span>{s.emoji}</span>
+                      <span className="flex-1">{s.name}</span>
+                      {radioPlaying === s.url && <span className="text-[#00FF9D] text-[10px] animate-pulse">▶ LIVE</span>}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
             <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#00FF9D]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
               <button onClick={() => fileRef.current?.click()}
@@ -439,7 +527,14 @@ export default function OasisPage() {
                   <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
                 </svg>
               </button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+              <button onClick={toggleVoice}
+                className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-xl transition-all ${isListening ? 'text-red-400 bg-red-500/20 animate-pulse border border-red-500/40' : 'text-white/35 hover:text-white/65 hover:bg-white/10'}`}
+                title={isListening ? 'Stop recording' : 'Voice input'}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+              </button>
+              <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
                 placeholder="Type something..."  rows={1}
                 className="flex-1 bg-transparent resize-none outline-none text-sm text-white placeholder-white/30 leading-relaxed max-h-28 md:max-h-36 overflow-y-auto py-0.5"
@@ -453,7 +548,7 @@ export default function OasisPage() {
               </button>
             </div>
             <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
-              Enter — send · Shift+Enter — new line
+              Enter — send · Shift+Enter — new line · 🎤 — voice
             </p>
           </div>
 

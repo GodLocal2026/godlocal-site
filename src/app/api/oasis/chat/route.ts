@@ -4,6 +4,7 @@ import { fetchUserKeys, sendTelegram, postTweet, searchTwitter } from '@/lib/int
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
 const MODEL = process.env.OASIS_MODEL || 'llama-3.3-70b-versatile';
+const VISION_MODEL = 'llama-3.2-90b-vision-preview';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 function buildSystemPrompt(): string {
@@ -196,7 +197,7 @@ export async function POST(req: NextRequest) {
     return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
   }
 
-  const { message, history = [], session_id = '' } = await req.json();
+  const { message, history = [], session_id = '', image = '' } = await req.json();
   const recentHistory = history.slice(-16);
 
   // Anti-loop detection
@@ -224,7 +225,13 @@ export async function POST(req: NextRequest) {
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     })),
-    { role: 'user', content: message },
+    { role: 'user', content: image
+      ? [
+          { type: 'text', text: message || 'What is in this image?' },
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } }
+        ]
+      : message
+    },
   ];
 
   const stream = new ReadableStream({
@@ -238,11 +245,11 @@ export async function POST(req: NextRequest) {
 
       try {
         // Phase 1: Non-streaming call to check if tools needed
+        const useVision = !!image;
         const phase1Body: Record<string, unknown> = {
-          model: MODEL,
+          model: useVision ? VISION_MODEL : MODEL,
           messages,
-          tools: TOOLS,
-          tool_choice: 'auto',
+          ...(useVision ? {} : { tools: TOOLS, tool_choice: 'auto' }),
           temperature: 0.7,
           max_tokens: 4096,
         };
