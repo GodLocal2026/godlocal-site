@@ -189,22 +189,26 @@ export default function OasisPage() {
 
   // Speech recognition setup
   const toggleVoice = useCallback(() => {
-    const SR = (globalThis as Record<string, unknown>).SpeechRecognition || (globalThis as Record<string, unknown>).webkitSpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = globalThis as any
+    const SR = W.SpeechRecognition || W.webkitSpeechRecognition
     if (!SR) { alert('Speech recognition not supported'); return }
     if (isListening && recognitionRef.current) {
-      (recognitionRef.current as { stop: () => void }).stop()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (recognitionRef.current as any).stop()
       setIsListening(false)
       return
     }
-    const recognition = new (SR as { new(): Record<string, unknown> })()
-    recognition.lang = 'ru-RU'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SR()
+    recognition.lang = navigator.language || 'en-US'
     recognition.interimResults = true
     recognition.continuous = true
-    recognition.onresult = (e: Record<string, unknown>) => {
-      const ev = e as { results: SpeechRecognitionResultList }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
       let transcript = ''
-      for (let i = 0; i < ev.results.length; i++) {
-        transcript += ev.results[i][0].transcript
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript
       }
       setInput(transcript)
     }
@@ -333,7 +337,10 @@ export default function OasisPage() {
           if (!trimmed.startsWith('data: ')) continue
           try {
             const d = JSON.parse(trimmed.slice(6))
-            handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
+            const raw = d.v ?? d.content ?? ''
+            // Filter out raw tool-call markup that models sometimes emit as text
+            const cleaned = raw.replace(/<function\([^)]*\)\{[^}]*\}\s*<\/function>/g, '').replace(/<\/?(function|tool_call)[^>]*>/g, '').trim()
+            handleEvent(d.t || d.type || '', cleaned || raw)
           } catch { /* skip */ }
         }
       }
