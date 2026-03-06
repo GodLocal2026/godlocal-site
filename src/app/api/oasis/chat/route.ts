@@ -18,7 +18,7 @@ function buildSystemPrompt(): string {
   return `You are Oasis \u2014 the brain-inspired AI core of GodLocal.
 
 ## Current Time
-${dateStr}, ${timeStr} UTC.
+Today is ${dateStr}, ${timeStr} UTC. The year is 2026.
 
 ## Core Rules (MUST FOLLOW)
 1. **NEVER repeat yourself.** If you already explained something, move the conversation forward.
@@ -27,29 +27,27 @@ ${dateStr}, ${timeStr} UTC.
 4. **Respond in the SAME language** the user writes in.
 5. **Always provide clickable links** using markdown: [text](https://url). Use real URLs from search results.
 6. **Use markdown formatting**: headers (##), bold (**text**), lists, \`code\`, code blocks.
-7. **If you don't know something \u2014 use the web_search tool** to find current information.
+7. **You MUST use the web_search tool** for ANY question about current events, prices, news, weather, dates, or facts you're unsure about. NEVER answer from memory for time-sensitive topics.
 8. **NEVER say \"How can I help you?\" or list capabilities unprompted.**
 
 ## Tool Usage
-You have access to a **web_search** tool. Use it when:
-- User asks about current events, news, prices, or recent data
-- User asks a factual question you're unsure about
-- User wants links to specific resources, documentation, or websites
-- Any question that benefits from up-to-date information
+You have a **web_search** tool. You MUST use it for:
+- Current prices (crypto, stocks, goods)
+- News and current events
+- Any factual question where accuracy matters
+- Links to websites, docs, or resources
 
-After getting search results, synthesize them into a clear answer WITH clickable source links.
+Do NOT answer time-sensitive questions from memory. Always search first, then synthesize results with clickable source links.
 
 ## Your Identity (brief)
-You are a local-first AI assistant built into GodLocal \u2014 running powerful AI models on user devices without cloud dependencies.
-
-Products: **Oasis** (AI chat), **WOLF** (crypto terminal), **NEBUDDA** (social), **Flipper** (reality game)
-Tech: AirLLM, HRM, MLX, local-first | Website: [godlocal.ai](https://godlocal.ai)
+Local-first AI assistant built into GodLocal \u2014 running powerful AI on user devices without cloud.
+Products: **Oasis** (AI chat), **WOLF** (crypto), **NEBUDDA** (social), **Flipper** (game)
+Website: [godlocal.ai](https://godlocal.ai)
 
 ## Behavior
 - Direct, knowledgeable, confident \u2014 humble when uncertain
 - Practical answers with examples and links
-- For code questions: working code snippets
-- For general questions: insightful but brief`;
+- For code: working snippets. For general: insightful but brief`;
 }
 
 const TOOLS = [
@@ -57,13 +55,13 @@ const TOOLS = [
     type: 'function' as const,
     function: {
       name: 'web_search',
-      description: 'Search the web for current information, news, documentation, prices, or any factual data. Returns relevant results with URLs.',
+      description: 'Search the web for current information, news, prices, documentation, or any factual data. Use this for ANY time-sensitive question. Returns results with URLs.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query. Be specific for best results.',
+            description: 'The search query in English for best results. Be specific.',
           },
         },
         required: ['query'],
@@ -78,9 +76,11 @@ async function tavilySearch(query: string): Promise<string> {
   try {
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAVILY_API_KEY}`,
+      },
       body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
         query,
         search_depth: 'basic',
         max_results: 5,
@@ -89,7 +89,8 @@ async function tavilySearch(query: string): Promise<string> {
     });
 
     if (!res.ok) {
-      return `Search error: ${res.status}`;
+      const errText = await res.text();
+      return `Search error ${res.status}: ${errText.slice(0, 200)}`;
     }
 
     const data = await res.json();
@@ -104,7 +105,7 @@ async function tavilySearch(query: string): Promise<string> {
       result += `- [${item.title}](${item.url}): ${(item.content || '').slice(0, 300)}\n`;
     }
 
-    return result;
+    return result || 'No results found.';
   } catch (err) {
     return `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
@@ -148,10 +149,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const messages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string; tool_call_id?: string }> = [
+  const messages: Array<Record<string, unknown>> = [
     { role: 'system', content: buildSystemPrompt() + antiLoopNudge },
     ...recentHistory.map((m: { role: string; content: string }) => ({
-      role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+      role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     })),
     { role: 'user', content: message },
@@ -167,20 +168,26 @@ export async function POST(req: NextRequest) {
       send({ t: 'thinking', v: 'Analyzing request...' });
 
       try {
-        // Phase 1: Non-streaming call with tools to check if search is needed
+        // Phase 1: Non-streaming call to check if tool use is needed
+        const phase1Body: Record<string, unknown> = {
+          model: MODEL,
+          messages,
+          temperature: 0.7,
+          max_tokens: 4096,
+        };
+
+        if (TAVILY_API_KEY) {
+          phase1Body.tools = TOOLS;
+          phase1Body.tool_choice = 'auto';
+        }
+
         const phase1Res = await fetch(GROQ_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer ' + GROQ_API_KEY,
           },
-          body: JSON.stringify({
-            model: MODEL,
-            messages,
-            tools: TAVILY_API_KEY ? TOOLS : undefined,
-            temperature: 0.7,
-            max_tokens: 4096,
-          }),
+          body: JSON.stringify(phase1Body),
         });
 
         if (!phase1Res.ok) {
@@ -195,7 +202,6 @@ export async function POST(req: NextRequest) {
         const choice = phase1Data.choices?.[0];
 
         if (choice?.message?.tool_calls?.length > 0) {
-          // Tool calls detected \u2014 execute them
           const toolCalls = choice.message.tool_calls;
 
           send({ t: 'thinking', v: 'Searching the web...' });
@@ -241,7 +247,6 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          // Stream phase 2
           const reader = phase2Res.body!.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
@@ -265,13 +270,12 @@ export async function POST(req: NextRequest) {
             }
           }
         } else {
-          // No tool calls \u2014 stream the existing content
+          // No tool calls \u2014 send content directly
           send({ t: 'thinking', v: 'Generating response...' });
           send({ t: 'thinking_done' });
 
           const content = choice?.message?.content || '';
           if (content) {
-            // Send content in chunks to simulate streaming
             const words = content.split(' ');
             for (let i = 0; i < words.length; i += 3) {
               const chunk = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
