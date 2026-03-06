@@ -31,7 +31,7 @@ async function sbInsert(table: string, body: object): Promise<void> {
 
 /* ─── Types ─────────────────────────────────────────────────── */
 interface Channel { id: string; name: string; icon: string; description: string; type?: "group"|"channel"; admin_ids?: string[] }
-interface Message { id: string; channel_id: string; user_id: string; username: string; content: string; is_ai: boolean; created_at: string; msg_type?: string; media_url?: string }
+interface Message { id: string; channel_id: string; user_id: string; username: string; content: string; is_ai: boolean; created_at: string; msg_type?: string; media_url?: string; reply_to_id?: string; reply_to_username?: string; reply_to_content?: string }
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 const COLORS = ["#00FF9D","#00B4D8","#6C5CE7","#FD79A8","#FDCB6E","#E17055","#55EFC4","#74B9FF"];
@@ -66,6 +66,8 @@ export default function NebuddaPage() {
   const [isRecording,  setIsRecording] = useState(false);
   const [recordTime,   setRecordTime]  = useState(0);
   const [showImgPrev,  setShowImgPrev] = useState<string|null>(null);
+  const [hoverMsg,     setHoverMsg]    = useState<string|null>(null);
+  const [replyTo,      setReplyTo]     = useState<{id:string;username:string;content:string}|null>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
   const pollRef     = useRef<ReturnType<typeof setInterval>|null>(null);
@@ -137,6 +139,56 @@ export default function NebuddaPage() {
   };
 
 
+
+
+  /* ─── AI Reply to specific message ─────────────────────────── */
+  const askAiAbout = async (msg: Message, persona: "buba"|"ai") => {
+    if (!active) return;
+    setAiThinking(true);
+    try {
+      const prompt = persona === "buba"
+        ? `Пользователь ${msg.username} написал: "${msg.content}". Ответь на это сообщение как Буба — мило и по делу.`
+        : `Пользователь ${msg.username} написал: "${msg.content}". Дай полезный ответ на это сообщение.`;
+      const res = await fetch("/api/nebudda/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: prompt, channel: active.name, persona }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        await sbInsert("nebudda_messages", {
+          channel_id: active.id,
+          user_id: persona === "buba" ? "buba_ai" : "godlocal_ai",
+          username: persona === "buba" ? "Буба 🧸" : "GodLocal AI",
+          content: data.reply,
+          is_ai: true,
+          reply_to_id: msg.id,
+          reply_to_username: msg.username,
+          reply_to_content: msg.content.slice(0, 100),
+        });
+      }
+    } catch { /* silent */ }
+    setAiThinking(false);
+    setHoverMsg(null);
+  };
+
+  /* ─── Emoji reaction ──────────────────────────────────────── */
+  const QUICK_REACTIONS = ["❤️","😂","🔥","👍","😮","💀"];
+
+  const addReaction = async (msgId: string, emoji: string) => {
+    // For now, store as a separate message with type "reaction"
+    if (!active || !myId) return;
+    await sbInsert("nebudda_messages", {
+      channel_id: active.id,
+      user_id: myId,
+      username,
+      content: emoji,
+      is_ai: false,
+      msg_type: "reaction",
+      reply_to_id: msgId,
+    });
+    setHoverMsg(null);
+  };
 
   /* ─── Create Channel/Group ─────────────────────────────────── */
   const createChannel = async () => {
@@ -438,7 +490,9 @@ export default function NebuddaPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 group relative"
+                  onMouseEnter={() => setHoverMsg(msg.id)} onMouseLeave={() => setHoverMsg(null)}
+                  onTouchStart={() => setHoverMsg(h => h === msg.id ? null : msg.id)}>
                   {showMeta && (
                     <div className="flex items-baseline gap-2 mb-0.5">
                       <span className="text-xs font-semibold" style={{ color }}>
@@ -447,7 +501,19 @@ export default function NebuddaPage() {
                       <span className="text-[10px] text-gray-700">{timeStr(msg.created_at)}</span>
                     </div>
                   )}
-                  {msg.msg_type === "sticker" ? (
+
+                  {/* Reply quote */}
+                  {msg.reply_to_username && (
+                    <div className="flex items-center gap-1.5 mb-1 pl-2 text-[10px]"
+                      style={{ borderLeft: "2px solid #FD79A840", color: "#9ca3af" }}>
+                      <span style={{ color: "#FD79A8" }}>{msg.reply_to_username}</span>
+                      <span className="truncate" style={{ maxWidth: 200 }}>{msg.reply_to_content}</span>
+                    </div>
+                  )}
+
+                  {msg.msg_type === "reaction" ? (
+                    <span className="text-lg leading-none select-none">{msg.content}</span>
+                  ) : msg.msg_type === "sticker" ? (
                     <span className="text-5xl leading-none select-none">{msg.content}</span>
                   ) : msg.msg_type === "voice" ? (
                     <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl"
@@ -474,6 +540,39 @@ export default function NebuddaPage() {
                       {msg.content}
                     </p>
                   )}
+
+                  {/* Reaction bar — visible on hover/tap */}
+                  {hoverMsg === msg.id && msg.msg_type !== "reaction" && (
+                    <div className="flex items-center gap-0.5 mt-1 flex-wrap"
+                      style={{ animation: "fadeIn 0.15s ease" }}>
+                      {/* AI reply buttons */}
+                      <button onClick={() => askAiAbout(msg, "buba")}
+                        className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
+                        style={{ background: "#FD79A815", border: "1px solid #FD79A830", color: "#FD79A8" }}>
+                        🧸 Буба
+                      </button>
+                      <button onClick={() => askAiAbout(msg, "ai")}
+                        className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
+                        style={{ background: "#00FF9D15", border: "1px solid #00FF9D30", color: "#00FF9D" }}>
+                        ⚡ AI
+                      </button>
+                      <div className="w-px h-3 bg-gray-800 mx-0.5" />
+                      {/* Emoji reactions */}
+                      {QUICK_REACTIONS.map(emoji => (
+                        <button key={emoji} onClick={() => addReaction(msg.id, emoji)}
+                          className="text-sm px-1 py-0 rounded-md hover:scale-125 active:scale-90 transition-transform hover:bg-white/5">
+                          {emoji}
+                        </button>
+                      ))}
+                      <div className="w-px h-3 bg-gray-800 mx-0.5" />
+                      {/* Reply button */}
+                      <button onClick={() => { setReplyTo({id: msg.id, username: msg.username, content: msg.content}); setHoverMsg(null); }}
+                        className="text-[10px] px-2 py-0.5 rounded-full transition-all hover:bg-white/5"
+                        style={{ color: "#6b7280" }}>
+                        ↩ Ответить
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -498,6 +597,17 @@ export default function NebuddaPage() {
 
           <div ref={bottomRef} />
         </div>
+
+        {/* Reply-to banner */}
+        {replyTo && (
+          <div className="px-4 py-2 border-t flex items-center gap-2" style={{ borderColor: "#0d131e", background: "#080A0D" }}>
+            <div className="flex-1 min-w-0 pl-2" style={{ borderLeft: "2px solid #FD79A8" }}>
+              <div className="text-[10px] font-semibold" style={{ color: "#FD79A8" }}>{replyTo.username}</div>
+              <div className="text-[10px] text-gray-500 truncate">{replyTo.content}</div>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="text-gray-600 hover:text-gray-400 text-xs px-1">✕</button>
+          </div>
+        )}
 
         {/* Image preview */}
         {showImgPrev && (
