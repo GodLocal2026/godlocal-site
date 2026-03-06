@@ -4,26 +4,26 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "GodLocal – Your AI. Your machine.",
-  description: "The fastest local AI inference platform. Open source. Runs on iPhone. 17k tok/s, autonomous agents.",
+  title: "slonik52 🐘 — Solana Memecoin Terminal",
+  description: "The fastest AI-powered Solana memecoin terminal. Real-time scanner, 4-agent hedge fund, native Phantom swap. No install.",
   metadataBase: new URL("https://godlocal.ai"),
   openGraph: {
-    title: "GodLocal – Your AI. Your machine.",
-    description: "17k tok/s. Open source. iPhone ready.",
+    title: "slonik52 🐘 — Solana Memecoin Terminal",
+    description: "Real-time scanner · 4-agent AI · Native Phantom swap · Free",
     url: "https://godlocal.ai",
-    siteName: "GodLocal",
+    siteName: "slonik52",
   },
   twitter: {
     card: "summary_large_image",
-    site: "@kitbtc",
-    title: "GodLocal – Your AI. Your machine.",
+    site: "@oassisx100",
+    title: "slonik52 🐘 — Trade Solana memecoins smarter",
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-[#0A0C0F] text-[#E0E0E0] antialiased">
+      <body className="bg-[#060810] text-[#E0E0E0] antialiased">
         <Header />
         <main>{children}</main>
         <Footer />
