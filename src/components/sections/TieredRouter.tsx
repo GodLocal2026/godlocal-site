@@ -1,11 +1,11 @@
 'use client';
 
 const tiers = [
-  { name: 'WASM', speed: '~1k tok/s', desc: '\u0411\u044b\u0441\u0442\u0440\u044b\u0439 \u0441\u0442\u0430\u0440\u0442, \u043c\u0430\u043b\u044b\u0439 \u0432\u0435\u0441', color: 'from-blue-400 to-cyan-400' },
-  { name: 'Micro', speed: 'BitNet 0.4GB', desc: '\u042d\u043a\u0441\u0442\u0440\u0435\u043c\u0430\u043b\u044c\u043d\u043e \u043b\u0451\u0433\u043a\u0438\u0435 \u043c\u043e\u0434\u0435\u043b\u0438', color: 'from-cyan-400 to-teal-400' },
-  { name: 'Fast', speed: '17k tok/s', desc: 'Taalas \u2014 \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u044c', color: 'from-green-400 to-emerald-400' },
-  { name: 'Full', speed: 'Groq/Cerebras', desc: '\u041e\u0431\u043b\u0430\u0447\u043d\u044b\u0435 \u0443\u0441\u043a\u043e\u0440\u0438\u0442\u0435\u043b\u0438', color: 'from-yellow-400 to-orange-400' },
-  { name: 'Giant', speed: 'AirLLM 70B', desc: '\u0413\u0438\u0433\u0430\u043d\u0442\u0441\u043a\u0438\u0435 \u043c\u043e\u0434\u0435\u043b\u0438', color: 'from-orange-400 to-red-400' },
+  { name: 'WASM', speed: '~1k tok/s', desc: 'Quick start, small footprint', color: 'from-blue-400 to-cyan-400' },
+  { name: 'Micro', speed: 'BitNet 0.4GB', desc: 'Ultra-lightweight models', color: 'from-cyan-400 to-teal-400' },
+  { name: 'Fast', speed: '17k tok/s', desc: 'Taalas — maximum speed', color: 'from-green-400 to-emerald-400' },
+  { name: 'Full', speed: 'Groq/Cerebras', desc: 'Cloud accelerators', color: 'from-yellow-400 to-orange-400' },
+  { name: 'Giant', speed: 'AirLLM 70B', desc: 'Giant models on any GPU', color: 'from-orange-400 to-red-400' },
 ];
 
 export default function TieredRouter() {
@@ -27,13 +27,13 @@ export default function TieredRouter() {
               <div className="text-sm text-green-400 font-mono mb-3">{t.speed}</div>
               <p className="text-gray-400 text-sm">{t.desc}</p>
               {i < tiers.length - 1 && (
-                <div className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 text-gray-600 z-10">\u2192</div>
+                <div className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 text-gray-600 z-10">&rarr;</div>
               )}
             </div>
           ))}
         </div>
         <div className="mt-8 text-center">
-          <code className="text-xs text-gray-500 font-mono">WASM \u2192 Micro \u2192 Fast \u2192 Full \u2192 Giant \u00b7 auto-fallback \u00b7 &lt; 50ms routing</code>
+          <code className="text-xs text-gray-500 font-mono">{"WASM \u2192 Micro \u2192 Fast \u2192 Full \u2192 Giant \u00b7 auto-fallback \u00b7 < 50ms routing"}</code>
         </div>
       </div>
     </section>

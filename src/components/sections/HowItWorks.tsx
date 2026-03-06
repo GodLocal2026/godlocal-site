@@ -19,21 +19,21 @@ const steps = [
     n: '03',
     icon: '\ud83e\udd16',
     title: 'Launch Agent with Soul',
-    desc: 'SOUL files, memory graph, emotion map, self-reflection. Agent remembers, feels, and learns \u2014 even while you sleep.',
+    desc: 'SOUL files, memory graph, emotion map, self-reflection. Agent remembers, feels, and learns — even while you sleep.',
     detail: 'ConsciousnessLoop \u00b7 SparkNet \u00b7 Memory Graph'
   },
   {
     n: '04',
     icon: '\ud83d\udcf1',
     title: 'Works on iPhone',
-    desc: 'CoreML + Apple Neural Engine. LFM2 24B @ 40 tok/s, PARO 4B @ 60 tok/s. Full privacy \u2014 data never leaves device.',
+    desc: 'CoreML + Apple Neural Engine. LFM2 24B @ 40 tok/s, PARO 4B @ 60 tok/s. Full privacy — data never leaves device.',
     detail: 'CoreML \u00b7 ANE \u00b7 On-device inference'
   },
   {
     n: '05',
     icon: '\ud83d\udee0\ufe0f',
     title: 'Deploy & Scale',
-    desc: 'Git-native deploy, Docker, PostgreSQL, Redis \u2014 all out of the box. PaaS for AI apps with monitoring and logs.',
+    desc: 'Git-native deploy, Docker, PostgreSQL, Redis — all out of the box. PaaS for AI apps with monitoring and logs.',
     detail: 'git push \u00b7 Docker \u00b7 Vercel \u00b7 Self-hosted'
   },
 ];
@@ -47,7 +47,7 @@ export default function HowItWorks() {
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
             From install to <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">production</span> in 5 minutes
           </h2>
-          <p className="text-gray-400 text-lg">Local AI without compromises. One stack \u2014 all capabilities.</p>
+          <p className="text-gray-400 text-lg">Local AI without compromises. One stack — all capabilities.</p>
         </div>
         <div className="relative">
           <div className="absolute left-[27px] top-0 bottom-0 w-px bg-gradient-to-b from-green-500/40 via-green-500/20 to-transparent hidden md:block" />

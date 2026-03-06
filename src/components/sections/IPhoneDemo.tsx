@@ -29,9 +29,9 @@ export default function IPhoneDemo() {
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} Full Privacy</span>
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} Offline Mode</span>
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} PWA</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">Full Privacy</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">Offline Mode</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">PWA</span>
             </div>
           </div>
           <div className="flex justify-center">
@@ -43,7 +43,7 @@ export default function IPhoneDemo() {
                 <div className="text-gray-400 text-sm mb-6">On-device AI</div>
                 <div className="w-full bg-green-500/10 rounded-xl p-4 border border-green-500/20">
                   <div className="text-green-400 text-2xl font-mono font-black">60 tok/s</div>
-                  <div className="text-gray-400 text-xs mt-1">PARO 4B {"\u00b7"} iPhone 15 Pro</div>
+                  <div className="text-gray-400 text-xs mt-1">{"PARO 4B \u00b7 iPhone 15 Pro"}</div>
                 </div>
                 <div className="mt-4 text-xs text-gray-500">CoreML + Apple Neural Engine</div>
               </div>
