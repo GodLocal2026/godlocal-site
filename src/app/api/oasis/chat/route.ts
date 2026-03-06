@@ -265,6 +265,40 @@ export async function POST(req: NextRequest) {
 
         if (!phase1Res.ok) {
           const errText = await phase1Res.text();
+          // If tool_use_failed, retry without tools
+          if (errText.includes('tool_use_failed') || errText.includes('failed_generation')) {
+            send({ t: 'thinking', v: 'Retrying without tools...' });
+            const retryBody = { model: MODEL, messages, stream: true, temperature: 0.7, max_tokens: 4096 };
+            const retryRes = await fetch(GROQ_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_API_KEY },
+              body: JSON.stringify(retryBody),
+            });
+            if (retryRes.ok && retryRes.body) {
+              send({ t: 'thinking_done' });
+              const reader = retryRes.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = '';
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop() || '';
+                for (const line of lines) {
+                  if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+                  try {
+                    const chunk = JSON.parse(line.slice(6));
+                    const delta = chunk.choices?.[0]?.delta?.content;
+                    if (delta) send({ t: 'token', v: delta });
+                  } catch {}
+                }
+              }
+              send({ t: 'done' });
+              controller.close();
+              return;
+            }
+          }
           send({ t: 'thinking_done' });
           send({ t: 'error', v: 'API error ' + phase1Res.status + ': ' + errText.slice(0, 200) });
           controller.close();
