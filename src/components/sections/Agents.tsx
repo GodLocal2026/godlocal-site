@@ -1,54 +1,64 @@
-"use client";
-import { motion } from "framer-motion";
+'use client';
 
-const agentFeatures = [
-  { icon:"🧠", title:"Memory Graph", desc:"SQLite persistent memory. Associative graphs across sessions." },
-  { icon:"❤️", title:"Emotion Map", desc:"Curiosity, focus, energy affect decision-making in real time." },
-  { icon:"🔄", title:"ConsciousnessLoop", desc:"Autonomous self-reflection every 5 minutes. Adapts and evolves." },
-  { icon:"✨", title:"SparkNet", desc:"Q-Learning idea evaluator with EMA judge. Survives reboots." },
-  { icon:"📡", title:"GlintSignalBus", desc:"Real-time signals: web, GitHub, social, markets." },
-  { icon:"💰", title:"Agent Capital", desc:"Autonomous financial reasoning. Portfolio, trades, risk." },
+const features = [
+  {
+    icon: '🧠',
+    title: 'Память и эмоции',
+    desc: 'SQLite граф, рефлексия, эмоциональная карта — агент помнит и чувствует.',
+    detail: 'Memory Graph · Emotion Map · SOUL files'
+  },
+  {
+    icon: '⚡',
+    title: 'SparkNet',
+    desc: 'Самообучающаяся система оценки идей. EMA judge, временные якоря, эволюция мышления.',
+    detail: 'EMA Judge · Temporal Anchors · Idea Evolution'
+  },
+  {
+    icon: '🔄',
+    title: 'ConsciousnessLoop',
+    desc: 'Автономное мышление каждые 5 минут. Агент учится, анализирует и планирует без вашего участия.',
+    detail: '5-min cycle · Self-reflection · Auto-learning'
+  },
+  {
+    icon: '🎭',
+    title: 'SOUL файлы',
+    desc: 'Персонализация через конфиг: цели, характер, стиль общения. Каждый агент уникален.',
+    detail: 'Goals · Personality · Communication Style'
+  },
+  {
+    icon: '🤝',
+    title: 'Мульти-агенты',
+    desc: 'Несколько агентов работают параллельно: анализ рынка, постинг в соцсети, планирование задач.',
+    detail: 'Market Analysis · Social · Task Planning'
+  },
+  {
+    icon: '💰',
+    title: 'Суверенный AI',
+    desc: 'Агент с собственным кошельком, капиталом и правами. Автономные транзакции через Solana.',
+    detail: 'Phantom · Jupiter · Solana CLI'
+  },
 ];
 
 export default function Agents() {
   return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#6C5CE7]/5 rounded-full blur-3xl" />
-      </div>
-      <div className="container relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <motion.div initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}}
-              className="inline-block px-3 py-1 rounded-full border border-[#6C5CE7]/30 bg-[#6C5CE7]/10 text-[#6C5CE7] text-xs font-mono mb-6">Autonomous Agents</motion.div>
-            <motion.h2 initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:0.1}} className="section-title mb-6">
-              Agents with a{" "}
-              <span style={{background:"linear-gradient(135deg,#00FF9D 0%,#6C5CE7 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>soul.</span>
-            </motion.h2>
-            <motion.p initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:0.2}}
-              className="text-[#E0E0E0]/50 text-lg mb-8 leading-relaxed">
-              GodLocal agents have memory, emotions, and the ability to reflect, learn, and evolve — autonomously.
-            </motion.p>
-            <motion.div initial={{opacity:0,y:10}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:0.3}}
-              className="bg-[#111316] border border-[#333] rounded-xl p-4 font-mono text-xs">
-              <div className="text-[#E0E0E0]/30 mb-2">// SOUL file</div>
-              <div className="space-y-1">
-                <div><span className="text-[#6C5CE7]">name</span>: <span className="text-[#00FF9D]">&quot;GodLocal&quot;</span></div>
-                <div><span className="text-[#6C5CE7]">archetype</span>: <span className="text-[#00FF9D]">&quot;conductor&quot;</span></div>
-                <div><span className="text-[#6C5CE7]">emotions</span>: {'{ curiosity: 0.9, focus: 0.8 }'}</div>
-                <div><span className="text-[#6C5CE7]">loop_interval</span>: <span className="text-[#00FF9D]">300s</span></div>
-              </div>
-            </motion.div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {agentFeatures.map((f,i) => (
-              <motion.div key={f.title} initial={{opacity:0,scale:0.95}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{delay:i*0.08}} className="card text-center">
-                <div className="text-3xl mb-3">{f.icon}</div>
-                <h3 className="font-semibold text-sm mb-2">{f.title}</h3>
-                <p className="text-xs text-[#E0E0E0]/40 leading-relaxed">{f.desc}</p>
-              </motion.div>
-            ))}
-          </div>
+    <section className="py-24">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">Автономные агенты</div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+            Агенты с <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">душой</span>
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">Не просто чат-бот. Полноценный AI с памятью, эмоциями, рефлексией и собственным капиталом.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map(f => (
+            <div key={f.title} className="bg-[#0d1017] border border-white/[0.06] rounded-2xl p-6 hover:border-green-500/20 transition-all duration-300">
+              <div className="text-3xl mb-4">{f.icon}</div>
+              <h3 className="text-white font-bold text-lg mb-2">{f.title}</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-3">{f.desc}</p>
+              <code className="text-xs text-green-400/60 font-mono">{f.detail}</code>
+            </div>
+          ))}
         </div>
       </div>
     </section>
