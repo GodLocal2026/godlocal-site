@@ -3,38 +3,38 @@
 const steps = [
   {
     n: '01',
-    icon: '⚡',
-    title: 'Установи за 1 минуту',
-    desc: 'git clone → npm install → npm run dev. Всё. Локальный AI-движок запущен на твоём железе.',
-    detail: 'npx godlocal init · Node.js 18+'
+    icon: '\u26a1',
+    title: 'Install in 1 minute',
+    desc: 'git clone \u2192 npm install \u2192 npm run dev. Done. Local AI engine running on your hardware.',
+    detail: 'npx godlocal init \u00b7 Node.js 18+'
   },
   {
     n: '02',
-    icon: '🧠',
-    title: 'Умная маршрутизация',
-    desc: '5-уровневый TieredRouter автоматически выбирает лучший бэкенд: WASM → BitNet → Taalas (17k tok/s) → Groq/Cerebras → AirLLM 70B.',
-    detail: 'WASM · Micro · Fast · Full · Giant'
+    icon: '\ud83e\udde0',
+    title: 'Smart Routing',
+    desc: '5-tier TieredRouter auto-selects the best backend: WASM \u2192 BitNet \u2192 Taalas (17k tok/s) \u2192 Groq/Cerebras \u2192 AirLLM 70B.',
+    detail: 'WASM \u00b7 Micro \u00b7 Fast \u00b7 Full \u00b7 Giant'
   },
   {
     n: '03',
-    icon: '🤖',
-    title: 'Запусти агента с душой',
-    desc: 'SOUL-файлы, граф памяти, эмоциональная карта, саморефлексия. Агент помнит, чувствует и учится — даже пока ты спишь.',
-    detail: 'ConsciousnessLoop · SparkNet · Memory Graph'
+    icon: '\ud83e\udd16',
+    title: 'Launch Agent with Soul',
+    desc: 'SOUL files, memory graph, emotion map, self-reflection. Agent remembers, feels, and learns \u2014 even while you sleep.',
+    detail: 'ConsciousnessLoop \u00b7 SparkNet \u00b7 Memory Graph'
   },
   {
     n: '04',
-    icon: '📱',
-    title: 'Работает на iPhone',
-    desc: 'CoreML + Apple Neural Engine. LFM2 24B @ 40 tok/s, PARO 4B @ 60 tok/s. Полная приватность — данные не покидают устройство.',
-    detail: 'CoreML · ANE · On-device inference'
+    icon: '\ud83d\udcf1',
+    title: 'Works on iPhone',
+    desc: 'CoreML + Apple Neural Engine. LFM2 24B @ 40 tok/s, PARO 4B @ 60 tok/s. Full privacy \u2014 data never leaves device.',
+    detail: 'CoreML \u00b7 ANE \u00b7 On-device inference'
   },
   {
     n: '05',
-    icon: '🛠️',
-    title: 'Деплой и масштабируй',
-    desc: 'Git-native деплой, Docker, PostgreSQL, Redis — всё из коробки. PaaS для AI-приложений с мониторингом и логами.',
-    detail: 'git push · Docker · Vercel · Self-hosted'
+    icon: '\ud83d\udee0\ufe0f',
+    title: 'Deploy & Scale',
+    desc: 'Git-native deploy, Docker, PostgreSQL, Redis \u2014 all out of the box. PaaS for AI apps with monitoring and logs.',
+    detail: 'git push \u00b7 Docker \u00b7 Vercel \u00b7 Self-hosted'
   },
 ];
 
@@ -43,11 +43,11 @@ export default function HowItWorks() {
     <section id="how" className="py-24 bg-[#060810]">
       <div className="max-w-5xl mx-auto px-4">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">Как это работает</div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">How it works</div>
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-            От установки до <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">продакшена</span> за 5 минут
+            From install to <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">production</span> in 5 minutes
           </h2>
-          <p className="text-gray-400 text-lg">Локальный AI без компромиссов. Один стек — все возможности.</p>
+          <p className="text-gray-400 text-lg">Local AI without compromises. One stack \u2014 all capabilities.</p>
         </div>
         <div className="relative">
           <div className="absolute left-[27px] top-0 bottom-0 w-px bg-gradient-to-b from-green-500/40 via-green-500/20 to-transparent hidden md:block" />
