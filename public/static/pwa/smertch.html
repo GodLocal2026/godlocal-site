@@ -182,6 +182,12 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 /* ─── Toast ─── */
 .toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:rgba(255,255,255,.15);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;z-index:999;white-space:nowrap;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ─── Create token button ─── */
+#createBtn{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;background:linear-gradient(135deg,rgba(255,159,10,.25),rgba(255,69,58,.2));border:1px solid rgba(255,159,10,.4);color:var(--orange);font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;flex-shrink:0}
+#createBtn:active{opacity:.7}
+/* ─── Market coin image ─── */
+.timg{width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.timg img{width:34px;height:34px;border-radius:50%;object-fit:cover}
 /* ─── Typing indicator ─── */
 .typ{background:var(--bg3);border-radius:16px;border-bottom-left-radius:4px;padding:12px 16px;align-self:flex-start;display:flex;gap:4px;align-items:center}
 .typ span{width:6px;height:6px;border-radius:50%;background:var(--t2);animation:typb 1.2s ease-in-out infinite}
@@ -193,7 +199,10 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 <div id="hdr">
   <div id="hdr-top">
     <div class="logo">🐘 slonik52 <span id="tickEl"></span></div>
-    <button id="solBtn" onclick="go('market')">SOL …</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <a href="https://pump.fun/create" target="_blank" id="createBtn" title="Создать токен на pump.fun">🪙 Создать</a>
+      <button id="solBtn" onclick="go('market')">SOL …</button>
+    </div>
   </div>
   <div class="seg" id="segTop" style="display:none">
     <button class="pill on" id="pScan" onclick="chip('scan')">Скан</button>
@@ -219,12 +228,17 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
     <div id="fScan"><div class="ldg"><div class="spin"></div> Загрузка…</div></div>
   </div>
 
-  <!-- NEWS -->
+  <!-- NEWS — 3 sub-tabs -->
   <div class="view" id="vNews">
+    <div class="seg" style="padding:12px 16px 0">
+      <button class="pill on" id="nCMC" onclick="newsTab('cmc')">📊 CMC</button>
+      <button class="pill" id="nCG" onclick="newsTab('cg')">🦎 CoinGecko</button>
+      <button class="pill" id="nPump" onclick="newsTab('pump')">🔥 Pump</button>
+    </div>
     <div id="fNews"><div class="ldg"><div class="spin"></div> Загрузка…</div></div>
   </div>
 
-  <!-- MARKET -->
+  <!-- MARKET — top 100 -->
   <div class="view" id="vMarket">
     <div class="mgrid">
       <div class="mbox"><div class="mbox-l">SOL ЦЕНА</div><div class="mbox-v" id="mSP">—</div></div>
@@ -232,7 +246,13 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
       <div class="mbox"><div class="mbox-l">ОБЪЁМ 24H</div><div class="mbox-v" id="mSV">—</div></div>
       <div class="mbox"><div class="mbox-l">РЫН. КАП.</div><div class="mbox-v" id="mSM">—</div></div>
     </div>
-    <div class="shdr">🔥 Топ мемкоины Solana</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px 0">
+      <div class="shdr" style="padding:10px 0 6px" id="mktHdr">Топ 100 по капитализации</div>
+      <div id="mktPg" style="display:flex;gap:6px">
+        <button class="pill" id="pgBtn1" onclick="loadMarket(1)" style="min-width:36px">1</button>
+        <button class="pill on" id="pgBtn2" style="display:none;min-width:36px" onclick="loadMarket(2)">2</button>
+      </div>
+    </div>
     <div id="trendEl"><div class="ldg"><div class="spin"></div></div></div>
   </div>
 
@@ -315,7 +335,6 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
   <div id="ovBg"></div>
   <div id="sheet">
     <div class="sdrag"></div>
-    <!-- token header -->
     <div style="display:flex;align-items:center;padding:14px 20px 6px;gap:12px">
       <div id="mIco" style="font-size:28px"></div>
       <div>
@@ -323,19 +342,15 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
         <div class="sprice" style="padding:0;margin-top:2px" id="mPr">—</div>
       </div>
     </div>
-    <!-- contract address -->
     <div class="maddr">
       <span class="maddr-txt" id="mAddr">—</span>
       <button class="cpybtn" onclick="cpMint(mMint)">📋</button>
     </div>
-    <!-- external links row: pump.fun · Axiom · Twitter · Dex -->
     <div id="mExtLinks" style="display:flex;gap:8px;padding:0 16px 14px;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap"></div>
-    <!-- buy / sell toggle -->
     <div class="sseg">
       <button class="sseg-btn on" id="mBuy" onclick="setMd('buy')">⚡ Купить</button>
       <button class="sseg-btn" id="mSel" onclick="setMd('sell')">📤 Продать</button>
     </div>
-    <!-- buy block -->
     <div id="buyBlk">
       <div class="aprw">
         <button class="ap on" onclick="setPr(this,0.1)">0.1</button>
@@ -353,7 +368,6 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
       </div>
       <div class="qbox" id="qBx">—</div>
     </div>
-    <!-- sell block -->
     <div id="sellBlk" style="display:none">
       <div class="aprw">
         <button class="ap on" onclick="setSPct(this,25)">25%</button>
@@ -362,7 +376,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
         <button class="ap" onclick="setSPct(this,100)">100%</button>
       </div>
     </div>
-    <button class="exbtn buy" id="exBtn" onclick="execSwap()">⚡ Купить на Jupiter</button>
+    <button class="exbtn buy" id="exBtn" onclick="execSwap()">⚡ Купить через Phantom</button>
     <button class="exbtn" style="background:var(--bg3);color:var(--t2);margin-top:4px" onclick="aiToken(mSym,mMint)">🤖 AI анализ</button>
   </div>
 </div>
@@ -373,14 +387,16 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 const DEX='https://api.dexscreener.com',PUMP='https://frontend-api.pump.fun';
 const JUP='https://quote-api.jup.ag/v6',CG='https://api.coingecko.com/api/v3';
 const WSOL='So11111111111111111111111111111111111111112';
+const CMC_NEWS='https://api.coinmarketcap.com/content/v3/news?start=0&limit=20';
 const SKIP=new Set(['SOL','WSOL','USDC','USDT','ETH','WETH','BTC','WBTC','RAY','BONK']);
-let solUsd=0,activeTab='scan',activeChip='scan';
+let solUsd=0,activeTab='scan',activeChip='scan',activeNewsTab='cmc';
 let mMint='',mSym='',mMode='buy',mSlip=1,solAmt=0.1,sPct=100,qTmr=null;
 let mTwitterUrl='',mPumpUrl='';
 let snipes=JSON.parse(localStorage.getItem('s52sn')||'[]');
 let wPub=localStorage.getItem('s52pub')||'';
+let mktPage=1;
 const G=id=>document.getElementById(id);
-const fN=n=>{if(!n||isNaN(n))return'—';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toFixed(0)};
+const fN=n=>{if(!n||isNaN(n))return'—';if(n>=1e12)return'$'+(n/1e12).toFixed(2)+'T';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toFixed(0)};
 const fP=n=>{if(!n||isNaN(n))return'—';if(n<0.000001)return'$'+n.toExponential(2);if(n<0.01)return'$'+n.toFixed(7);if(n<1)return'$'+n.toFixed(4);return'$'+n.toFixed(2)};
 const fA=ms=>{const s=Math.floor(ms/1000);if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60);if(h<24)return h+'h';return Math.floor(h/24)+'d'};
 function toast(msg){const e=G('toastEl');e.textContent=msg;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
@@ -406,15 +422,11 @@ function buildCard(p){
     else return null;}
   const pr=parseFloat(p.priceUsd||0),mc=parseFloat(p.fdv||p.marketCap||0);
   const liq=parseFloat(p.liquidity?.usd||0);
-  const vol1=p.volume?.h1||0;
   const ch1=parseFloat(p.priceChange?.h1||0);
   const age=p.pairCreatedAt?fA(Date.now()-p.pairCreatedAt):'?';
   const {score,cls,lbl}=rugInfo(p);
-  // social links from DEX profile
   const twUrl=p.info?.socials?.find(s=>s.type==='twitter')?.url||'';
-  const webUrl=p.info?.websites?.[0]?.url||'';
   const pumpUrl=mint?`https://pump.fun/coin/${mint}`:'';
-  const axiomUrl=mint?`https://axiom.trade/meme/${mint}`:'';
   const pimg=p.info?.imageUrl?`<img src="${p.info.imageUrl}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt="" style="width:42px;height:42px;border-radius:12px;object-fit:cover"><span style="display:none;font-size:20px;width:42px;height:42px;align-items:center;justify-content:center">🐘</span>`:`<span style="font-size:20px">🐘</span>`;
   const symSafe=sym.replace(/'/g,"\'").replace(/"/g,'&quot;');
   const twSafe=(twUrl||'').replace(/'/g,'');
@@ -514,44 +526,171 @@ async function loadHot(){
   el.innerHTML=pairs.slice(0,40).map(p=>buildCard(p)).filter(Boolean).join('')||'<div class="ldg">Нет данных</div>';
   }catch(e){el.innerHTML='<div class="ldg">⚠️ '+e.message+'</div>';}}
 
-async function loadTrend(){
+// ─── MARKET: Top 100 ─────────────────────────────────────
+async function loadMarket(page){
+  mktPage=page||1;
   const el=G('trendEl');if(!el)return;
-  try{const r=await fetch(CG+'/coins/markets?vs_currency=usd&category=solana-meme-coins&order=volume_desc&per_page=15&sparkline=false');
-  if(!r.ok)throw new Error();const coins=await r.json();
-  el.innerHTML=coins.map((c,i)=>{const ch=c.price_change_percentage_24h||0;
-  return`<div class="trow" onclick="aiToken('${c.symbol.toUpperCase()}','${c.id}')">
-  <span class="trank">${i+1}</span>
-  <div><div class="tname">${c.name}</div><div class="tsym">$${c.symbol.toUpperCase()}</div></div>
-  <div style="text-align:right">
-    <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${fP(c.current_price)}</div>
-    <div class="cch ${ch>=0?'up':'dn'}" style="font-size:12px">${ch>=0?'+':''}${ch.toFixed(1)}%</div>
-  </div></div>`;}).join('');
-  }catch(e){if(el)el.innerHTML='<div class="ldg">—</div>';}}
-
-async function loadNews(){
-  const el=G('fNews');if(!el)return;
   el.innerHTML='<div class="ldg"><div class="spin"></div> Загрузка…</div>';
-  const twLinks=[{q:'Solana memecoin pump',l:'🔥 Solana Meme Pump'},{q:'pump.fun new token today',l:'🚀 pump.fun Новые'},{q:'$WIF $BONK Solana',l:'💎 WIF / BONK'},{q:'Solana DEX trading signal',l:'📊 Сигналы DEX'},{q:'crypto rug pull alert',l:'⚠️ Rug Alert'},{q:'memecoin 100x Solana',l:'🎯 100x Gems'}];
-  try{const r=await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=Meme,SOL,Trading&sortOrder=popular');
-  if(!r.ok)throw new Error();
-  const d=await r.json();const arts=(d.Data||[]).slice(0,20);
-  let html='<div class="shdr">🐦 Twitter</div>';
-  html+=twLinks.map(t=>`<div class="ncard" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')">
-  <div class="ntitle">${t.l}</div><div class="nmeta"><span class="ntag">Twitter Live</span></div></div>`).join('');
-  html+='<div class="shdr">📰 Новости</div>';
-  html+=arts.map(a=>{const ch=a.title.toLowerCase();
-  const bull=['bull','surge','pump','moon','gain','ath','rise'].some(w=>ch.includes(w));
-  const bear=['dump','crash','bear','drop','fall','fear','low'].some(w=>ch.includes(w));
-  return`<div class="ncard" onclick="window.open('${a.url}','_blank')">
-  <div class="ntitle">${a.title}</div>
-  <div class="nmeta">
-    <span class="ntag">${a.source_info?.name||a.source||''}</span>
-    ${bull?'<span class="ntag nbull">🟢 BULL</span>':bear?'<span class="ntag nbear">🔴 BEAR</span>':''}
-    <span style="margin-left:auto">${a.published_on?new Date(a.published_on*1000).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}):''}</span>
-  </div></div>`;}).join('');
-  el.innerHTML=html;
-  }catch(e){
-  el.innerHTML='<div class="shdr">🐦 Twitter</div>'+twLinks.map(t=>`<div class="ncard" onclick="window.open('https://twitter.com/search?q='+encodeURIComponent('${t.q}')+'&src=typed_query&f=live','_blank')"><div class="ntitle">${t.l}</div><div class="nmeta"><span class="ntag">Twitter Live</span></div></div>`).join('');}}
+  // pagination buttons
+  const p2=G('pgBtn2');if(p2)p2.style.display='inline-flex';
+  G('pgBtn1')&&(G('pgBtn1').className='pill'+(mktPage===1?' on':''));
+  G('pgBtn2')&&(G('pgBtn2').className='pill'+(mktPage===2?' on':''));
+  const hdr=G('mktHdr');if(hdr)hdr.textContent=`Топ ${mktPage===1?'1–50':'51–100'} по капитализации`;
+  try{
+    const perPage=50,offset=(mktPage-1)*perPage+1;
+    const r=await fetch(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=${mktPage}&sparkline=false&price_change_percentage=1h,24h`);
+    if(!r.ok)throw new Error('CoinGecko '+r.status);
+    const coins=await r.json();
+    const rank0=(mktPage-1)*perPage;
+    el.innerHTML=coins.map((c,i)=>{
+      const ch24=c.price_change_percentage_24h||0;
+      const ch1=c.price_change_percentage_1h_in_currency||0;
+      const rank=rank0+i+1;
+      const mcap=fN(c.market_cap||0);
+      const vol=fN(c.total_volume||0);
+      const img=c.image?`<img src="${c.image}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:'';
+      return`<div class="trow" onclick="window.open('https://www.coingecko.com/en/coins/${c.id}','_blank')">
+  <span class="trank">${rank}</span>
+  <div class="timg">${img}</div>
+  <div style="flex:1;min-width:0">
+    <div class="tname">${c.name}</div>
+    <div class="tsym">$${(c.symbol||'').toUpperCase()} · <span style="color:var(--t3)">${mcap}</span></div>
+  </div>
+  <div style="text-align:right;flex-shrink:0">
+    <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${fP(c.current_price)}</div>
+    <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:2px">
+      <span class="cch ${ch1>=0?'up':'dn'}" style="font-size:10px">1h ${ch1>=0?'+':''}${ch1.toFixed(1)}%</span>
+      <span class="cch ${ch24>=0?'up':'dn'}" style="font-size:11px">24h ${ch24>=0?'+':''}${ch24.toFixed(1)}%</span>
+    </div>
+  </div>
+</div>`;}).join('');
+  }catch(e){el.innerHTML='<div class="ldg">⚠️ '+e.message+'</div>';}}
+
+// ─── NEWS ─────────────────────────────────────────────────
+const newsTabBtns={cmc:'nCMC',cg:'nCG',pump:'nPump'};
+function newsTab(t){
+  activeNewsTab=t;
+  Object.entries(newsTabBtns).forEach(([k,id])=>{const b=G(id);if(b)b.className='pill'+(k===t?' on':'');});
+  if(t==='cmc')loadNewsCMC();
+  else if(t==='cg')loadNewsCG();
+  else if(t==='pump')loadNewsPump();}
+
+async function loadNewsCMC(){
+  const el=G('fNews');el.innerHTML='<div class="ldg"><div class="spin"></div> CoinMarketCap…</div>';
+  // CMC news via their public content API (no key needed for news listing)
+  const cmcSrc='https://coinmarketcap.com/headlines/news/';
+  try{
+    // Use CryptoCompare as CMC data source (reliable, free, similar content)
+    const r=await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest&feeds=coinmarketcap,cryptocompare,decrypt,theblock');
+    if(!r.ok)throw new Error();
+    const d=await r.json();const arts=(d.Data||[]).slice(0,25);
+    let html=`<div class="shdr" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px">
+      <span>📊 CoinMarketCap / Decrypt</span>
+      <a href="https://coinmarketcap.com/news/" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none">Все →</a>
+    </div>`;
+    html+=arts.map(a=>{
+      const ch=a.title.toLowerCase();
+      const bull=['bull','surge','pump','moon','gain','ath','rise','rally','soar','high'].some(w=>ch.includes(w));
+      const bear=['dump','crash','bear','drop','fall','fear','low','liquidat','sell','plunge'].some(w=>ch.includes(w));
+      return`<div class="ncard" onclick="window.open('${a.url}','_blank')">
+<div class="ntitle">${a.title}</div>
+<div class="nmeta">
+  <span class="ntag">${a.source_info?.name||a.source||'CMC'}</span>
+  ${bull?'<span class="ntag nbull">🟢</span>':bear?'<span class="ntag nbear">🔴</span>':''}
+  <span style="margin-left:auto;color:var(--t3);font-size:10px">${a.published_on?new Date(a.published_on*1000).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}):''}</span>
+</div></div>`;}).join('');
+    el.innerHTML=html;
+  }catch(e){el.innerHTML=`<div class="ldg">⚠️ Ошибка загрузки</div><div style="padding:16px;text-align:center"><a href="https://coinmarketcap.com/news/" target="_blank" style="color:var(--blue)">Открыть CMC News →</a></div>`;}}
+
+async function loadNewsCG(){
+  const el=G('fNews');el.innerHTML='<div class="ldg"><div class="spin"></div> CoinGecko…</div>';
+  try{
+    // CoinGecko trending + gainers/losers as news-style feed
+    const [trendR,globalR]=await Promise.allSettled([
+      fetch(`${CG}/search/trending`),
+      fetch(`${CG}/global`)]);
+    let html=`<div class="shdr" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px">
+      <span>🦎 CoinGecko Trending</span>
+      <a href="https://www.coingecko.com/en/discover" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none">Все →</a>
+    </div>`;
+    if(trendR.status==='fulfilled'&&trendR.value.ok){
+      const td=await trendR.value.json();
+      const coins=(td.coins||[]).slice(0,10);
+      html+=coins.map((item,i)=>{
+        const c=item.item;
+        const ch=c.data?.price_change_percentage_24h?.usd||0;
+        const img=c.thumb?`<img src="${c.thumb}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px" onerror="this.style.display='none'">`:'';
+        return`<div class="ncard" onclick="window.open('https://www.coingecko.com/en/coins/${c.id}','_blank')" style="display:flex;align-items:center">
+  ${img}
+  <div style="flex:1;min-width:0">
+    <div class="ntitle" style="margin-bottom:2px">${i+1}. ${c.name} <span style="color:var(--t2);font-weight:400;font-size:11px">$${(c.symbol||'').toUpperCase()}</span></div>
+    <div class="nmeta"><span class="ntag">Trending #${i+1}</span> <span class="cch ${ch>=0?'up':'dn'}" style="font-size:11px">${ch>=0?'+':''}${ch.toFixed(1)}%</span></div>
+  </div>
+  <div style="text-align:right;font-size:13px;font-weight:700;color:var(--t);flex-shrink:0">${fP(c.data?.price||0)}</div>
+</div>`;}).join('');}
+    // NFTs trending
+    if(trendR.status==='fulfilled'&&trendR.value.ok){
+      const td=await trendR.value.clone().json().catch(()=>({nfts:[]}));
+    }
+    // Global stats box
+    if(globalR.status==='fulfilled'&&globalR.value.ok){
+      const gd=await globalR.value.json();const g=gd.data||{};
+      const btcDom=(g.market_cap_percentage?.btc||0).toFixed(1);
+      const totMc=fN(g.total_market_cap?.usd||0);
+      const ch24=g.market_cap_change_percentage_24h_usd||0;
+      html+=`<div class="shdr">🌐 Глобальный рынок</div>
+<div class="mgrid" style="margin:0 16px 8px">
+  <div class="mbox"><div class="mbox-l">Общий mcap</div><div class="mbox-v ${ch24>=0?'up':'dn'}" style="font-size:13px">${totMc}</div></div>
+  <div class="mbox"><div class="mbox-l">BTC доминация</div><div class="mbox-v" style="font-size:13px">${btcDom}%</div></div>
+</div>`;}
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<div class="ldg">⚠️ CoinGecko недоступен</div>';}}
+
+async function loadNewsPump(){
+  const el=G('fNews');el.innerHTML='<div class="ldg"><div class="spin"></div> pump.fun…</div>';
+  try{
+    // Recent pump.fun activity — latest coins + king of the hill
+    const [coinsR,kothR]=await Promise.allSettled([
+      fetch(PUMP+'/coins?offset=0&limit=20&sort=last_trade_timestamp&order=DESC&includeNsfw=false'),
+      fetch(PUMP+'/coins?offset=0&limit=5&sort=king_of_the_hill_timestamp&order=DESC&includeNsfw=false')]);
+    let html='';
+    if(kothR.status==='fulfilled'&&kothR.value.ok){
+      const koth=await kothR.value.json();
+      html+=`<div class="shdr">👑 King of the Hill</div>`;
+      html+=koth.slice(0,5).map(c=>{
+        const sym=(c.symbol||'???').toUpperCase(),mint=c.mint||'';
+        const mc=c.usd_market_cap||0;
+        const img=c.image_uri?`<img src="${c.image_uri}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px" onerror="this.style.display='none'">`:'<span style="margin-right:8px;font-size:18px">👑</span>';
+        return`<div class="ncard" onclick="openModal('${mint}','${sym.replace(/'/g,"\'")}',0,'','https://pump.fun/coin/${mint}')" style="display:flex;align-items:center">
+  ${img}
+  <div style="flex:1"><div class="ntitle">${c.name||sym}</div><div class="nmeta"><span class="ntag">$${sym}</span> <span class="ntag nbull">${fN(mc)} mcap</span></div></div>
+</div>`;}).join('');}
+    if(coinsR.status==='fulfilled'&&coinsR.value.ok){
+      const coins=await coinsR.value.json();
+      html+=`<div class="shdr" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px">
+<span>🔥 Новые токены pump.fun</span>
+<a href="https://pump.fun" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none">pump.fun →</a></div>`;
+      html+=coins.map(c=>{
+        const sym=(c.symbol||'???').toUpperCase(),mint=c.mint||'';
+        const mc=c.usd_market_cap||0;
+        const rep=c.reply_count||0;
+        const img=c.image_uri?`<img src="${c.image_uri}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px" onerror="this.style.display='none'">`:'';
+        return`<div class="ncard" onclick="openModal('${mint}','${sym.replace(/'/g,"\'")}',0,'','https://pump.fun/coin/${mint}')" style="display:flex;align-items:center">
+  ${img}
+  <div style="flex:1;min-width:0">
+    <div class="ntitle" style="margin-bottom:2px">${c.name||sym}</div>
+    <div class="nmeta"><span class="ntag">$${sym}</span>${rep>0?`<span class="ntag">💬 ${rep}</span>`:''}  <span class="ntag nbull">${fN(mc)}</span></div>
+  </div>
+  <div style="flex-shrink:0;font-size:11px;color:var(--orange);font-weight:700">pump.fun</div>
+</div>`;}).join('');}
+    html+=`<div style="padding:12px 16px"><a href="https://pump.fun/create" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:linear-gradient(135deg,rgba(255,159,10,.2),rgba(255,69,58,.2));border:1px solid rgba(255,159,10,.3);border-radius:14px;font-size:14px;font-weight:700;color:var(--orange);text-decoration:none">🪙 Создать свой токен на pump.fun</a></div>`;
+    el.innerHTML=html||'<div class="ldg">Нет данных</div>';
+  }catch(e){el.innerHTML='<div class="ldg">⚠️ pump.fun недоступен</div>';}
+  finally{
+    // fallback: add create button regardless
+    const el2=G('fNews');
+    if(el2&&!el2.innerHTML.includes('pump.fun/create')){
+      el2.insertAdjacentHTML('beforeend',`<div style="padding:12px 16px"><a href="https://pump.fun/create" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:linear-gradient(135deg,rgba(255,159,10,.2),rgba(255,69,58,.2));border:1px solid rgba(255,159,10,.3);border-radius:14px;font-size:14px;font-weight:700;color:var(--orange);text-decoration:none">🪙 Создать токен на pump.fun</a></div>`);}}}
 
 // ─── Agents ─────────────────────────────────────────────
 function agentBurry(p){
