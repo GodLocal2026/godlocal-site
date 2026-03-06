@@ -781,34 +781,75 @@ async function warmupApi(){
 
 // ── AI CHAT ───────────────────────────────────────────────────────────────────
 async function askAI(question){
-  const portCtx=portfolio.length?\`\\nПортфель: \${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.\`:'';
-  const prompt=\`Ты AI крипто-стратег для флиппинга мемкойнов на Solana. Отвечай кратко на русском. Используй эмодзи умеренно.\${portCtx}\\n\\n\${question}\`;
+  const portCtx=portfolio.length?`\nПортфель: ${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.`:'';
+  const ctx=lastTokenCtx?'\n\n'+lastTokenCtx:'';
+  const prompt=`${question}${portCtx}${ctx}`;
   const t=typing();
   const tb0=t.querySelector('.bbl');
   if(tb0) tb0.innerHTML='<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
   try{
     await warmupApi();
     let reply='';
+    let thinkEl=null;
+    let thinkText='';
     await new Promise((resolve)=>{
-      const ws=new WebSocket('wss://godlocal-api.onrender.com/ws/search');
-      const timer=setTimeout(()=>{ws.close();resolve();},30000);
-      ws.onopen=()=>ws.send(JSON.stringify({prompt:prompt,session_id:'smertch-wolf'}));
+      const ws=new WebSocket('wss://godlocal-api.onrender.com/ws/oasis');
+      const timer=setTimeout(()=>{ws.close();resolve();},40000);
+      ws.onopen=()=>ws.send(JSON.stringify({prompt:prompt,session_id:'smertch-adv'}));
       ws.onmessage=(e)=>{
         try{
           const d=JSON.parse(e.data);
-          if(d.t==='token'&&d.v) reply+=d.v;
+          // ── thinking events ──
+          if(d.t==='thinking_start'){
+            thinkText='';
+            const tb=t.querySelector('.bbl');
+            if(tb){
+              thinkEl=document.createElement('div');
+              thinkEl.style.cssText='font-size:10px;color:#6C5CE7;margin-bottom:6px;opacity:.7;';
+              thinkEl.innerHTML='🧠 думаю...';
+              tb.innerHTML='';
+              tb.appendChild(thinkEl);
+            }
+          }
+          else if(d.t==='thinking'&&d.v){
+            thinkText+='\n'+d.v;
+            if(thinkEl) thinkEl.innerHTML='🧠 '+d.v;
+          }
+          else if(d.t==='thinking_done'){
+            if(thinkEl) thinkEl.style.opacity='.35';
+          }
+          // ── tool events ──
+          else if(d.t==='tool_start'&&d.v){
+            const tb=t.querySelector('.bbl');
+            if(tb&&thinkEl){const s=document.createElement('div');s.style.cssText='font-size:10px;color:#00b4d8;margin-bottom:4px;';s.textContent='⚡ '+d.v;tb.insertBefore(s,thinkEl.nextSibling);}
+          }
+          // ── token stream ──
+          else if(d.t==='token'&&d.v){
+            reply+=d.v;
+            const tb=t.querySelector('.bbl');
+            if(tb){
+              const md=reply.replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+              if(thinkEl){
+                const wrap=document.createElement('div');
+                wrap.innerHTML=md;
+                tb.innerHTML='';
+                if(thinkEl) tb.appendChild(thinkEl);
+                tb.innerHTML+=md;
+              } else {
+                tb.innerHTML=md;
+              }
+            }
+          }
           else if(d.t==='error') reply='⚠️ '+d.v;
           if(d.t==='done'){clearTimeout(timer);ws.close();resolve();}
-          const tb=t.querySelector('.bbl');
-          if(tb) tb.innerHTML=reply.replace(/</g,'&lt;').replace(/\\n/g,'<br>')||'<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
         }catch(ex){reply+=e.data||'';}
       };
       ws.onerror=()=>{clearTimeout(timer);resolve();};
       ws.onclose=()=>{clearTimeout(timer);resolve();};
     });
     rmTyping();
-    if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>'));
-    else botMsg('⚠️ Нет ответа. Сервер просыпается (~15 сек) — попробуй ещё раз.');
+    if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>'));
+    else botMsg('⚠️ Нет ответа. Сервер просыпается (~20 сек) — попробуй ещё раз.');
   }catch(e){rmTyping();botMsg('⚠️ AI: '+esc(e.message));}
 }
 // ── COMMAND ROUTER ────────────────────────────────────────────────────────────
@@ -1257,7 +1298,14 @@ async function askAgents(question){
         try{
           const d = JSON.parse(e.data);
 
-          if(d.t === 'agent_start'){
+          if(d.t === 'thinking_start'||d.t === 'thinking'||d.t === 'thinking_done'){
+            // thinking — show briefly in GodLocal bubble
+            if(d.t === 'thinking' && d.v && glEl){
+              const body=glEl.querySelector('.agent-body');
+              if(body&&body.innerHTML.includes('dots')) body.innerHTML='<span style="font-size:10px;color:#6C5CE7;opacity:.6">🧠 '+d.v+'</span>';
+            }
+          }
+          else if(d.t === 'agent_start'){
             // GodLocal starts streaming
             glEl = agentBubble(d.agent || 'GodLocal', '<div class="dots"><span>●</span><span>●</span><span>●</span></div>');
           }
