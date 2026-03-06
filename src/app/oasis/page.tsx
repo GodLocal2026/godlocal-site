@@ -122,8 +122,8 @@ function ThinkingBlock({
         {streaming
           ? <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9D]/70 animate-pulse" />
           : <span className="w-1.5 h-1.5 rounded-full bg-[#00FF9D]/35" />}
-        {streaming ? 'Thinking...' : `Thought process \u00b7 ${steps.length} steps`}
-        <span className="opacity-40">{open ? '\u25b2' : '\u25bc'}</span>
+        {streaming ? 'Thinking...' : `Thought process · ${steps.length} steps`}
+        <span className="opacity-40">{open ? '▲' : '▼'}</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -227,7 +227,7 @@ export default function OasisPage() {
       })
       setLoading(false)
     } else if (type === 'error') {
-      setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '\u26a0\ufe0f ' + val, ts: Date.now() }])
+      setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ ' + val, ts: Date.now() }])
       setLoading(false)
     }
   }, [])
@@ -283,7 +283,7 @@ export default function OasisPage() {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '\u26a0\ufe0f Connection error', ts: Date.now() }])
+        setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ Connection error', ts: Date.now() }])
       }
       setLoading(false)
     }
@@ -349,7 +349,7 @@ export default function OasisPage() {
                 <div className="text-center px-4">
                   <motion.div className="text-4xl md:text-6xl mb-3 md:mb-5"
                     animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
-                    {"\u26a1"}
+                    {"⚡"}
                   </motion.div>
                   <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">GodLocal OASIS</h1>
                   <p className="text-white/45 text-xs md:text-sm">Your AI with memory, search, and tools</p>
