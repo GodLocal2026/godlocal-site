@@ -209,36 +209,36 @@ html{height:100%}body{height:100dvh;height:100vh;display:flex;flex-direction:col
 
 <!-- CHIPS -->
 <div class="chips">
-  <div class="chip scan" onclick="cmd('\u0441\u043a\u0430\u043d')">🌪️ \u0421\u043a\u0430\u043d</div>
+  <div class="chip scan" onclick="cmd('скан')">🌪️ Скан</div>
   <div class="chip pump" onclick="cmd('pump')">🔥 PUMP.FUN</div>
-  <div class="chip sig"  onclick="cmd('\u0441\u0438\u0433\u043d\u0430\u043b\u044b')">⚡ \u0421\u0438\u0433\u043d\u0430\u043b\u044b</div>
-  <div class="chip bag"  onclick="cmd('\u0431\u0430\u0433')">💼 \u0411\u0430\u0433</div>
-  <div class="chip tg-chip" onclick="cmd('\u0433\u043e\u0440\u044f\u0447\u0438\u0435')">🔥 \u0413\u043e\u0440\u044f\u0447\u0438\u0435</div>
-  <div class="chip flt" id="fltChip" onclick="toggleFilters()">⚙️ \u0424\u0438\u043b\u044c\u0442\u0440\u044b</div>
-  <div class="chip" onclick="cmd('\u0441\u0442\u0440\u0430\u0442\u0435\u0433\u0438\u044f')">🧠 AI</div>
+  <div class="chip sig"  onclick="cmd('сигналы')">⚡ Сигналы</div>
+  <div class="chip bag"  onclick="cmd('баг')">💼 Баг</div>
+  <div class="chip tg-chip" onclick="cmd('горячие')">🔥 Горячие</div>
+  <div class="chip flt" id="fltChip" onclick="toggleFilters()">⚙️ Фильтры</div>
+  <div class="chip" onclick="cmd('стратегия')">🧠 AI</div>
 </div>
 
 <!-- FILTER PANEL -->
 <div class="flt-panel" id="fltPanel">
   <div class="flt-row">
     <span class="flt-label">MCap</span>
-    <div class="flt-btn on" onclick="setF('mcap',0,this)">\u041b\u044e\u0431\u043e\u0439</div>
+    <div class="flt-btn on" onclick="setF('mcap',0,this)">Любой</div>
     <div class="flt-btn" onclick="setF('mcap',50000,this)">&lt;50K</div>
     <div class="flt-btn" onclick="setF('mcap',200000,this)">&lt;200K</div>
     <div class="flt-btn" onclick="setF('mcap',500000,this)">&lt;500K</div>
     <div class="flt-btn" onclick="setF('mcap',1000000,this)">&lt;1M</div>
-    <div class="flt-reset" onclick="resetFilters()">\u0421\u0431\u0440\u043e\u0441</div>
+    <div class="flt-reset" onclick="resetFilters()">Сброс</div>
   </div>
   <div class="flt-row">
-    <span class="flt-label">\u041b\u0438\u043a\u0432.</span>
-    <div class="flt-btn on" onclick="setF('liq',0,this)">\u041b\u044e\u0431\u0430\u044f</div>
+    <span class="flt-label">Ликв.</span>
+    <div class="flt-btn on" onclick="setF('liq',0,this)">Любая</div>
     <div class="flt-btn" onclick="setF('liq',5000,this)">&gt;5K</div>
     <div class="flt-btn" onclick="setF('liq',20000,this)">&gt;20K</div>
     <div class="flt-btn" onclick="setF('liq',50000,this)">&gt;50K</div>
   </div>
   <div class="flt-row">
-    <span class="flt-label">\u0412\u043e\u0437\u0440\u0430\u0441\u0442</span>
-    <div class="flt-btn on" onclick="setF('age',0,this)">\u041b\u044e\u0431\u043e\u0439</div>
+    <span class="flt-label">Возраст</span>
+    <div class="flt-btn on" onclick="setF('age',0,this)">Любой</div>
     <div class="flt-btn" onclick="setF('age',30,this)">&lt;30m</div>
     <div class="flt-btn" onclick="setF('age',120,this)">&lt;2h</div>
     <div class="flt-btn" onclick="setF('age',360,this)">&lt;6h</div>
@@ -252,14 +252,14 @@ html{height:100%}body{height:100dvh;height:100vh;display:flex;flex-direction:col
 <!-- INPUT -->
 <div class="input-wrap">
   <div class="input-row">
-    <textarea class="inp" id="inp" rows="1" placeholder="\u0422\u043e\u043a\u0435\u043d / \u0430\u0434\u0440\u0435\u0441 / \u0432\u043e\u043f\u0440\u043e\u0441…"
+    <textarea class="inp" id="inp" rows="1" placeholder="Токен / адрес / вопрос…"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'"></textarea>
-    <button class="mic" id="micBtn" onclick="toggleVoice()" title="\u0413\u043e\u043b\u043e\u0441\u043e\u0432\u043e\u0439 \u0432\u0432\u043e\u0434">🎙</button>
+    <button class="mic" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">🎙</button>
     <button class="agent-toggle" id="agentToggle" onclick="toggleAgentMode()">🤖</button>
     <button class="send" onclick="send()">↑</button>
   </div>
-  <div id="agentModeBar" class="agent-mode-bar">⚡ OASIS COUNCIL — \u0430\u043d\u0430\u043b\u0438\u0437 \u0447\u0435\u0440\u0435\u0437 \u0430\u0433\u0435\u043d\u0442\u043e\u0432</div>
+  <div id="agentModeBar" class="agent-mode-bar">⚡ OASIS COUNCIL — анализ через агентов</div>
 </div>
 
 <script>
@@ -332,8 +332,8 @@ function toggleKill(){
   const b=document.getElementById('killBtn'),d=document.getElementById('dot');
   b.classList.toggle('on',killed); b.textContent=killed?'☠ KILLED':'☠';
   d.classList.toggle('dead',killed);
-  if(killed){clearInterval(tgPushTimer);botMsg('☠️ Kill Switch — \u0432\u0441\u0451 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e.');}
-  else{startAutoLoops();botMsg('✅ \u0412\u043e\u0437\u043e\u0431\u043d\u043e\u0432\u043b\u044f\u044e.');}
+  if(killed){clearInterval(tgPushTimer);botMsg('☠️ Kill Switch — всё остановлено.');}
+  else{startAutoLoops();botMsg('✅ Возобновляю.');}
 }
 
 // ── SIGNAL ENGINE ─────────────────────────────────────────────────────────────
@@ -397,18 +397,18 @@ function tokenCard(p,opts={}){
     <div class="stats">
       <div class="s"><div class="sl">MCap</div><div class="sv">\${f$(mcap)}</div></div>
       <div class="s"><div class="sl">Vol 1h</div><div class="sv">\${f$(vol1)}</div></div>
-      <div class="s"><div class="sl">\u041b\u0438\u043a\u0432.</div><div class="sv">\${f$(liq)}</div></div>
+      <div class="s"><div class="sl">Ликв.</div><div class="sv">\${f$(liq)}</div></div>
       <div class="s"><div class="sl">B/S</div><div class="sv" style="color:\${bp>55?'var(--g)':'var(--r)'}">\${buys}/\${sells}</div></div>
-      \${age?\`<div class="s"><div class="sl">\u0412\u043e\u0437\u0440\u0430\u0441\u0442</div><div class="sv">\${fAge(age)}</div></div>\`:''}
+      \${age?\`<div class="s"><div class="sl">Возраст</div><div class="sv">\${fAge(age)}</div></div>\`:''}
       <div class="s"><div class="sl">5m</div><div class="sv chg \${clr(c5)}">\${cs(c5)}</div></div>
     </div>
     <div class="conv"><div class="conv-f" style="width:\${conv}%;background:\${sigClr}"></div></div>
     <div class="cbs">
-      <button class="cb cb-g" onclick="quickBuyNow('\${esc(addr)}','\${esc(sym)}')">⚡ \u041a\u0443\u043f\u0438\u0442\u044c</button>
-      <button class="cb cb-p" onclick="cmd('\u0430\u043d\u0430\u043b\u0438\u0437 \${esc(addr)}')">\u0410\u043d\u0430\u043b\u0438\u0437</button>
+      <button class="cb cb-g" onclick="quickBuyNow('\${esc(addr)}','\${esc(sym)}')">⚡ Купить</button>
+      <button class="cb cb-p" onclick="cmd('анализ \${esc(addr)}')">Анализ</button>
       \${opts.pushTg?\`<button class="cb cb-o" onclick="pushOneTg('\${esc(sym)}','\${esc(addr)}',\${c1},\${vol1},\${liq},\${buys},\${sells},\${age||0})">📤 TG</button>\`:''}
       <a href="\${dexUrl}" target="_blank" style="text-decoration:none"><button class="cb cb-p">DEX ↗</button></a>
-      \${opts.closeBtn!==undefined?\`<button class="cb cb-r" onclick="closePos(\${opts.closeBtn})">\u0417\u0430\u043a\u0440\u044b\u0442\u044c</button>\`:''}
+      \${opts.closeBtn!==undefined?\`<button class="cb cb-r" onclick="closePos(\${opts.closeBtn})">Закрыть</button>\`:''}
     </div>
   </div>\`;
 }
@@ -425,13 +425,13 @@ async function pumpCard(coin){
     <div class="tc-head">
       <div><div class="sym">\${sym} <span class="bdg b-pump">🔥 PUMP</span></div>
       <div class="tk-name">\${name}</div></div>
-      <div class="price-a"><div style="font-size:11px;color:var(--o)">\${f$(mcap)}</div><div style="font-size:10px;color:var(--dim)">\${fAge(ageMs)} \u043d\u0430\u0437\u0430\u0434</div></div>
+      <div class="price-a"><div style="font-size:11px;color:var(--o)">\${f$(mcap)}</div><div style="font-size:10px;color:var(--dim)">\${fAge(ageMs)} назад</div></div>
     </div>
-    <div style="font-size:10px;color:var(--dim);margin-bottom:3px">Bonding curve: \${progress}% \u0434\u043e \u043b\u0438\u0441\u0442\u0438\u043d\u0433\u0430</div>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:3px">Bonding curve: \${progress}% до листинга</div>
     <div class="bond-bar"><div class="bond-fill" style="width:\${progress}%"></div></div>
     <div class="cbs">
-      <button class="cb cb-g" onclick="quickEnter('\${addr}','\${sym}')">+\u0412\u043e\u0439\u0442\u0438</button>
-      <button class="cb cb-p" onclick="cmd('\u0430\u043d\u0430\u043b\u0438\u0437 \${addr}')">\u0410\u043d\u0430\u043b\u0438\u0437</button>
+      <button class="cb cb-g" onclick="quickEnter('\${addr}','\${sym}')">+Войти</button>
+      <button class="cb cb-p" onclick="cmd('анализ \${addr}')">Анализ</button>
       <a href="\${url}" target="_blank" style="text-decoration:none"><button class="cb cb-o">pump.fun ↗</button></a>
     </div>
   </div>\`;
@@ -459,16 +459,16 @@ async function runScan(){
     scanCache=all;
     const filtered=applyFilters(all);
     rmTyping();
-    if(!filtered.length){botMsg(\`🌪️ \u0421\u043a\u0430\u043d: <b>\${all.length}</b> \u0442\u043e\u043a\u0435\u043d\u043e\u0432, \u043d\u043e \u0444\u0438\u043b\u044c\u0442\u0440\u044b \u0441\u043a\u0440\u044b\u0432\u0430\u044e\u0442 \u0432\u0441\u0435 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b. \u0421\u0431\u0440\u043e\u0441 \u0444\u0438\u043b\u044c\u0442\u0440\u043e\u0432?\`);return;}
+    if(!filtered.length){botMsg(\`🌪️ Скан: <b>\${all.length}</b> токенов, но фильтры скрывают все результаты. Сброс фильтров?\`);return;}
     document.getElementById('tkr').textContent=all.slice(0,5).map(p=>\`\${p.baseToken?.symbol} \${parseFloat(p.priceChange?.h1||0)>0?'▲':'▼'}\${Math.abs(parseFloat(p.priceChange?.h1||0)).toFixed(0)}%\`).join(' · ');
     const d=document.createElement('div');d.className='msg';
     const top=filtered.slice(0,5);
-    d.innerHTML=\`<div class="bbl ai">🌪️ <b>\u0421\u043a\u0430\u043d \${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</b> — \${filtered.length}/\${all.length} \u0442\u043e\u043a\u0435\u043d\u043e\u0432\${flt.mcap||flt.liq||flt.age||flt.sig!=='all'?' <span style="color:var(--y);font-size:11px">⚙ \u0444\u0438\u043b\u044c\u0442\u0440 \u0430\u043a\u0442\u0438\u0432\u0435\u043d</span>':''}<br>\${top.map(p=>tokenCard(p,{pushTg:true})).join('')}</div>\`;
+    d.innerHTML=\`<div class="bbl ai">🌪️ <b>Скан \${new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</b> — \${filtered.length}/\${all.length} токенов\${flt.mcap||flt.liq||flt.age||flt.sig!=='all'?' <span style="color:var(--y);font-size:11px">⚙ фильтр активен</span>':''}<br>\${top.map(p=>tokenCard(p,{pushTg:true})).join('')}</div>\`;
     document.getElementById('chat').appendChild(d);scroll();
     // Auto-push BUY signals to TG
     const buySigs=filtered.filter(p=>sigType(score(p))==='buy'&&!pushed.has(p.baseToken?.address||''));
     if(buySigs.length) autoTgPush(buySigs);
-  }catch(e){rmTyping();botMsg('⚠️ \u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043a\u0430\u043d\u0430: '+esc(e.message));}
+  }catch(e){rmTyping();botMsg('⚠️ Ошибка скана: '+esc(e.message));}
 }
 
 // ── PUMP.FUN ─────────────────────────────────────────────────────────────────
@@ -479,16 +479,16 @@ async function runPump(){
     const now=Date.now();
     const r=await fetch(PUMP+'/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false').then(x=>x.json());
     rmTyping();
-    if(!r||!Array.isArray(r)){botMsg('⚠️ pump.fun API \u043d\u0435 \u043e\u0442\u0432\u0435\u0442\u0438\u043b. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0447\u0435\u0440\u0435\u0437 VPN \u0438\u043b\u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 DEX \u0441\u043a\u0430\u043d.');return;}
+    if(!r||!Array.isArray(r)){botMsg('⚠️ pump.fun API не ответил. Попробуй через VPN или используй DEX скан.');return;}
     const fresh=r.filter(c=>c.created_timestamp&&(now-c.created_timestamp)<10*60000&&!c.complete);
     pumpCache=fresh;
-    if(!fresh.length){botMsg('🔥 <b>pump.fun</b>: \u043d\u0435\u0442 \u043d\u043e\u0432\u044b\u0445 \u0442\u043e\u043a\u0435\u043d\u043e\u0432 \u0437\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 10 \u043c\u0438\u043d\u0443\u0442.');return;}
+    if(!fresh.length){botMsg('🔥 <b>pump.fun</b>: нет новых токенов за последние 10 минут.');return;}
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML=\`<div class="bbl ai">🔥 <b>pump.fun — \u043d\u043e\u0432\u044b\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0438 &lt;10 \u043c\u0438\u043d</b> (\${fresh.length} \u0442\u043e\u043a\u0435\u043d\u043e\u0432)\${fresh.slice(0,6).map(c=>pumpCard(c)).join('')}</div>\`;
+    d.innerHTML=\`<div class="bbl ai">🔥 <b>pump.fun — новые запуски &lt;10 мин</b> (\${fresh.length} токенов)\${fresh.slice(0,6).map(c=>pumpCard(c)).join('')}</div>\`;
     document.getElementById('chat').appendChild(d);scroll();
   }catch(e){
     rmTyping();
-    botMsg('⚠️ pump.fun: CORS \u0438\u043b\u0438 API \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d. <br><span style="font-size:11px;color:var(--dim)">\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0447\u0435\u0440\u0435\u0437 <a href="https://pump.fun" target="_blank" style="color:var(--o)">pump.fun ↗</a> \u043d\u0430\u043f\u0440\u044f\u043c\u0443\u044e</span>');
+    botMsg('⚠️ pump.fun: CORS или API недоступен. <br><span style="font-size:11px;color:var(--dim)">Попробуй через <a href="https://pump.fun" target="_blank" style="color:var(--o)">pump.fun ↗</a> напрямую</span>');
   }
 }
 
@@ -498,12 +498,12 @@ async function runSignals(){
   const filtered=applyFilters(scanCache);
   const buys=filtered.filter(p=>sigType(score(p))==='buy').slice(0,4);
   const sells=filtered.filter(p=>sigType(score(p))==='sell').slice(0,2);
-  if(!buys.length&&!sells.length){botMsg('\u041d\u0435\u0442 \u0447\u0451\u0442\u043a\u0438\u0445 \u0441\u0438\u0433\u043d\u0430\u043b\u043e\u0432. \u041d\u0430\u0436\u043c\u0438 🌪️ \u0421\u043a\u0430\u043d \u0434\u043b\u044f \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f.');return;}
+  if(!buys.length&&!sells.length){botMsg('Нет чётких сигналов. Нажми 🌪️ Скан для обновления.');return;}
   const d=document.createElement('div');d.className='msg';
   let html='';
-  if(buys.length) html+=\`<div class="sec-lbl" style="color:var(--g)">🟢 \u041f\u041e\u041a\u0423\u041f\u0410\u0419 \u0421\u0415\u0419\u0427\u0410\u0421</div>\${buys.map(p=>tokenCard(p,{pushTg:true})).join('')}\`;
-  if(sells.length) html+=\`<div class="sec-lbl" style="color:var(--r);margin-top:8px">🔴 \u0424\u0418\u041a\u0421\u0418\u0420\u0423\u0419</div>\${sells.map(p=>tokenCard(p)).join('')}\`;
-  d.innerHTML=\`<div class="bbl ai">⚡ <b>\u0421\u0438\u0433\u043d\u0430\u043b\u044b</b>\${html}</div>\`;
+  if(buys.length) html+=\`<div class="sec-lbl" style="color:var(--g)">🟢 ПОКУПАЙ СЕЙЧАС</div>\${buys.map(p=>tokenCard(p,{pushTg:true})).join('')}\`;
+  if(sells.length) html+=\`<div class="sec-lbl" style="color:var(--r);margin-top:8px">🔴 ФИКСИРУЙ</div>\${sells.map(p=>tokenCard(p)).join('')}\`;
+  d.innerHTML=\`<div class="bbl ai">⚡ <b>Сигналы</b>\${html}</div>\`;
   document.getElementById('chat').appendChild(d);scroll();
 }
 
@@ -517,16 +517,16 @@ async function runHot(){
     const r2=await fetch(DEX+'/latest/dex/tokens/'+addrs).then(x=>x.json());
     const pairs=(r2.pairs||[]).filter(p=>p.chainId==='solana');
     rmTyping();
-    if(!pairs.length){botMsg('\u041d\u0435\u0442 \u0433\u043e\u0440\u044f\u0447\u0438\u0445 \u0442\u043e\u043a\u0435\u043d\u043e\u0432');return;}
+    if(!pairs.length){botMsg('Нет горячих токенов');return;}
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML=\`<div class="bbl ai">🔥 <b>\u0413\u043e\u0440\u044f\u0447\u0438\u0435</b> (\u0431\u0443\u0441\u0442 + \u0442\u0440\u0435\u043d\u0434)\${pairs.slice(0,5).map(p=>tokenCard(p,{pushTg:true})).join('')}</div>\`;
+    d.innerHTML=\`<div class="bbl ai">🔥 <b>Горячие</b> (буст + тренд)\${pairs.slice(0,5).map(p=>tokenCard(p,{pushTg:true})).join('')}</div>\`;
     document.getElementById('chat').appendChild(d);scroll();
   }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
 // ── PORTFOLIO ────────────────────────────────────────────────────────────────
 async function runBag(){
-  if(!portfolio.length){botMsg('💼 \u041f\u043e\u0440\u0442\u0444\u0435\u043b\u044c \u043f\u0443\u0441\u0442. \u041d\u0430\u0436\u043c\u0438 <b>+\u0412\u043e\u0439\u0442\u0438</b> \u043d\u0430 \u0442\u043e\u043a\u0435\u043d\u0435.');return;}
+  if(!portfolio.length){botMsg('💼 Портфель пуст. Нажми <b>+Войти</b> на токене.');return;}
   const t=typing();
   try{
     const addrs=[...new Set(portfolio.map(p=>p.addr))].filter(Boolean);
@@ -539,14 +539,14 @@ async function runBag(){
       const sym=pm[pos.addr]?.sym||pos.sym||pos.addr?.slice(0,6)||'?';
       const pnl=pos.entry>0?(cur-pos.entry)/pos.entry*100:0;
       tot+=pnl;cnt++;
-      return \`<div class="prow"><div><b>\${esc(sym)}</b><br><span style="font-size:10px;color:var(--dim)">\u0412\u0445\u043e\u0434: \${pos.entry>0?f$(pos.entry):'?'} · \${pos.sol||0} SOL · \${fAge(Date.now()-pos.ts)}</span></div>
+      return \`<div class="prow"><div><b>\${esc(sym)}</b><br><span style="font-size:10px;color:var(--dim)">Вход: \${pos.entry>0?f$(pos.entry):'?'} · \${pos.sol||0} SOL · \${fAge(Date.now()-pos.ts)}</span></div>
       <div style="text-align:right"><div class="\${pnl>=0?'pnl-p':'pnl-n'}">\${pnl>=0?'+':''}\${pnl.toFixed(1)}%</div>
       <div style="font-size:10px;color:var(--dim)">\${cur>0?f$(cur):'–'}</div>
-      <button class="cb cb-r" style="font-size:9px;margin-top:3px" onclick="closePos(\${i})">\u0417\u0430\u043a\u0440\u044b\u0442\u044c</button></div></div>\`;
+      <button class="cb cb-r" style="font-size:9px;margin-top:3px" onclick="closePos(\${i})">Закрыть</button></div></div>\`;
     }).join('');
     const avg=cnt?tot/cnt:0;
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML=\`<div class="bbl ai">💼 <b>\u041f\u043e\u0440\u0442\u0444\u0435\u043b\u044c</b> · avg <span class="\${avg>=0?'pnl-p':'pnl-n'}">\${avg>=0?'+':''}\${avg.toFixed(1)}%</span>\${rows}</div>\`;
+    d.innerHTML=\`<div class="bbl ai">💼 <b>Портфель</b> · avg <span class="\${avg>=0?'pnl-p':'pnl-n'}">\${avg>=0?'+':''}\${avg.toFixed(1)}%</span>\${rows}</div>\`;
     document.getElementById('chat').appendChild(d);scroll();
   }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
@@ -554,13 +554,13 @@ async function runBag(){
 async function quickEnter(addr,sym){
   portfolio.push({id:Date.now(),addr,sym,entry:0,sol:0,ts:Date.now()});
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
-  botMsg(\`✅ <b>\${esc(sym)}</b> \u0432 \u043f\u043e\u0440\u0442\u0444\u0435\u043b\u0435. \u0412\u0432\u0435\u0434\u0438: <i>\u0432\u0445\u043e\u0434 \${esc(sym)} 0.000001 0.5</i> — \u0434\u043b\u044f \u0446\u0435\u043d\u044b \u0432\u0445\u043e\u0434\u0430 \u0438 \u0440\u0430\u0437\u043c\u0435\u0440\u0430\`);
+  botMsg(\`✅ <b>\${esc(sym)}</b> в портфеле. Введи: <i>вход \${esc(sym)} 0.000001 0.5</i> — для цены входа и размера\`);
 }
 async function closePos(i){
-  const sym=portfolio[i]?.sym||'\u0442\u043e\u043a\u0435\u043d';
+  const sym=portfolio[i]?.sym||'токен';
   portfolio.splice(i,1);
   localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
-  botMsg(\`❌ \u041f\u043e\u0437\u0438\u0446\u0438\u044f <b>\${esc(sym)}</b> \u0437\u0430\u043a\u0440\u044b\u0442\u0430\`);
+  botMsg(\`❌ Позиция <b>\${esc(sym)}</b> закрыта\`);
 }
 // ── QUICK BUY / SELL ───────────────────────────────────────────────────────────
 let qkSol = 0.1; // preset SOL amount for quick buy
@@ -573,7 +573,7 @@ function setQkSol(amt, el) {
 
 async function quickBuyNow(mint, sym) {
   if(!phantomPubkey) { await connectPhantom(); if(!phantomPubkey) return; }
-  botMsg(\`⚡ \u041f\u043e\u043a\u0443\u043f\u043a\u0430 <b>\${esc(sym)}</b> \u0437\u0430 \${qkSol} SOL…\`);
+  botMsg(\`⚡ Покупка <b>\${esc(sym)}</b> за \${qkSol} SOL…\`);
   try {
     const lamports = Math.round(qkSol * 1e9);
     const q = await fetch(\`https://quote-api.jup.ag/v6/quote?inputMint=\${WSOL_MINT}&outputMint=\${mint}&amount=\${lamports}&slippageBps=300\`)
@@ -586,11 +586,11 @@ async function quickBuyNow(mint, sym) {
     if(!swapR.ok) throw new Error('Jupiter swap ' + swapR.status);
     const { swapTransaction } = await swapR.json();
     const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
-    botMsg('✍️ \u041f\u043e\u0434\u043f\u0438\u0448\u0438 \u0432 Phantom…');
+    botMsg('✍️ Подпиши в Phantom…');
     const phantom = window.solana || window.phantom?.solana;
     const { signature } = await phantom.signAndSendTransaction({ serialize: () => txBuf });
     const outAmt = (parseInt(q.outAmount) / 1e6).toLocaleString('en-US', {maximumFractionDigits:2});
-    botMsg(\`✅ <b>\u041a\u0443\u043f\u043b\u0435\u043d\u043e \${esc(sym)}</b> × \${outAmt}<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
+    botMsg(\`✅ <b>Куплено \${esc(sym)}</b> × \${outAmt}<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
     portfolio.push({id:Date.now(),addr:mint,sym,entry:qkSol,sol:qkSol,ts:Date.now()});
     localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));
     setTimeout(refreshWallet, 5000);
@@ -599,7 +599,7 @@ async function quickBuyNow(mint, sym) {
 
 async function quickSellNow(mint, sym, amt, dec) {
   if(!phantomPubkey) { await connectPhantom(); if(!phantomPubkey) return; }
-  botMsg(\`⚡ \u041f\u0440\u043e\u0434\u0430\u0436\u0430 <b>\${esc(sym)}</b>…\`);
+  botMsg(\`⚡ Продажа <b>\${esc(sym)}</b>…\`);
   try {
     const lamports = Math.round(amt * Math.pow(10, dec||6));
     const q = await fetch(\`https://quote-api.jup.ag/v6/quote?inputMint=\${mint}&outputMint=\${WSOL_MINT}&amount=\${lamports}&slippageBps=300\`)
@@ -612,13 +612,13 @@ async function quickSellNow(mint, sym, amt, dec) {
     if(!swapR.ok) throw new Error('Jupiter swap ' + swapR.status);
     const { swapTransaction } = await swapR.json();
     const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
-    botMsg('✍️ \u041f\u043e\u0434\u043f\u0438\u0448\u0438 \u043f\u0440\u043e\u0434\u0430\u0436\u0443 \u0432 Phantom…');
+    botMsg('✍️ Подпиши продажу в Phantom…');
     const phantom = window.solana || window.phantom?.solana;
     const { signature } = await phantom.signAndSendTransaction({ serialize: () => txBuf });
     const solReceived = (parseInt(q.outAmount) / 1e9).toFixed(4);
-    botMsg(\`✅ <b>\u041f\u0440\u043e\u0434\u0430\u043d\u043e \${esc(sym)}</b>, \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043e ~\${solReceived} SOL<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
+    botMsg(\`✅ <b>Продано \${esc(sym)}</b>, получено ~\${solReceived} SOL<br><a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
     const {ok} = getTg();
-    if(ok) sendTg(\`🔴 \u041f\u0420\u041e\u0414\u0410\u041d\u041e: \${sym}\\n\u041f\u043e\u043b\u0443\u0447\u0435\u043d\u043e: ~\${solReceived} SOL\\nhttps://dexscreener.com/solana/\${mint}\`);
+    if(ok) sendTg(\`🔴 ПРОДАНО: \${sym}\\nПолучено: ~\${solReceived} SOL\\nhttps://dexscreener.com/solana/\${mint}\`);
     setTimeout(refreshWallet, 5000);
   } catch(e) { botMsg('⚠️ ' + e.message); }
 }
@@ -636,7 +636,7 @@ async function runAnalyze(addr){
     ]);
     const pairs=(dexRes.pairs||[]).filter(p=>p.chainId==='solana');
     rmTyping();
-    if(!pairs.length){botMsg('🔍 \u0422\u043e\u043a\u0435\u043d \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u043d\u0430 Solana. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0430\u0434\u0440\u0435\u0441.');return;}
+    if(!pairs.length){botMsg('🔍 Токен не найден на Solana. Проверь адрес.');return;}
     const p=pairs[0];
     const sym=p.baseToken?.symbol||'?';
     const mcap=p.fdv||p.marketCap||0,liq=p.liquidity?.usd||0;
@@ -659,37 +659,37 @@ async function runAnalyze(addr){
     // Holders HTML
     const holdersHtml=holdersRes.holders.length?\`
       <div class="tc" style="margin-top:5px">
-        <div class="sec-lbl" style="margin-bottom:6px">🔗 \u0422\u043e\u043f \u0434\u0435\u0440\u0436\u0430\u0442\u0435\u043b\u0438 (on-chain)</div>
+        <div class="sec-lbl" style="margin-bottom:6px">🔗 Топ держатели (on-chain)</div>
         \${holdersRes.holders.map((h,i)=>\`
           <div class="holder-row">
             <div><span class="holder-addr">\${h.addr.slice(0,8)}…\${h.addr.slice(-4)}</span>
             \${h.isTop?\`<span class="dev-flag">⚠️ DEV?</span>\`:''}</div>
             <div class="holder-pct" style="color:\${h.pct>20?'var(--r)':h.pct>10?'var(--y)':'var(--g)'}">\${h.pct.toFixed(1)}%</div>
           </div>\`).join('')}
-        \${holdersRes.topHolderPct>20?\`<div style="font-size:11px;color:var(--r);margin-top:5px">⚠️ \u0422\u043e\u043f \u0434\u0435\u0440\u0436\u0430\u0442\u0435\u043b\u044c \${holdersRes.topHolderPct.toFixed(0)}% — \u0432\u044b\u0441\u043e\u043a\u0438\u0439 \u0440\u0438\u0441\u043a dump</div>\`:''}
+        \${holdersRes.topHolderPct>20?\`<div style="font-size:11px;color:var(--r);margin-top:5px">⚠️ Топ держатель \${holdersRes.topHolderPct.toFixed(0)}% — высокий риск dump</div>\`:''}
       </div>\`:
-      \`<div style="font-size:11px;color:var(--dim);margin-top:5px">\u0414\u0430\u043d\u043d\u044b\u0435 \u043e \u0434\u0435\u0440\u0436\u0430\u0442\u0435\u043b\u044f\u0445 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b (RPC timeout)</div>\`;
+      \`<div style="font-size:11px;color:var(--dim);margin-top:5px">Данные о держателях недоступны (RPC timeout)</div>\`;
     const d=document.createElement('div');d.className='msg';
-    d.innerHTML=\`<div class="bbl ai">🔍 <b>\u0410\u043d\u0430\u043b\u0438\u0437 \${esc(sym)}</b>
+    d.innerHTML=\`<div class="bbl ai">🔍 <b>Анализ \${esc(sym)}</b>
       \${tokenCard(p)}
       <div class="tc" style="margin-top:5px">
         <div style="display:flex;justify-content:space-between;margin-bottom:5px">
           <span style="font-size:11px;color:var(--dim)">🛡 Rug Risk</span>
-          <b style="color:\${rugClr}">\${rug}/100 \${rug>=70?'⛔ \u0412\u042b\u0421\u041e\u041a\u0418\u0419':rug>=40?'⚠️ \u0421\u0420\u0415\u0414\u041d\u0418\u0419':'✅ \u041d\u0418\u0417\u041a\u0418\u0419'}</b>
+          <b style="color:\${rugClr}">\${rug}/100 \${rug>=70?'⛔ ВЫСОКИЙ':rug>=40?'⚠️ СРЕДНИЙ':'✅ НИЗКИЙ'}</b>
         </div>
         <div class="rug-bar"><div class="rug-f" style="width:\${rug}%;background:\${rugClr}"></div></div>
         <div style="display:flex;gap:12px;margin-top:7px">
           <span style="font-size:11px">TG \${hasTg?'✅':'❌'}</span>
           <span style="font-size:11px">TW \${hasTw?'✅':'❌'}</span>
-          <span style="font-size:11px">\u0421\u0430\u0439\u0442 \${hasSite?'✅':'❌'}</span>
+          <span style="font-size:11px">Сайт \${hasSite?'✅':'❌'}</span>
           <span style="font-size:11px">Buy% <b style="color:\${bp>55?'var(--g)':'var(--r)'}">\${bp}%</b></span>
         </div>
       </div>
       \${holdersHtml}
     </div>\`;
     document.getElementById('chat').appendChild(d);scroll();
-    lastTokenCtx=\`\u0422\u043e\u043a\u0435\u043d: \${sym} | Mcap: $\${f$(mcap)} | \u041b\u0438\u043a\u0432\u0438\u0434\u043d\u043e\u0441\u0442\u044c: $\${f$(liq)} | Rug: \${rug}/100 | Buy pressure: \${bp}%\`;
-    setTimeout(()=>askAgents(\`🔬 COUNCIL: \u0442\u043e\u043a\u0435\u043d \${sym}\n\n📊 mcap=\$\${f\$(mcap)}, \u043b\u0438\u043a\u0432\u0438\u0434\u043d\u043e\u0441\u0442\u044c=\$\${f\$(liq)}, rug=\${rug}/100, buy pressure=\${bp}%, \u0442\u043e\u043f \u0434\u0435\u0440\u0436\u0430\u0442\u0435\u043b\u044c=\${holdersRes.topHolderPct.toFixed(0)}%.\nSocials: TG=\${hasTg?'✅':'❌'} TW=\${hasTw?'✅':'❌'} \u0421\u0430\u0439\u0442=\${hasSite?'✅':'❌'}.\n\n\u0410\u043d\u0430\u043b\u0438\u0437 \u0447\u0435\u0440\u0435\u0437 \u0441\u043e\u0432\u0435\u0442 \u0430\u0433\u0435\u043d\u0442\u043e\u0432: Grok — rug-\u0440\u0438\u0441\u043a\u0438 \u0438 \u043a\u0440\u0430\u0441\u043d\u044b\u0435 \u0444\u043b\u0430\u0433\u0438, Lucas — \u043d\u0430\u0440\u0440\u0430\u0442\u0438\u0432 \u0438 \u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b x10, Architect — \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0440\u044b\u043d\u043a\u0430 \u0438 \u0442\u0440\u0435\u043d\u0434, Rex — \u0435\u0441\u0442\u044c \u043b\u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0435\u043d\u044c\u0433\u0438. \u0421\u0442\u043e\u0438\u0442 \u0444\u043b\u0438\u043f\u0430\u0442\u044c?\`),200);
+    lastTokenCtx=\`Токен: \${sym} | Mcap: $\${f$(mcap)} | Ликвидность: $\${f$(liq)} | Rug: \${rug}/100 | Buy pressure: \${bp}%\`;
+    setTimeout(()=>askAgents(\`🔬 COUNCIL: токен \${sym}\n\n📊 mcap=\$\${f\$(mcap)}, ликвидность=\$\${f\$(liq)}, rug=\${rug}/100, buy pressure=\${bp}%, топ держатель=\${holdersRes.topHolderPct.toFixed(0)}%.\nSocials: TG=\${hasTg?'✅':'❌'} TW=\${hasTw?'✅':'❌'} Сайт=\${hasSite?'✅':'❌'}.\n\nАнализ через совет агентов: Grok — rug-риски и красные флаги, Lucas — нарратив и потенциал x10, Architect — структура рынка и тренд, Rex — есть ли реальные деньги. Стоит флипать?\`),200);
   }catch(e){rmTyping();botMsg('⚠️ '+esc(e.message));}
 }
 
@@ -727,7 +727,7 @@ async function fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
   const dir=c1h>=0?'📈':'📉';
   const tg=c1h>=0?'+':'';
   const dexUrl='https://dexscreener.com/solana/'+addr;
-  return \`🔥 <b>\${sym}</b> · Solana\\n⏱ \${fAge(ageMs)} · \${dir} <b>\${tg}\${c1h.toFixed(1)}%</b>\\nVol 1\u0447: <b>\${f$(vol1h)}</b> · Liq: <b>\${f$(liq)}</b>\\nB/S: <b>\${buys}B / \${sells}S</b>\\n🔗 \${dexUrl}\`;
+  return \`🔥 <b>\${sym}</b> · Solana\\n⏱ \${fAge(ageMs)} · \${dir} <b>\${tg}\${c1h.toFixed(1)}%</b>\\nVol 1ч: <b>\${f$(vol1h)}</b> · Liq: <b>\${f$(liq)}</b>\\nB/S: <b>\${buys}B / \${sells}S</b>\\n🔗 \${dexUrl}\`;
 }
 
 async function sendTg(text){
@@ -741,10 +741,10 @@ async function sendTg(text){
 
 async function pushOneTg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs){
   const {ok}=getTg();
-  if(!ok){botMsg('📤 \u041d\u0430\u0441\u0442\u0440\u043e\u0439 Telegram: \u0432\u0432\u0435\u0434\u0438 <b>tg setup</b>');return;}
+  if(!ok){botMsg('📤 Настрой Telegram: введи <b>tg setup</b>');return;}
   const msg=fmtTgMsg(sym,addr,c1h,vol1h,liq,buys,sells,ageMs);
   const sent=await sendTg(msg);
-  botMsg(sent?\`✅ \u041e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u0432 TG: <b>\${esc(sym)}</b>\`:\`⚠️ \u041e\u0448\u0438\u0431\u043a\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0438 \u0432 TG\`);
+  botMsg(sent?\`✅ Отправлено в TG: <b>\${esc(sym)}</b>\`:\`⚠️ Ошибка отправки в TG\`);
 }
 
 async function autoTgPush(pairs){
@@ -765,12 +765,12 @@ async function autoTgPush(pairs){
 }
 
 async function setupTg(){
-  botMsg(\`📬 <b>\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430 Telegram \u043f\u0443\u0448\u0430</b><br><br>
-1. \u0421\u043e\u0437\u0434\u0430\u0439 \u0431\u043e\u0442\u0430: <a href="https://t.me/BotFather" target="_blank" style="color:var(--b)">@BotFather</a> → /newbot<br>
-2. \u0414\u043e\u0431\u0430\u0432\u044c \u0431\u043e\u0442\u0430 \u0432 \u043a\u0430\u043d\u0430\u043b <b>X100Agent</b> \u043a\u0430\u043a \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430<br>
-3. \u0412\u0432\u0435\u0434\u0438: <i>tg token YOUR_BOT_TOKEN</i><br>
-4. \u0412\u0432\u0435\u0434\u0438: <i>tg chat @X100Agent</i> (\u0438\u043b\u0438 ID \u0447\u0430\u0442\u0430)<br><br>
-\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u0441\u0442\u0430\u0442\u0443\u0441: \${getTg().ok?'✅ \u041d\u0430\u0441\u0442\u0440\u043e\u0435\u043d':'❌ \u041d\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d'}\`);
+  botMsg(\`📬 <b>Настройка Telegram пуша</b><br><br>
+1. Создай бота: <a href="https://t.me/BotFather" target="_blank" style="color:var(--b)">@BotFather</a> → /newbot<br>
+2. Добавь бота в канал <b>X100Agent</b> как администратора<br>
+3. Введи: <i>tg token YOUR_BOT_TOKEN</i><br>
+4. Введи: <i>tg chat @X100Agent</i> (или ID чата)<br><br>
+Текущий статус: \${getTg().ok?'✅ Настроен':'❌ Не настроен'}\`);
 }
 
 // ── AI CHAT ───────────────────────────────────────────────────────────────────
@@ -781,9 +781,9 @@ async function warmupApi(){
 
 // ── AI CHAT ───────────────────────────────────────────────────────────────────
 async function askAI(question){
-  const portCtx=portfolio.length?`\n\u041f\u043e\u0440\u0442\u0444\u0435\u043b\u044c: ${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.`:'';
+  const portCtx=portfolio.length?\`\nПортфель: \${portfolio.map(p=>esc(p.sym)||p.addr?.slice(0,6)||'?').join(', ')}.\`:'';
   const ctx=lastTokenCtx?'\n\n'+lastTokenCtx:'';
-  const prompt=`${question}${portCtx}${ctx}`;
+  const prompt=\`\${question}\${portCtx}\${ctx}\`;
   const t=typing();
   const tb0=t.querySelector('.bbl');
   if(tb0) tb0.innerHTML='<div class="dots"><span>●</span><span>●</span><span>●</span></div>';
@@ -806,7 +806,7 @@ async function askAI(question){
             if(tb){
               thinkEl=document.createElement('div');
               thinkEl.style.cssText='font-size:10px;color:#6C5CE7;margin-bottom:6px;opacity:.7;';
-              thinkEl.innerHTML='🧠 \u0434\u0443\u043c\u0430\u044e...';
+              thinkEl.innerHTML='🧠 думаю...';
               tb.innerHTML='';
               tb.appendChild(thinkEl);
             }
@@ -849,7 +849,7 @@ async function askAI(question){
     });
     rmTyping();
     if(reply) botMsg(reply.replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>'));
-    else botMsg('⚠️ \u041d\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430. \u0421\u0435\u0440\u0432\u0435\u0440 \u043f\u0440\u043e\u0441\u044b\u043f\u0430\u0435\u0442\u0441\u044f (~20 \u0441\u0435\u043a) — \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439 \u0435\u0449\u0451 \u0440\u0430\u0437.');
+    else botMsg('⚠️ Нет ответа. Сервер просыпается (~20 сек) — попробуй ещё раз.');
   }catch(e){rmTyping();botMsg('⚠️ AI: '+esc(e.message));}
 }
 // ── COMMAND ROUTER ────────────────────────────────────────────────────────────
@@ -859,43 +859,43 @@ async function cmd(text){
   text=text.trim();
   const tl=text.toLowerCase();
   if(SOL_RE.test(text)){await runAnalyze(text);return;}
-  const am=text.match(/^\u0430\u043d\u0430\u043b\u0438\u0437\\s+([1-9A-HJ-NP-Za-km-z]{32,44})/i);
+  const am=text.match(/^анализ\\s+([1-9A-HJ-NP-Za-km-z]{32,44})/i);
   if(am){await runAnalyze(am[1]);return;}
-  // entry: "\u0432\u0445\u043e\u0434 SYM price sol"
-  const em=tl.match(/^\u0432\u0445\u043e\u0434\\s+(\\S+)\\s+([\\d.]+)\\s*([\\d.]*)/);
+  // entry: "вход SYM price sol"
+  const em=tl.match(/^вход\\s+(\\S+)\\s+([\\d.]+)\\s*([\\d.]*)/);
   if(em){
     const sym=em[1].toUpperCase(),entry=parseFloat(em[2]),sol=parseFloat(em[3])||0;
     const pos=portfolio.find(p=>p.sym?.toUpperCase()===sym);
-    if(pos){pos.entry=entry;if(sol)pos.sol=sol;localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(\`✅ \${esc(sym)} \u043e\u0431\u043d\u043e\u0432\u043b\u0451\u043d: \u0432\u0445\u043e\u0434 \${f$(entry)}\${sol?' · '+sol+' SOL':''}\`);}
-    else{portfolio.push({id:Date.now(),addr:'',sym,entry,sol,ts:Date.now()});localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(\`✅ \${esc(sym)}: \u0432\u0445\u043e\u0434 \${f$(entry)} · \${sol} SOL\`);}
+    if(pos){pos.entry=entry;if(sol)pos.sol=sol;localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(\`✅ \${esc(sym)} обновлён: вход \${f$(entry)}\${sol?' · '+sol+' SOL':''}\`);}
+    else{portfolio.push({id:Date.now(),addr:'',sym,entry,sol,ts:Date.now()});localStorage.setItem('gl_portfolio',JSON.stringify(portfolio));botMsg(\`✅ \${esc(sym)}: вход \${f$(entry)} · \${sol} SOL\`);}
     return;
   }
   // TG commands
-  if(tl==='tg setup'||tl==='\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c'){await setupTg();return;}
+  if(tl==='tg setup'||tl==='телеграм'){await setupTg();return;}
   const tgTok=tl.match(/^tg token\\s+(\\S+)/);
-  if(tgTok){localStorage.setItem('gl_telegram',tgTok[1]);document.getElementById('tgDot').className='tg-status on';botMsg('✅ Bot token \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d');return;}
+  if(tgTok){localStorage.setItem('gl_telegram',tgTok[1]);document.getElementById('tgDot').className='tg-status on';botMsg('✅ Bot token сохранён');return;}
   const tgChat=tl.match(/^tg chat\\s+(\\S+)/);
-  if(tgChat){localStorage.setItem('gl_tg_chat',tgChat[1]);botMsg('✅ Chat ID \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d. \u0422\u0435\u043f\u0435\u0440\u044c BUY \u0441\u0438\u0433\u043d\u0430\u043b\u044b \u043f\u043e\u0439\u0434\u0443\u0442 \u0432 TG \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438.');return;}
+  if(tgChat){localStorage.setItem('gl_tg_chat',tgChat[1]);botMsg('✅ Chat ID сохранён. Теперь BUY сигналы пойдут в TG автоматически.');return;}
   // Commands
-  if(tl==='\u0441\u043a\u0430\u043d'||tl==='scan'){await runScan();return;}
+  if(tl==='скан'||tl==='scan'){await runScan();return;}
   if(tl==='pump'||tl==='pump.fun'){await runPump();return;}
-  if(tl==='\u0441\u0438\u0433\u043d\u0430\u043b\u044b'||tl==='signals'){await runSignals();return;}
-  if(tl==='\u0431\u0430\u0433'||tl==='bag'){await runBag();return;}
-  if(tl==='\u0433\u043e\u0440\u044f\u0447\u0438\u0435'||tl==='hot'){await runHot();return;}
-  if(tl==='\u043f\u043e\u043c\u043e\u0449\u044c'||tl==='help'){
-    botMsg(\`📖 <b>\u041a\u043e\u043c\u0430\u043d\u0434\u044b</b><br><br>
-🌪️ <b>\u0441\u043a\u0430\u043d</b> — \u0442\u043e\u043f \u0442\u043e\u043a\u0435\u043d\u044b Solana (\u0441 \u0444\u0438\u043b\u044c\u0442\u0440\u0430\u043c\u0438)<br>
-🔥 <b>pump</b> — pump.fun \u0437\u0430\u043f\u0443\u0441\u043a\u0438 &lt;10 \u043c\u0438\u043d<br>
-⚡ <b>\u0441\u0438\u0433\u043d\u0430\u043b\u044b</b> — BUY/SELL<br>
-💼 <b>\u0431\u0430\u0433</b> — \u043f\u043e\u0440\u0442\u0444\u0435\u043b\u044c + PnL<br>
-🔗 <b>[\u0430\u0434\u0440\u0435\u0441]</b> — \u0430\u043d\u0430\u043b\u0438\u0437 + on-chain holders<br>
-➕ <b>\u0432\u0445\u043e\u0434 SYM 0.0001 0.5</b> — \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u043e\u0437\u0438\u0446\u0438\u044e<br>
-📤 <b>tg setup</b> — \u043d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c Telegram \u043f\u0443\u0448<br>
-⚙️ <b>\u0424\u0438\u043b\u044c\u0442\u0440\u044b</b> — \u043f\u043e mcap / \u043b\u0438\u043a\u0432\u0438\u0434\u043d\u043e\u0441\u0442\u0438 / \u0432\u043e\u0437\u0440\u0430\u0441\u0442\u0443 / BUY only<br>
-🧠 <b>\u043b\u044e\u0431\u043e\u0439 \u0432\u043e\u043f\u0440\u043e\u0441</b> — AI \u0441\u0442\u0440\u0430\u0442\u0435\u0433\`);
+  if(tl==='сигналы'||tl==='signals'){await runSignals();return;}
+  if(tl==='баг'||tl==='bag'){await runBag();return;}
+  if(tl==='горячие'||tl==='hot'){await runHot();return;}
+  if(tl==='помощь'||tl==='help'){
+    botMsg(\`📖 <b>Команды</b><br><br>
+🌪️ <b>скан</b> — топ токены Solana (с фильтрами)<br>
+🔥 <b>pump</b> — pump.fun запуски &lt;10 мин<br>
+⚡ <b>сигналы</b> — BUY/SELL<br>
+💼 <b>баг</b> — портфель + PnL<br>
+🔗 <b>[адрес]</b> — анализ + on-chain holders<br>
+➕ <b>вход SYM 0.0001 0.5</b> — добавить позицию<br>
+📤 <b>tg setup</b> — настроить Telegram пуш<br>
+⚙️ <b>Фильтры</b> — по mcap / ликвидности / возрасту / BUY only<br>
+🧠 <b>любой вопрос</b> — AI стратег\`);
     return;
   }
-  if(tl==='\u0441\u0442\u0440\u0430\u0442\u0435\u0433\u0438\u044f'){await askAI('\u0414\u0430\u0439 \u0442\u043e\u043f-5 \u043f\u0440\u0430\u0432\u0438\u043b \u0444\u043b\u0438\u043f\u043f\u0438\u043d\u0433\u0430 \u043c\u0435\u043c\u043a\u043e\u0439\u043d\u043e\u0432 \u043d\u0430 Solana \u0432 2026. \u041a\u0440\u0430\u0442\u043a\u043e \u0438 \u043f\u043e \u0434\u0435\u043b\u0443.');return;}
+  if(tl==='стратегия'){await askAI('Дай топ-5 правил флиппинга мемкойнов на Solana в 2026. Кратко и по делу.');return;}
   await (agentMode ? askAgents(text) : askAI(text));
 }
 
@@ -917,9 +917,9 @@ function startAutoLoops(){
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init(){
   if(getTg().ok) document.getElementById('tgDot').className='tg-status on';
-  botMsg(\`👋 <b>SMERTCH v3</b> — X100 \u043c\u0435\u043c\u043a\u043e\u0439\u043d \u0444\u043b\u0438\u043f\u043f\u0435\u0440<br>
-<span style="font-size:12px;color:var(--dim)">pump.fun · on-chain holders · \u0430\u0432\u0442\u043e TG \u043f\u0443\u0448 · \u0444\u0438\u043b\u044c\u0442\u0440\u044b</span><br><br>
-\${getTg().ok?'📤 TG \u043f\u0443\u0448: <span style="color:var(--g)">\u0430\u043a\u0442\u0438\u0432\u0435\u043d</span>':'📤 TG \u043f\u0443\u0448: <span style="color:var(--dim)">\u043d\u0430\u0441\u0442\u0440\u043e\u0439 → tg setup</span>'}\`);
+  botMsg(\`👋 <b>SMERTCH v3</b> — X100 мемкойн флиппер<br>
+<span style="font-size:12px;color:var(--dim)">pump.fun · on-chain holders · авто TG пуш · фильтры</span><br><br>
+\${getTg().ok?'📤 TG пуш: <span style="color:var(--g)">активен</span>':'📤 TG пуш: <span style="color:var(--dim)">настрой → tg setup</span>'}\`);
   setTimeout(()=>runScan(),700);
   startAutoLoops();
 })();
@@ -960,7 +960,7 @@ const COINGECKO = 'https://api.coingecko.com/api/v3';
 async function loadMarket(){
   if(mktLoaded[mktCat] && Date.now() - mktLoaded[mktCat] < 60000) return; // 1min cache
   const list = document.getElementById('mktList');
-  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⏳ \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430…</div>';
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⏳ Загрузка…</div>';
   try{
     let url;
     if(mktCat === 'top'){
@@ -974,7 +974,7 @@ async function loadMarket(){
     mktLoaded[mktCat] = Date.now();
     renderMarket(mktData);
   }catch(e){
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⚠️ ' + e.message + '<br><small>Rate limit — \u043a\u043b\u0438\u043a\u043d\u0438 \u0441\u043d\u043e\u0432\u0430 \u0447\u0435\u0440\u0435\u0437 10 \u0441\u0435\u043a</small></div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--dim)">⚠️ ' + e.message + '<br><small>Rate limit — кликни снова через 10 сек</small></div>';
     mktLoaded[mktCat] = Date.now() - 50000; // allow retry after 10s
   }
 }
@@ -1011,7 +1011,7 @@ function fmtMcap(v){
 
 function renderMarket(coins){
   const list = document.getElementById('mktList');
-  if(!coins.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--dim)">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>';return;}
+  if(!coins.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--dim)">Ничего не найдено</div>';return;}
   list.innerHTML = coins.map((c,i) => {
     const chg = c.price_change_percentage_24h || 0;
     const chgCls = chg >= 0 ? 'up' : 'dn';
@@ -1035,9 +1035,9 @@ function renderMarket(coins){
 async function mktOpenCoin(id, sym, name, price, chg){
   // Switch to WOLF tab and analyze
   switchTab('wolf');
-  const ctx = \`\${sym} (\${name}) | \u0426\u0435\u043d\u0430: \${fmtPrice(price)} | 24h: \${chg>=0?'+':''}+\${chg.toFixed(2)}%\`;
+  const ctx = \`\${sym} (\${name}) | Цена: \${fmtPrice(price)} | 24h: \${chg>=0?'+':''}+\${chg.toFixed(2)}%\`;
   lastTokenCtx = ctx;
-  const q = \`\u0410\u043d\u0430\u043b\u0438\u0437 \${sym}: \u0446\u0435\u043d\u0430 \${fmtPrice(price)}, 24h \${chg>=0?'+':''}+\${chg.toFixed(2)}%. \u0421\u0442\u043e\u0438\u0442 \u0432\u0445\u043e\u0434\u0438\u0442\u044c?\`;
+  const q = \`Анализ \${sym}: цена \${fmtPrice(price)}, 24h \${chg>=0?'+':''}+\${chg.toFixed(2)}%. Стоит входить?\`;
   userBubble(q);
   agentMode ? askAgents(q) : askAI(q);
 }
@@ -1056,10 +1056,10 @@ async function connectPhantom(){
     const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if(isMobile){
       const u=encodeURIComponent(window.location.href);
-      botMsg('📱 \u041e\u0442\u043a\u0440\u044b\u0432\u0430\u0435\u043c \u0432 Phantom app...');
+      botMsg('📱 Открываем в Phantom app...');
       setTimeout(()=>{window.location.href='https://phantom.app/ul/browse/'+u+'?ref='+u;},300);
     }else{
-      botMsg('👻 Phantom \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d. \u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435 \u043d\u0430 \u0434\u0435\u0441\u043a\u0442\u043e\u043f\u0435.');
+      botMsg('👻 Phantom не найден. Установи расширение на десктопе.');
     };
     return;
   }
@@ -1069,10 +1069,10 @@ async function connectPhantom(){
     document.getElementById('walletDisconnected').style.display = 'none';
     document.getElementById('walletConnected').style.display = 'block';
     document.getElementById('walletAddr').textContent = phantomPubkey.slice(0,6) + '...' + phantomPubkey.slice(-4) + ' 📋';
-    document.getElementById('walletAddr').onclick = () => {navigator.clipboard.writeText(phantomPubkey); document.getElementById('walletAddr').textContent = '✅ \u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e!'; setTimeout(() => document.getElementById('walletAddr').textContent = phantomPubkey.slice(0,6)+'...'+phantomPubkey.slice(-4)+' 📋', 1500);};
+    document.getElementById('walletAddr').onclick = () => {navigator.clipboard.writeText(phantomPubkey); document.getElementById('walletAddr').textContent = '✅ Скопировано!'; setTimeout(() => document.getElementById('walletAddr').textContent = phantomPubkey.slice(0,6)+'...'+phantomPubkey.slice(-4)+' 📋', 1500);};
     refreshWallet();
   }catch(e){
-    botMsg('⚠️ \u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f: ' + e.message);
+    botMsg('⚠️ Ошибка подключения: ' + e.message);
   }
 }
 
@@ -1118,7 +1118,7 @@ async function loadTokenAccounts(){
       .slice(0, 20);
 
     const list = document.getElementById('tokenList');
-    if(!accounts.length){ list.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center;padding:16px">\u041d\u0435\u0442 \u0442\u043e\u043a\u0435\u043d\u043e\u0432 \u0432 \u043a\u043e\u0448\u0435\u043b\u044c\u043a\u0435</div>'; return; }
+    if(!accounts.length){ list.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center;padding:16px">Нет токенов в кошельке</div>'; return; }
     list.innerHTML = accounts.map(a => {
       const mint = a.mint;
       const amt = a.tokenAmount.uiAmount;
@@ -1131,7 +1131,7 @@ async function loadTokenAccounts(){
             <div class="tok-amt">Bal: \${amt.toLocaleString('en-US',{maximumFractionDigits:4})}</div>
           </div>
         </div>
-        <button class="cb cb-r" style="font-size:10px;padding:3px 10px;flex-shrink:0" onclick="quickSellNow('\${mint}','\${short}',\${amt},6)">💰 \u041f\u0440\u043e\u0434\u0430\u0442\u044c</button>
+        <button class="cb cb-r" style="font-size:10px;padding:3px 10px;flex-shrink:0" onclick="quickSellNow('\${mint}','\${short}',\${amt},6)">💰 Продать</button>
       </div>\`;
     }).join('');
   }catch(e){}
@@ -1148,7 +1148,7 @@ async function setSwapMode(mode){
   document.getElementById('swapTabBuy').classList.toggle('active', mode==='buy');
   document.getElementById('swapTabSell').classList.toggle('active', mode==='sell');
   document.getElementById('swapFromLabel').textContent = mode==='buy' ? 'SOL' : 'TOKEN';
-  document.getElementById('swapAmt').placeholder = mode==='buy' ? '\u041a\u043e\u043b-\u0432\u043e SOL' : '\u041a\u043e\u043b-\u0432\u043e \u0442\u043e\u043a\u0435\u043d\u043e\u0432';
+  document.getElementById('swapAmt').placeholder = mode==='buy' ? 'Кол-во SOL' : 'Кол-во токенов';
   document.getElementById('swapQuote').textContent = '';
 }
 
@@ -1162,7 +1162,7 @@ async function getSwapQuote(){
   const toAddr = document.getElementById('swapToAddr').value.trim();
   if(!amt || !toAddr) return;
   const quoteEl = document.getElementById('swapQuote');
-  quoteEl.textContent = '⏳ \u041f\u043e\u043b\u0443\u0447\u0430\u044e \u043a\u043e\u0442\u0438\u0440\u043e\u0432\u043a\u0443…';
+  quoteEl.textContent = '⏳ Получаю котировку…';
   try{
     const inputMint = swapMode==='buy' ? WSOL_MINT : toAddr;
     const outputMint = swapMode==='buy' ? toAddr : WSOL_MINT;
@@ -1178,7 +1178,7 @@ async function getSwapQuote(){
     const outFmt = (outAmt / Math.pow(10, outDecimals)).toFixed(swapMode==='buy'?4:6);
     const priceImpact = parseFloat(q.priceImpactPct || 0);
     const impactColor = priceImpact > 5 ? '#ff4d6d' : priceImpact > 2 ? '#FDCB6E' : '#00FF9D';
-    quoteEl.innerHTML = \`\u041f\u043e\u043b\u0443\u0447\u0438\u0448\u044c ≈ <b>\${outFmt}</b> | \u041f\u0440\u043e\u0441\u043a\u0430\u043b\u044c\u0437\u044b\u0432\u0430\u043d\u0438\u0435: <span style="color:\${impactColor}">\${priceImpact.toFixed(2)}%</span>\`;
+    quoteEl.innerHTML = \`Получишь ≈ <b>\${outFmt}</b> | Проскальзывание: <span style="color:\${impactColor}">\${priceImpact.toFixed(2)}%</span>\`;
     quoteEl.dataset.quote = JSON.stringify(q);
   }catch(e){
     quoteEl.textContent = '⚠️ ' + e.message;
@@ -1186,13 +1186,13 @@ async function getSwapQuote(){
 }
 
 async function execSwap(){
-  if(!phantomPubkey){ botMsg('👻 \u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438 Phantom \u043a\u043e\u0448\u0435\u043b\u0451\u043a'); switchTab('wallet'); return; }
+  if(!phantomPubkey){ botMsg('👻 Сначала подключи Phantom кошелёк'); switchTab('wallet'); return; }
   const quoteEl = document.getElementById('swapQuote');
   const quoteData = quoteEl.dataset.quote;
-  if(!quoteData){ botMsg('⚠️ \u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u043b\u0443\u0447\u0438 \u043a\u043e\u0442\u0438\u0440\u043e\u0432\u043a\u0443'); return; }
+  if(!quoteData){ botMsg('⚠️ Сначала получи котировку'); return; }
   const btn = document.getElementById('swapBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ \u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0438…';
+  btn.textContent = '⏳ Подготовка транзакции…';
   try{
     const q = JSON.parse(quoteData);
     // Get swap transaction from Jupiter
@@ -1210,7 +1210,7 @@ async function execSwap(){
     if(!swapResp.ok) throw new Error('Jupiter swap API ' + swapResp.status);
     const { swapTransaction } = await swapResp.json();
     // Decode + sign with Phantom
-    btn.textContent = '✍️ \u041f\u043e\u0434\u043f\u0438\u0448\u0438 \u0432 Phantom…';
+    btn.textContent = '✍️ Подпиши в Phantom…';
     const phantom = window.solana || window.phantom?.solana;
     const txBuf = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
     const signed = await phantom.signTransaction({
@@ -1218,18 +1218,18 @@ async function execSwap(){
       deserialize: (b) => b
     });
     // Actually use signAndSendTransaction for simplicity
-    btn.textContent = '📡 \u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430…';
+    btn.textContent = '📡 Отправка…';
     const {signature} = await phantom.signAndSendTransaction(
       { serialize: () => txBuf }
     );
-    btn.textContent = '✅ \u0423\u0441\u043f\u0435\u0448\u043d\u043e!';
-    botMsg(\`✅ <b>\u0421\u0432\u043e\u043f \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!</b><br>TX: <a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
-    setTimeout(()=>{btn.disabled=false;btn.textContent='⚡ \u0421\u0412\u041e\u041f';},3000);
+    btn.textContent = '✅ Успешно!';
+    botMsg(\`✅ <b>Своп выполнен!</b><br>TX: <a href="https://solscan.io/tx/\${signature}" target="_blank" style="color:var(--b)">\${signature.slice(0,16)}…</a>\`);
+    setTimeout(()=>{btn.disabled=false;btn.textContent='⚡ СВОП';},3000);
     setTimeout(refreshWallet, 5000);
   }catch(e){
     btn.disabled=false;
-    btn.textContent='⚡ \u0421\u0412\u041e\u041f';
-    botMsg('⚠️ \u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0432\u043e\u043f\u0430: ' + e.message);
+    btn.textContent='⚡ СВОП';
+    botMsg('⚠️ Ошибка свопа: ' + e.message);
   }
 }
 
@@ -1262,8 +1262,8 @@ async function toggleAgentMode(){
   btn.classList.toggle('active', agentMode);
   bar.style.display = agentMode ? 'block' : 'none';
   botMsg(agentMode
-    ? '🤖 <b>Oasis Council \u0432\u043a\u043b\u044e\u0447\u0451\u043d</b> — GodLocal + 2 \u0430\u0440\u0445\u0435\u0442\u0438\u043f\u0430 (Architect/Builder/Grok/Lucas/Harper/Benjamin). \u041f\u043e\u0441\u043b\u0435 \u0430\u043d\u0430\u043b\u0438\u0437\u0430 \u0442\u043e\u043a\u0435\u043d\u0430 \u0430\u0433\u0435\u043d\u0442\u044b \u0432\u0438\u0434\u044f\u0442 \u0435\u0433\u043e \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442.'
-    : '💬 Wolf AI (\u043e\u0431\u044b\u0447\u043d\u044b\u0439 \u0447\u0430\u0442).'
+    ? '🤖 <b>Oasis Council включён</b> — GodLocal + 2 архетипа (Architect/Builder/Grok/Lucas/Harper/Benjamin). После анализа токена агенты видят его контекст.'
+    : '💬 Wolf AI (обычный чат).'
   );
 }
 
@@ -1327,9 +1327,9 @@ async function askAgents(question){
             }
           }
           else if(d.t === 'synthesis' && d.v){
-            const synthEl = agentBubble('\\uD83D\\uDD2E \u0421\u0438\u043d\u0442\u0435\u0437', '');
+            const synthEl = agentBubble('\\uD83D\\uDD2E Синтез', '');
             const body = synthEl.querySelector('.agent-body');
-            if(body) body.innerHTML = '<b>\\u2696\\uFE0F \u0418\u0442\u043e\u0433 \u0441\u043e\u0432\u0435\u0442\u0430:</b><br>' + stripFuncTags(d.v).replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
+            if(body) body.innerHTML = '<b>\\u2696\\uFE0F Итог совета:</b><br>' + stripFuncTags(d.v).replace(/</g,'&lt;').replace(/\\n/g,'<br>').replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>');
           }
           else if(d.t === 'error'){
             agentBubble('System','⚠️ ' + (d.v||'error'));
@@ -1351,7 +1351,7 @@ function toggleVoice(){
   const btn=document.getElementById('micBtn');
   if(voiceActive){stopVoice();return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){botMsg('⚠️ \u0413\u043e\u043b\u043e\u0441\u043e\u0432\u043e\u0439 \u0432\u0432\u043e\u0434 \u043d\u0435 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0432 \u044d\u0442\u043e\u043c \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435');return;}
+  if(!SR){botMsg('⚠️ Голосовой ввод не поддерживается в этом браузере');return;}
   voiceRec=new SR();
   voiceRec.lang='ru-RU';
   voiceRec.continuous=false;
@@ -1367,14 +1367,14 @@ function toggleVoice(){
     const inp=document.getElementById('inp');
     if(inp.value.trim()) send();
   };
-  voiceRec.onerror=(e)=>{voiceActive=false;btn.classList.remove('listening');if(e.error!=='aborted')botMsg('⚠️ \u041c\u0438\u043a\u0440\u043e\u0444\u043e\u043d: '+e.error);};
+  voiceRec.onerror=(e)=>{voiceActive=false;btn.classList.remove('listening');if(e.error!=='aborted')botMsg('⚠️ Микрофон: '+e.error);};
   voiceRec.start();
 }
 function stopVoice(){if(voiceRec){voiceRec.stop();voiceRec=null;}}
 
 // ── STARTUP ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  botMsg('⚡ <b>SMERTCH WOLF v3.1</b> — Solana AI terminal.<br>\u041d\u0430\u0436\u043c\u0438 <b>🌪️ \u0421\u043a\u0430\u043d</b> \u0434\u043b\u044f \u0430\u043d\u0430\u043b\u0438\u0437\u0430 \u0440\u044b\u043d\u043a\u0430 \u0438\u043b\u0438 \u0432\u0432\u0435\u0434\u0438 \u0442\u043e\u043a\u0435\u043d/\u0430\u0434\u0440\u0435\u0441.');
+  botMsg('⚡ <b>SMERTCH WOLF v3.1</b> — Solana AI terminal.<br>Нажми <b>🌪️ Скан</b> для анализа рынка или введи токен/адрес.');
   warmupApi();
   setTimeout(() => runScan(), 1500);
 });
@@ -1383,16 +1383,16 @@ window.addEventListener('DOMContentLoaded', () => {
 <!-- ══ MARKET PANEL ══════════════════════════════════════════════ -->
 <div id="marketPanel">
   <div class="mkt-cat" id="mktCat">
-    <div class="mkt-cat-btn active" onclick="mktSetCat('top',this)">🌐 \u0412\u0441\u0435</div>
+    <div class="mkt-cat-btn active" onclick="mktSetCat('top',this)">🌐 Все</div>
     <div class="mkt-cat-btn" onclick="mktSetCat('layer-1',this)">⛓ L1</div>
     <div class="mkt-cat-btn" onclick="mktSetCat('defi',this)">🏦 DeFi</div>
-    <div class="mkt-cat-btn" onclick="mktSetCat('meme-token',this)">🐸 \u041c\u0435\u043c</div>
+    <div class="mkt-cat-btn" onclick="mktSetCat('meme-token',this)">🐸 Мем</div>
     <div class="mkt-cat-btn" onclick="mktSetCat('ai-big-data',this)">🤖 AI</div>
     <div class="mkt-cat-btn" onclick="mktSetCat('gaming',this)">🎮 Gaming</div>
     <div class="mkt-cat-btn" onclick="mktSetCat('solana-ecosystem',this)">◎ Solana</div>
   </div>
   <input class="mkt-search" id="mktSearch" placeholder="🔍 BTC, ETH, SOL..." oninput="mktFilter(this.value)">
-  <div class="mkt-list" id="mktList"><div style="text-align:center;padding:40px;color:var(--dim)">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0440\u044b\u043d\u043a\u0430…</div></div>
+  <div class="mkt-list" id="mktList"><div style="text-align:center;padding:40px;color:var(--dim)">Загрузка рынка…</div></div>
 </div>
 
 <!-- ══ WALLET PANEL ══════════════════════════════════════════════ -->
@@ -1401,10 +1401,10 @@ window.addEventListener('DOMContentLoaded', () => {
     <div style="text-align:center;padding:24px 16px 8px">
       <div style="font-size:36px;margin-bottom:8px">👻</div>
       <div style="font-size:16px;font-weight:700;color:var(--fg);margin-bottom:6px">Phantom Wallet</div>
-      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438 \u043a\u043e\u0448\u0435\u043b\u0451\u043a \u0447\u0442\u043e\u0431\u044b \u0432\u0438\u0434\u0435\u0442\u044c \u0431\u0430\u043b\u0430\u043d\u0441 \u0438 \u0442\u043e\u0440\u0433\u043e\u0432\u0430\u0442\u044c \u043f\u0440\u044f\u043c\u043e \u0437\u0434\u0435\u0441\u044c</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">Подключи кошелёк чтобы видеть баланс и торговать прямо здесь</div>
     </div>
-    <div class="wallet-connect-btn" onclick="connectPhantom()">👻 \u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c Phantom</div>
-    <div style="font-size:11px;color:var(--dim);text-align:center">\u041d\u0435\u0442 Phantom? <a href="https://phantom.app" target="_blank" style="color:var(--b)">phantom.app</a></div>
+    <div class="wallet-connect-btn" onclick="connectPhantom()">👻 Подключить Phantom</div>
+    <div style="font-size:11px;color:var(--dim);text-align:center">Нет Phantom? <a href="https://phantom.app" target="_blank" style="color:var(--b)">phantom.app</a></div>
   </div>
   <div id="walletConnected" style="display:none">
     <div class="wallet-addr" id="walletAddr"></div>
@@ -1429,10 +1429,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     <!-- SWAP TERMINAL -->
     <div class="swap-box">
-      <div class="swap-title">⚡ \u0422\u043e\u0440\u0433\u043e\u0432\u044b\u0439 \u0442\u0435\u0440\u043c\u0438\u043d\u0430\u043b</div>
+      <div class="swap-title">⚡ Торговый терминал</div>
       <div class="swap-tabs">
-        <div class="swap-tab active" id="swapTabBuy" onclick="setSwapMode('buy')">🟢 \u041a\u0423\u041f\u0418\u0422\u042c</div>
-        <div class="swap-tab" id="swapTabSell" onclick="setSwapMode('sell')">🔴 \u041f\u0420\u041e\u0414\u0410\u0422\u042c</div>
+        <div class="swap-tab active" id="swapTabBuy" onclick="setSwapMode('buy')">🟢 КУПИТЬ</div>
+        <div class="swap-tab" id="swapTabSell" onclick="setSwapMode('sell')">🔴 ПРОДАТЬ</div>
       </div>
       <div class="swap-row">
         <input class="swap-inp" id="swapAmt" type="number" placeholder="0.0" step="any" oninput="debounceQuote()">
@@ -1440,21 +1440,21 @@ window.addEventListener('DOMContentLoaded', () => {
           <option value="0.1">0.1 SOL</option>
           <option value="0.5">0.5 SOL</option>
           <option value="1">1 SOL</option>
-          <option value="custom">\u0421\u0432\u043e\u0451</option>
+          <option value="custom">Своё</option>
         </select>
         <div class="swap-sel" id="swapFromLabel">SOL</div>
       </div>
       <div class="swap-row">
-        <input class="swap-inp" id="swapToAddr" placeholder="\u0410\u0434\u0440\u0435\u0441 \u0442\u043e\u043a\u0435\u043d\u0430 (mint)..." style="font-size:11px;font-family:monospace">
+        <input class="swap-inp" id="swapToAddr" placeholder="Адрес токена (mint)..." style="font-size:11px;font-family:monospace">
         <div class="swap-sel" id="swapToLabel">TOKEN</div>
       </div>
       <div class="swap-quote" id="swapQuote"></div>
-      <button class="swap-btn" id="swapBtn" onclick="execSwap()">⚡ \u0421\u0412\u041e\u041f</button>
+      <button class="swap-btn" id="swapBtn" onclick="execSwap()">⚡ СВОП</button>
     </div>
 
     <!-- TOKEN HOLDINGS -->
-    <div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">\u0422\u043e\u043a\u0435\u043d\u044b \u0432 \u043a\u043e\u0448\u0435\u043b\u044c\u043a\u0435</div>
-    <div id="tokenList"><div style="color:var(--dim);font-size:12px">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430…</div></div>
+    <div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Токены в кошельке</div>
+    <div id="tokenList"><div style="color:var(--dim);font-size:12px">Загрузка…</div></div>
   </div>
 </div>
 
@@ -1464,10 +1464,10 @@ window.addEventListener('DOMContentLoaded', () => {
     <span class="tab-ico">⚡</span>WOLF
   </div>
   <div class="tab" id="tabMarket" onclick="switchTab('market')">
-    <span class="tab-ico">📊</span>\u0420\u042b\u041d\u041e\u041a
+    <span class="tab-ico">📊</span>РЫНОК
   </div>
   <div class="tab" id="tabWallet" onclick="switchTab('wallet')">
-    <span class="tab-ico">💼</span>\u041a\u041e\u0428\u0415\u041b\u0401\u041a
+    <span class="tab-ico">💼</span>КОШЕЛЁК
   </div>
 </div>
 
