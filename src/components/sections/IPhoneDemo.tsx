@@ -14,9 +14,9 @@ export default function IPhoneDemo() {
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">Mobile AI</div>
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-              AI в кармане. <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">Без облака.</span>
+              AI in your pocket. <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">No cloud.</span>
             </h2>
-            <p className="text-gray-400 text-lg mb-8">Полноценный AI-инференс прямо на iPhone. Данные никогда не покидают устройство.</p>
+            <p className="text-gray-400 text-lg mb-8">Full AI inference on iPhone. Your data never leaves the device.</p>
             <div className="space-y-4 mb-8">
               {specs.map(s => (
                 <div key={s.model} className="flex items-center justify-between bg-[#0d1017] border border-white/[0.06] rounded-xl p-4">
@@ -29,21 +29,21 @@ export default function IPhoneDemo() {
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ Полная приватность</span>
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ Оффлайн режим</span>
-              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ PWA</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} Full Privacy</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} Offline Mode</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">{"\u2705"} PWA</span>
             </div>
           </div>
           <div className="flex justify-center">
             <div className="relative w-[280px] h-[560px] bg-[#0d1017] rounded-[3rem] border-2 border-white/10 p-3 shadow-2xl shadow-green-500/5">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full" />
               <div className="w-full h-full bg-[#0A0C0F] rounded-[2.4rem] flex flex-col items-center justify-center p-6 text-center">
-                <div className="text-5xl mb-4">🧠</div>
+                <div className="text-5xl mb-4">{"\ud83e\udde0"}</div>
                 <div className="text-white font-bold text-lg mb-1">GodLocal</div>
                 <div className="text-gray-400 text-sm mb-6">On-device AI</div>
                 <div className="w-full bg-green-500/10 rounded-xl p-4 border border-green-500/20">
                   <div className="text-green-400 text-2xl font-mono font-black">60 tok/s</div>
-                  <div className="text-gray-400 text-xs mt-1">PARO 4B · iPhone 15 Pro</div>
+                  <div className="text-gray-400 text-xs mt-1">PARO 4B {"\u00b7"} iPhone 15 Pro</div>
                 </div>
                 <div className="mt-4 text-xs text-gray-500">CoreML + Apple Neural Engine</div>
               </div>
