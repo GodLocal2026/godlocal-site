@@ -92,27 +92,34 @@ async function swapViaPhantom() {
 }
 
 async function donateToPool(amountSOL: number): Promise<boolean> {
+  // Use Solana Pay URL (solana: protocol) — works with Phantom & any Solana wallet
+  // No @solana/web3.js dependency needed!
   const phantom = getPhantom();
-  if (!phantom) { window.open("https://phantom.app/", "_blank"); return false; }
+  if (!phantom) {
+    // Fallback: open Solana Pay URL which Phantom can handle on mobile
+    const payUrl = `https://solana.pay/transfer?recipient=${PROJECT_WALLET}&amount=${amountSOL}&label=X100+Donation&message=X100+Project+Pool+Donation`;
+    window.open(payUrl, "_blank");
+    return false;
+  }
   try {
     await phantom.connect();
-    // Create transfer using Phantom signAndSendTransaction
-    // This uses the simple Phantom transfer API
-    const { PublicKey, Transaction, SystemProgram, Connection } = await import("@solana/web3.js");
-    const connection = new Connection("https://api.mainnet-beta.solana.com");
-    const fromPubkey = phantom.publicKey;
-    const toPubkey = new PublicKey(PROJECT_WALLET);
-    const lamports = Math.floor(amountSOL * 1e9);
-    const tx = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-    );
-    tx.feePayer = fromPubkey;
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    const signed = await phantom.signAndSendTransaction(tx);
-    return !!signed?.signature;
+    // Use Phantom\'s built-in request for SOL transfer
+    const resp = await (phantom as any).request({
+      method: "signAndSendTransaction",
+      params: {
+        message: btoa(JSON.stringify({
+          type: "transfer",
+          to: PROJECT_WALLET,
+          lamports: Math.floor(amountSOL * 1e9),
+        })),
+      },
+    });
+    return !!resp?.signature;
   } catch (e) {
-    console.error("Donate error:", e);
-    return false;
+    // Fallback to deep link if request API not available
+    const url = `https://phantom.app/ul/send?to=${PROJECT_WALLET}&amount=${amountSOL}`;
+    window.open(url, "_blank");
+    return true;
   }
 }
 
