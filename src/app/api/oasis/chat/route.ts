@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { fetchUserKeys, sendTelegram, postTweet, searchTwitter } from '@/lib/integrations';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
@@ -21,26 +22,32 @@ function buildSystemPrompt(): string {
 Today is ${dateStr}, ${timeStr} UTC. The year is 2026.
 
 ## Core Rules (MUST FOLLOW)
-1. **NEVER repeat yourself.** If you already explained something, move the conversation forward.
-2. **Answer the user's ACTUAL question.** Do not default to listing your capabilities unless asked.
+1. **NEVER repeat yourself.** Move the conversation forward.
+2. **Answer the user's ACTUAL question.** Do not list capabilities unless asked.
 3. **Be concise.** Short paragraphs, clear structure.
 4. **Respond in the SAME language** the user writes in.
-5. **Always provide clickable links** using markdown: [text](https://url). Use real URLs from search results.
+5. **Always provide clickable links** using markdown: [text](https://url).
 6. **Use markdown formatting**: headers (##), bold (**text**), lists, \`code\`, code blocks.
-7. **You MUST use the web_search tool** for ANY question about current events, prices, news, weather, dates, or facts you're unsure about. NEVER answer from memory for time-sensitive topics.
-8. **NEVER say \"How can I help you?\" or list capabilities unprompted.**
+7. **You MUST use the web_search tool** for ANY question about current events, prices, news, or facts you're unsure about.
+8. **NEVER say "How can I help you?" or list capabilities unprompted.**
 
-## Tool Usage
-You have a **web_search** tool. You MUST use it for:
-- Current prices (crypto, stocks, goods)
-- News and current events
-- Any factual question where accuracy matters
-- Links to websites, docs, or resources
+## Available Tools
+You have these tools \u2014 use them proactively:
+- **web_search** \u2014 search the web for current info, prices, news, docs
+- **send_telegram** \u2014 send a message/note to user's Telegram channel (use as notebook)
+- **post_tweet** \u2014 post a tweet to user's X/Twitter account
+- **search_twitter** \u2014 search recent tweets on X/Twitter
 
-Do NOT answer time-sensitive questions from memory. Always search first, then synthesize results with clickable source links.
+When to use each:
+- "save this" / "note" / "send to telegram" / "remember" \u2192 send_telegram
+- "tweet" / "post on X" / "publish" \u2192 post_tweet
+- "what's trending" / "search X for" \u2192 search_twitter
+- prices, news, facts \u2192 web_search
 
-## Your Identity (brief)
-Local-first AI assistant built into GodLocal \u2014 running powerful AI on user devices without cloud.
+If a service isn't configured, tell the user to set it up in Settings.
+
+## Your Identity
+Local-first AI assistant built into GodLocal.
 Products: **Oasis** (AI chat), **WOLF** (crypto), **NEBUDDA** (social), **Flipper** (game)
 Website: [godlocal.ai](https://godlocal.ai)
 
@@ -55,14 +62,53 @@ const TOOLS = [
     type: 'function' as const,
     function: {
       name: 'web_search',
-      description: 'Search the web for current information, news, prices, documentation, or any factual data. Use this for ANY time-sensitive question. Returns results with URLs.',
+      description: 'Search the web for current information, news, prices, documentation, or any factual data. Use for ANY time-sensitive question.',
       parameters: {
         type: 'object',
         properties: {
-          query: {
-            type: 'string',
-            description: 'The search query in English for best results. Be specific.',
-          },
+          query: { type: 'string', description: 'Search query in English for best results.' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'send_telegram',
+      description: 'Send a message or note to the user\'s connected Telegram channel/bot. Use as a notebook to save notes, links, ideas, or any text the user wants to keep.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'The message text to send. Supports Markdown formatting.' },
+        },
+        required: ['text'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'post_tweet',
+      description: 'Post a tweet to the user\'s X/Twitter account. Use when user asks to tweet, post on X, or publish something.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'The tweet text (max 280 characters).' },
+        },
+        required: ['text'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'search_twitter',
+      description: 'Search recent tweets on X/Twitter. Use to find trending topics, news, or specific discussions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query for tweets.' },
         },
         required: ['query'],
       },
@@ -72,7 +118,6 @@ const TOOLS = [
 
 async function tavilySearch(query: string): Promise<string> {
   if (!TAVILY_API_KEY) return 'Web search unavailable: TAVILY_API_KEY not configured.';
-
   try {
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -87,27 +132,52 @@ async function tavilySearch(query: string): Promise<string> {
         include_answer: true,
       }),
     });
-
     if (!res.ok) {
       const errText = await res.text();
       return `Search error ${res.status}: ${errText.slice(0, 200)}`;
     }
-
     const data = await res.json();
     let result = '';
-
-    if (data.answer) {
-      result += `Summary: ${data.answer}\n\n`;
-    }
-
+    if (data.answer) result += `Summary: ${data.answer}\n\n`;
     result += 'Sources:\n';
     for (const item of (data.results || []).slice(0, 5)) {
       result += `- [${item.title}](${item.url}): ${(item.content || '').slice(0, 300)}\n`;
     }
-
     return result || 'No results found.';
   } catch (err) {
     return `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
+  }
+}
+
+async function executeTool(
+  name: string,
+  args: Record<string, string>,
+  userKeys: Record<string, string>
+): Promise<string> {
+  switch (name) {
+    case 'web_search':
+      return tavilySearch(args.query || '');
+    case 'send_telegram':
+      return sendTelegram(
+        userKeys['TELEGRAM_BOT_TOKEN'] || '',
+        userKeys['TELEGRAM_CHAT_ID'] || '',
+        args.text || ''
+      );
+    case 'post_tweet':
+      return postTweet(
+        userKeys['TWITTER_API_KEY'] || '',
+        userKeys['TWITTER_API_SECRET'] || '',
+        userKeys['TWITTER_ACCESS_TOKEN'] || '',
+        userKeys['TWITTER_ACCESS_SECRET'] || '',
+        args.text || ''
+      );
+    case 'search_twitter':
+      return searchTwitter(
+        userKeys['TWITTER_BEARER_TOKEN'] || '',
+        args.query || ''
+      );
+    default:
+      return `Unknown tool: ${name}`;
   }
 }
 
@@ -126,8 +196,7 @@ export async function POST(req: NextRequest) {
     return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
   }
 
-  const { message, history = [] } = await req.json();
-
+  const { message, history = [], session_id = '' } = await req.json();
   const recentHistory = history.slice(-16);
 
   // Anti-loop detection
@@ -168,18 +237,15 @@ export async function POST(req: NextRequest) {
       send({ t: 'thinking', v: 'Analyzing request...' });
 
       try {
-        // Phase 1: Non-streaming call to check if tool use is needed
+        // Phase 1: Non-streaming call to check if tools needed
         const phase1Body: Record<string, unknown> = {
           model: MODEL,
           messages,
+          tools: TOOLS,
+          tool_choice: 'auto',
           temperature: 0.7,
           max_tokens: 4096,
         };
-
-        if (TAVILY_API_KEY) {
-          phase1Body.tools = TOOLS;
-          phase1Body.tool_choice = 'auto';
-        }
 
         const phase1Res = await fetch(GROQ_URL, {
           method: 'POST',
@@ -204,27 +270,47 @@ export async function POST(req: NextRequest) {
         if (choice?.message?.tool_calls?.length > 0) {
           const toolCalls = choice.message.tool_calls;
 
-          send({ t: 'thinking', v: 'Searching the web...' });
+          // Fetch user keys only when needed (lazy load)
+          let userKeys: Record<string, string> = {};
+          const needsUserKeys = toolCalls.some(
+            (tc: { function?: { name?: string } }) =>
+              tc.function?.name && tc.function.name !== 'web_search'
+          );
 
-          // Build messages with tool results
+          if (needsUserKeys && session_id) {
+            send({ t: 'thinking', v: 'Loading your service keys...' });
+            userKeys = await fetchUserKeys(session_id);
+          }
+
+          // Execute all tool calls
           const toolMessages = [...messages, choice.message];
 
           for (const tc of toolCalls) {
-            if (tc.function?.name === 'web_search') {
-              const args = JSON.parse(tc.function.arguments || '{}');
-              const searchResult = await tavilySearch(args.query || message);
-              toolMessages.push({
-                role: 'tool',
-                content: searchResult,
-                tool_call_id: tc.id,
-              });
+            const fnName = tc.function?.name || '';
+            const fnArgs = JSON.parse(tc.function?.arguments || '{}');
+
+            if (fnName === 'send_telegram') {
+              send({ t: 'thinking', v: 'Sending to Telegram...' });
+            } else if (fnName === 'post_tweet') {
+              send({ t: 'thinking', v: 'Posting to X/Twitter...' });
+            } else if (fnName === 'search_twitter') {
+              send({ t: 'thinking', v: 'Searching X/Twitter...' });
+            } else if (fnName === 'web_search') {
+              send({ t: 'thinking', v: 'Searching the web...' });
             }
+
+            const result = await executeTool(fnName, fnArgs, userKeys);
+            toolMessages.push({
+              role: 'tool',
+              content: result,
+              tool_call_id: tc.id,
+            });
           }
 
-          send({ t: 'thinking', v: 'Composing answer with search results...' });
+          send({ t: 'thinking', v: 'Composing answer...' });
           send({ t: 'thinking_done' });
 
-          // Phase 2: Streaming call with tool results
+          // Phase 2: Streaming response with tool results
           const phase2Res = await fetch(GROQ_URL, {
             method: 'POST',
             headers: {
@@ -270,7 +356,7 @@ export async function POST(req: NextRequest) {
             }
           }
         } else {
-          // No tool calls \u2014 send content directly
+          // No tool calls
           send({ t: 'thinking', v: 'Generating response...' });
           send({ t: 'thinking_done' });
 

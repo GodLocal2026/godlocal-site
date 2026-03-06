@@ -256,7 +256,7 @@ export default function OasisPage() {
       const res = await fetch('/api/oasis/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('oasis_session_id') || '' : '' }),
         signal: ac.signal,
       })
 
