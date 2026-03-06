@@ -43,10 +43,10 @@ const projects = [
 ];
 
 const colorMap: Record<string, { bg: string; border: string; text: string; glow: string; badgeBg: string }> = {
-  emerald: { bg: 'bg-emerald-500/8', border: 'border-emerald-500/20', text: 'text-emerald-400', glow: 'hover:shadow-emerald-500/10', badgeBg: 'bg-emerald-500/15' },
-  pink:    { bg: 'bg-pink-500/8',    border: 'border-pink-500/20',    text: 'text-pink-400',    glow: 'hover:shadow-pink-500/10',    badgeBg: 'bg-pink-500/15' },
-  violet:  { bg: 'bg-violet-500/8',  border: 'border-violet-500/20',  text: 'text-violet-400',  glow: 'hover:shadow-violet-500/10',  badgeBg: 'bg-violet-500/15' },
-  cyan:    { bg: 'bg-cyan-500/8',    border: 'border-cyan-500/20',    text: 'text-cyan-400',    glow: 'hover:shadow-cyan-500/10',    badgeBg: 'bg-cyan-500/15' },
+  emerald: { bg: 'bg-emerald-500/[0.08]', border: 'border-emerald-500/20', text: 'text-emerald-400', glow: 'hover:shadow-emerald-500/10', badgeBg: 'bg-emerald-500/[0.15]' },
+  pink:    { bg: 'bg-pink-500/[0.08]',    border: 'border-pink-500/20',    text: 'text-pink-400',    glow: 'hover:shadow-pink-500/10',    badgeBg: 'bg-pink-500/[0.15]' },
+  violet:  { bg: 'bg-violet-500/[0.08]',  border: 'border-violet-500/20',  text: 'text-violet-400',  glow: 'hover:shadow-violet-500/10',  badgeBg: 'bg-violet-500/[0.15]' },
+  cyan:    { bg: 'bg-cyan-500/[0.08]',    border: 'border-cyan-500/20',    text: 'text-cyan-400',    glow: 'hover:shadow-cyan-500/10',    badgeBg: 'bg-cyan-500/[0.15]' },
 };
 
 export default function Projects() {
@@ -85,7 +85,37 @@ export default function Projects() {
           {projects.map((project, i) => {
             const c = colorMap[project.color] || colorMap.emerald;
             const isLink = project.href !== '#';
-            const Wrapper = isLink ? Link : 'div';
+            const cardClasses = `group block p-6 rounded-2xl border ${c.border} bg-white/[0.02] backdrop-blur-sm
+                    ${isLink ? 'cursor-pointer hover:bg-white/[0.04] hover:scale-[1.01] hover:shadow-2xl ' + c.glow : 'opacity-70 cursor-default'}
+                    transition-all duration-300`;
+
+            const cardContent = (
+              <>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center text-2xl shrink-0`}>
+                      {project.icon}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white">{project.name}</h3>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${c.badgeBg} ${c.text}`}>
+                          {project.badge}
+                        </span>
+                      </div>
+                      <div className={`text-xs ${c.text} font-medium`}>{project.tagline}</div>
+                    </div>
+                  </div>
+                  {isLink && (
+                    <svg className="w-5 h-5 text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 mt-1"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" />
+                    </svg>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 leading-relaxed">{project.description}</p>
+              </>
+            );
 
             return (
               <motion.div
@@ -95,36 +125,11 @@ export default function Projects() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
               >
-                <Wrapper
-                  {...(isLink ? { href: project.href } : {})}
-                  className={`group block p-6 rounded-2xl border ${c.border} bg-white/[0.02] backdrop-blur-sm
-                    ${isLink ? `cursor-pointer hover:bg-white/[0.04] hover:scale-[1.01] hover:shadow-2xl ${c.glow}` : 'opacity-70 cursor-default'}
-                    transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center text-2xl shrink-0`}>
-                        {project.icon}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-bold text-white">{project.name}</h3>
-                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${c.badgeBg} ${c.text}`}>
-                            {project.badge}
-                          </span>
-                        </div>
-                        <div className={`text-xs ${c.text} font-medium`}>{project.tagline}</div>
-                      </div>
-                    </div>
-                    {isLink && (
-                      <svg className="w-5 h-5 text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 mt-1"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" />
-                      </svg>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 leading-relaxed">{project.description}</p>
-                </Wrapper>
+                {isLink ? (
+                  <Link href={project.href} className={cardClasses}>{cardContent}</Link>
+                ) : (
+                  <div className={cardClasses}>{cardContent}</div>
+                )}
               </motion.div>
             );
           })}
