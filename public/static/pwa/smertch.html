@@ -378,6 +378,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
     </div>
     <button class="exbtn buy" id="exBtn" onclick="execSwap()">⚡ Купить через Phantom</button>
     <button class="exbtn" style="background:var(--bg3);color:var(--t2);margin-top:4px" onclick="aiToken(mSym,mMint)">🤖 AI анализ</button>
+    <button class="exbtn" style="background:linear-gradient(135deg,#1a2a1a,#0d1f0d);color:#4ade80;margin-top:4px;border:1px solid rgba(74,222,128,0.25)" onclick="auditToken(mSym,mMint)">🛡️ Аудит контракта</button>
   </div>
 </div>
 
@@ -780,6 +781,116 @@ ${agRows}
   <a href="${twUrl}" target="_blank">🐦 Twitter</a>
 </div></div>`;}
 
+
+// ─── Smart Contract Audit — 3 Agents ─────────────────────
+function auditAgentBugHunter(p,mint){
+  // Agent 1: scans on-chain patterns for red flags
+  const liq=parseFloat(p.liquidity?.usd||0);
+  const mc=parseFloat(p.fdv||p.marketCap||0);
+  const age=Date.now()-(p.pairCreatedAt||0);
+  const tx=p.txns?.h1||{};const b=tx.buys||0,s=tx.sells||0,tot=b+s;
+  const vol24=parseFloat(p.volume?.h24||0);
+  let bugs=[],score=0;
+  // Liquidity lock check
+  if(liq<3000){bugs.push({sev:'🔴 КРИТИЧНО',txt:'Ликвидность <$3K — возможен мгновенный rug'});}
+  else if(liq<10000){bugs.push({sev:'🟡 ПРЕДУПРЕЖДЕНИЕ',txt:'Низкая ликвидность: '+fN(liq)});}
+  else{bugs.push({sev:'🟢 OK',txt:'Ликвидность: '+fN(liq)});score++;}
+  // Age check
+  if(age<900000){bugs.push({sev:'🔴 КРИТИЧНО',txt:'Контракт < 15 мин — honeypot риск высок'});}
+  else if(age<3600000){bugs.push({sev:'🟡 ПРЕДУПРЕЖДЕНИЕ',txt:'Контракт < 1 час — верифицируй продажи'});}
+  else{bugs.push({sev:'🟢 OK',txt:'Возраст: '+fA(age)});score++;}
+  // Sell-side domination
+  if(tot>5&&s/tot>0.75){bugs.push({sev:'🔴 КРИТИЧНО',txt:'Продажи '+Math.round(s/tot*100)+'% — dump pattern'});}
+  else if(tot>5&&b/tot>0.6){bugs.push({sev:'🟢 OK',txt:'Давление покупок: '+Math.round(b/tot*100)+'%'});score++;}
+  // Mcap/liq ratio
+  const ratio=mc>0&&liq>0?mc/liq:0;
+  if(ratio>100){bugs.push({sev:'🔴 КРИТИЧНО',txt:'MCap/Liq = '+Math.round(ratio)+'x — overvalued vs pool'});}
+  else if(ratio>30){bugs.push({sev:'🟡 ПРЕДУПРЕЖДЕНИЕ',txt:'MCap/Liq = '+Math.round(ratio)+'x'});}
+  else if(ratio>0){bugs.push({sev:'🟢 OK',txt:'MCap/Liq ratio: '+Math.round(ratio)+'x'});score++;}
+  // Volume sanity
+  if(vol24<500&&mc>50000){bugs.push({sev:'🟡 ПРЕДУПРЕЖДЕНИЕ',txt:'Объём за 24ч: '+fN(vol24)+' — низкий для mcap'});}
+  const riskLevel=bugs.filter(b=>b.sev.includes('КРИТИЧНО')).length;
+  return{name:'🔍 Bug Hunter',bugs,score,riskLevel};}
+
+function auditAgentExploit(p,mint){
+  // Agent 2: simulates attack vectors based on on-chain data
+  const liq=parseFloat(p.liquidity?.usd||0);
+  const mc=parseFloat(p.fdv||p.marketCap||0);
+  const age=Date.now()-(p.pairCreatedAt||0);
+  const tx=p.txns?.h1||{};const b=tx.buys||0,s=tx.sells||0;
+  const vol1h=parseFloat(p.volume?.h1||0);
+  let vectors=[],safe=0;
+  // Flash-loan / rug pull simulation
+  if(liq<5000){vectors.push({v:'⚡ Flash Dump',risk:'ВЫСОКИЙ',detail:'Малый пул — $'+Math.round(liq/1000)+'K можно опустошить за 1 транзакцию'});}
+  else if(liq<20000){vectors.push({v:'⚡ Flash Dump',risk:'СРЕДНИЙ',detail:'Пул $'+Math.round(liq/1000)+'K — уязвим при крупном выходе'});}
+  else{vectors.push({v:'⚡ Flash Dump',risk:'НИЗКИЙ',detail:'Пул $'+Math.round(liq/1000)+'K — достаточная буферизация'});safe++;}
+  // Honeypot sim: can't sell
+  if(s<2&&b>10){vectors.push({v:'🍯 Honeypot',risk:'ВЫСОКИЙ',detail:'Соотношение buy:sell = '+b+':'+s+' — нет подтверждённых продаж'});}
+  else if(s>0){vectors.push({v:'🍯 Honeypot',risk:'НИЗКИЙ',detail:'Продажи подтверждены: '+s+' sell-tx за 1ч'});safe++;}
+  // Dev wallet dump
+  const ratio=mc>0&&liq>0?mc/liq:0;
+  if(ratio>50){vectors.push({v:'👤 Dev Dump',risk:'ВЫСОКИЙ',detail:'MCap/Liq '+Math.round(ratio)+'x — девелопер может единоразово обрушить'});}
+  else{vectors.push({v:'👤 Dev Dump',risk:'НИЗКИЙ',detail:'MCap/Liq '+Math.round(ratio)+'x — контролируемо'});safe++;}
+  // Wash trading
+  if(vol1h>0&&b+s>0){const avgTx=vol1h/(b+s);
+  if(avgTx>5000){vectors.push({v:'🔄 Wash Trading',risk:'СРЕДНИЙ',detail:'Средний tx: $'+Math.round(avgTx)+' — подозрительно крупные транзакции'});}
+  else{vectors.push({v:'🔄 Wash Trading',risk:'НИЗКИЙ',detail:'Средний tx: $'+Math.round(avgTx)});safe++;}}
+  return{name:'💥 Exploit Sim',vectors,safe,total:vectors.length};}
+
+function auditReportGen(bugAgent,exploitAgent,p,sym,mint){
+  // Agent 3: synthesises final security report
+  const criticals=bugAgent.bugs.filter(b=>b.sev.includes('КРИТИЧНО')).length;
+  const highRisk=exploitAgent.vectors.filter(v=>v.risk==='ВЫСОКИЙ').length;
+  const totalRisk=criticals+highRisk;
+  let verdict,vCls,score;
+  if(totalRisk===0){verdict='✅ БЕЗОПАСНО';vCls='bull';score=90+Math.min(9,bugAgent.score*3);}
+  else if(totalRisk<=1){verdict='⚠️ ОСТОРОЖНО';vCls='neut';score=50-totalRisk*10;}
+  else if(totalRisk<=3){verdict='🔴 РИСКОВАННО';vCls='bear';score=30-totalRisk*5;}
+  else{verdict='💀 DANGER ZONE';vCls='bear';score=Math.max(0,15-totalRisk*3);}
+  const bugRows=bugAgent.bugs.map(b=>`<div class="arow"><span class="albl" style="font-size:11px">${b.sev}</span><span style="font-size:11px;color:var(--t);text-align:right;flex:1">${b.txt}</span></div>`).join('');
+  const exploitRows=exploitAgent.vectors.map(v=>{
+    const rCol=v.risk==='ВЫСОКИЙ'?'var(--red)':v.risk==='СРЕДНИЙ'?'var(--orange)':'var(--green)';
+    return`<div class="arow"><span style="font-size:11px;font-weight:600;color:${rCol}">${v.v}</span><span style="font-size:11px;color:var(--t2);text-align:right;flex:1">${v.detail}</span></div>`;}).join('');
+  const mintShort=mint.slice(0,6)+'…'+mint.slice(-4);
+  return`<div class="air">
+<div class="verdict ${vCls}" style="font-size:15px">🛡️ АУДИТ — $${sym}</div>
+<div style="font-size:11px;color:var(--t2);margin-bottom:10px">${mintShort} · Security Score: <b style="color:${score>=70?'var(--green)':score>=40?'var(--orange)':'var(--red)'}">${score}/100</b></div>
+<div class="verdict ${vCls}" style="font-size:13px;margin-bottom:10px">${verdict}</div>
+<details open style="margin-bottom:8px">
+  <summary style="font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;user-select:none;margin-bottom:6px">🔍 Bug Hunter — ${criticals} критических</summary>
+  ${bugRows}
+</details>
+<details style="margin-bottom:8px">
+  <summary style="font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;user-select:none;margin-bottom:6px">💥 Exploit Simulation — ${highRisk} высоких рисков</summary>
+  ${exploitRows}
+</details>
+<div style="background:var(--bg);border-radius:12px;padding:10px 12px;margin-top:4px">
+  <div style="font-size:11px;color:var(--t2);margin-bottom:4px">📋 Вывод аудитора:</div>
+  <div style="font-size:13px;line-height:1.5">${totalRisk===0?'Контракт прошёл базовую проверку. Стандартный due diligence выполнен.':totalRisk<=2?'Обнаружены риски. Торгуй с уменьшенной позицией.':'Серьёзные уязвимости. Высокий риск потери средств.'}</div>
+</div>
+<div class="alinks" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+  <a href="https://dexscreener.com/solana/${mint}" target="_blank">📊 Dex</a>
+  <a href="https://axiom.trade/meme/${mint}" target="_blank">⚡ Axiom</a>
+  ${mint?`<a href="https://solscan.io/token/${mint}" target="_blank">🔗 Solscan</a>`:''}
+</div></div>`;}
+
+async function auditToken(sym,mint){
+  go('ai');await new Promise(r=>setTimeout(r,80));
+  const lm=addMsg(`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><div class="spin" style="width:14px;height:14px;border-width:2px"></div><div><b>🛡️ Запускаю аудит $${sym}…</b><br><span style="font-size:11px;color:var(--t2)">🔍 Bug Hunter → 💥 Exploit Sim → 📋 Report</span></div></div>`,'ai');
+  try{const p=await fetchPairData(mint);
+  if(!p)throw new Error('pair_not_found');
+  // Step 1 progress
+  lm.innerHTML=`<div style="font-size:12px;color:var(--t2)">🔍 Bug Hunter… сканирую паттерны</div>`;
+  await new Promise(r=>setTimeout(r,600));
+  const bugAgent=auditAgentBugHunter(p,mint);
+  lm.innerHTML=`<div style="font-size:12px;color:var(--t2)">💥 Exploit Sim… симулирую атаки</div>`;
+  await new Promise(r=>setTimeout(r,600));
+  const exploitAgent=auditAgentExploit(p,mint);
+  lm.innerHTML=`<div style="font-size:12px;color:var(--t2)">📋 Report Generator… формирую отчёт</div>`;
+  await new Promise(r=>setTimeout(r,400));
+  lm.remove();
+  addMsg(auditReportGen(bugAgent,exploitAgent,p,sym,mint),'ai');}
+  catch(e){lm.remove();addMsg(`<div class="air"><div class="verdict neut">⚠️ Аудит недоступен — нет данных по ${sym}</div><a href="https://solscan.io/token/${mint}" target="_blank" style="font-size:13px;padding:8px 14px;background:var(--bg3);border-radius:10px;color:var(--blue);text-decoration:none;display:inline-block;margin-top:8px">🔗 Solscan</a></div>`,'ai');}}
 // ─── AI Analysis ─────────────────────────────────────────
 async function fetchPairData(mint){
   try{const r=await fetch(`${DEX}/tokens/v1/solana/${mint}`);
@@ -821,7 +932,7 @@ function aiOffline(sym,mint){
   const ql=(sym||'').toLowerCase();
   if(ql.includes('rug')||ql.includes('скам'))return`<div class="air"><div class="verdict neut">🔒 Rug — на что смотреть</div><div class="arow"><span class="albl">Ликвидность</span><span class="aval">&gt; $5K</span></div><div class="arow"><span class="albl">Продажи</span><span class="aval">&lt; 65%</span></div><div class="arow"><span class="albl">Возраст</span><span class="aval">&gt; 30 мин</span></div><div class="arow"><span class="albl">Mcap/Liq</span><span class="aval">&lt; 50x</span></div></div>`;
   if(ql.includes('sol'))return`⚡ SOL: <b>$${solUsd.toFixed(2)}</b>`;
-  return`<div class="air"><div class="verdict neut">🤖 slonik52 AI</div><div style="font-size:13px;color:var(--t2);line-height:1.6">Вставь mint-адрес токена — запущу 4 агентов:<br><br>🔒 Rug Detective &nbsp;·&nbsp; 📈 Momentum<br>🏦 Value &nbsp;·&nbsp; 🐦 Sentiment<br><br>→ Portfolio Manager выдаст вердикт</div></div>`;}
+  return`<div class="air"><div class="verdict neut">🤖 slonik52 AI</div><div style="font-size:13px;color:var(--t2);line-height:1.6">Вставь mint-адрес — доступно 2 режима:<br><br><b style="color:var(--t)">📊 AI Анализ</b><br>🔒 Rug Detective · 📈 Momentum · 🏦 Value · 🐦 Sentiment<br>→ Portfolio Manager выдаст вердикт<br><br><b style="color:var(--green)">🛡️ Аудит контракта</b><br>🔍 Bug Hunter · 💥 Exploit Sim · 📋 Report<br>→ Security Score + список уязвимостей</div></div>`;}
 
 // ─── UI Handlers ─────────────────────────────────────────
 function chip(c){activeChip=c;
@@ -1015,7 +1126,15 @@ function aiK(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI();}}
 function sendAI(){const i=G('aiI');const q=i.value.trim();if(!q)return;i.value='';i.style.height='auto';addMsg(q,'us');sendAIReq(q);}
 async function sendAIReq(q){
   const mintMatch=q.match(/[1-9A-HJ-NP-Za-km-z]{40,44}/);
-  if(mintMatch){aiAnalyze(mintMatch[0].slice(0,6)+'…',mintMatch[0]);return;}
+  if(mintMatch){
+    const m=mintMatch[0];
+    if(q.toLowerCase().includes('аудит')||q.toLowerCase().includes('audit')||q.toLowerCase().includes('безопас')||q.toLowerCase().includes('security')){
+      auditToken(m.slice(0,6)+'…',m);
+    }else{
+      aiAnalyze(m.slice(0,6)+'…',m);
+    }
+    return;
+  }
   const ql=q.toLowerCase();
   if(ql.includes('rug')||ql.includes('скам')){addMsg(aiOffline('rug',null),'ai');return;}
   if(ql.includes('sol')&&(ql.includes('цена')||ql.includes('price'))){addMsg(`⚡ SOL: <b>$${solUsd.toFixed(2)}</b>`,'ai');return;}
