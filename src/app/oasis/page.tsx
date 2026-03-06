@@ -221,11 +221,11 @@ export default function OasisPage() {
 
   // Radio stations
   const RADIO_STATIONS = [
+    { name: 'Kiss FM 🇺🇦', url: 'https://online.kissfm.ua/KissFM', emoji: '💋' },
+    { name: 'Afro House', url: 'https://stream.sunshine-live.de/afrohouse/mp3-128', emoji: '🌍' },
+    { name: 'Hit FM 🇺🇦', url: 'https://online.hitfm.ua/HitFM', emoji: '🎤' },
+    { name: 'Київ FM', url: 'https://radio.kiev.fm', emoji: '🏙️' },
     { name: 'Record FM', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp', emoji: '🔴' },
-    { name: 'Europa Plus', url: 'https://ep128.hostingradio.ru:8030/ep128', emoji: '🟡' },
-    { name: 'Energy NRJ', url: 'https://cast.radiogroup.com.ua/nrj_mp3_128', emoji: '⚡' },
-    { name: 'Lofi Hip Hop', url: 'https://live.musopen.org:8085/streamvbr0', emoji: '🎵' },
-    { name: 'Chillout', url: 'https://streams.ilovemusic.de/iloveradio17.mp3', emoji: '🌊' },
   ]
 
   const toggleRadio = (stationUrl: string) => {
@@ -337,10 +337,7 @@ export default function OasisPage() {
           if (!trimmed.startsWith('data: ')) continue
           try {
             const d = JSON.parse(trimmed.slice(6))
-            const raw = d.v ?? d.content ?? ''
-            // Filter out raw tool-call markup that models sometimes emit as text
-            const cleaned = raw.replace(/<function\([^)]*\)\{[^}]*\}\s*<\/function>/g, '').replace(/<\/?(function|tool_call)[^>]*>/g, '').trim()
-            handleEvent(d.t || d.type || '', cleaned || raw)
+            handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
           } catch { /* skip */ }
         }
       }

@@ -367,9 +367,7 @@ export async function POST(req: NextRequest) {
           send({ t: 'thinking', v: 'Generating response...' });
           send({ t: 'thinking_done' });
 
-          let content = choice?.message?.content || '';
-          // Strip raw tool-call markup that models sometimes emit
-          content = content.replace(/<function\([^)]*\)\{[\s\S]*?\}\s*<\/function>/g, '').replace(/<\/?(function|tool_call)[^>]*>/g, '').trim();
+          const content = choice?.message?.content || '';
           if (content) {
             const words = content.split(' ');
             for (let i = 0; i < words.length; i += 3) {
