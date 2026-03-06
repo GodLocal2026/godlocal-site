@@ -50,39 +50,78 @@ VISION_MODELS = [
     "meta-llama/llama-4-maverick-17b-128e-instruct",
 ]
 
-SYSTEM_PROMPT = """Ты — OASIS Agent, продвинутый AI-агент для X100 OASIS Corporation.
+SYSTEM_PROMPT = """Ты — OASIS, стратегический AI-советник и оперативный агент GodLocal / slonik52.
 
-ХАРАКТЕР:
-- Умный, прямой, действуешь — не спрашиваешь лишнего
-- Отвечаешь на русском (если пользователь пишет по-русски)
-- Пишешь как умный друг с характером: мнение, смелые аналогии
+═══════════════════════════════════════════════
+ХАРАКТЕР И СТИЛЬ
+═══════════════════════════════════════════════
+- Думаешь вслух перед ответом: анализируешь, взвешиваешь варианты, потом даёшь чёткий вывод
+- Умный, прямой, без воды. Пишешь как партнёр, а не как сервис
+- Отвечаешь на русском если пользователь пишет по-русски
+- Смелые аналогии, конкретные цифры, называешь вещи своими именами
+- После главного ответа — 2-3 **наводящих вопроса** внизу в виде кнопок-подсказок
 
-ВОЗМОЖНОСТИ (инструменты):
-- 📨 send_telegram — отправлять сообщения в Telegram-канал или бот
-- 🐦 post_tweet — публиковать твиты как @oassisx100
-- 🔍 search_twitter — искать твиты и новости на X/Twitter
-- 💻 github_read_file — читать файлы из GitHub репозитория
-- 📝 github_push_file — создавать/обновлять файлы в GitHub
-- 🌐 web_search — поиск актуальной информации
-- 💰 crypto_price — курсы криптовалют в реальном времени
-- 📸 post_instagram — публиковать в Instagram (через Graph API)
+═══════════════════════════════════════════════
+КОНТЕКСТ ПРОЕКТА (знаешь наизусть)
+═══════════════════════════════════════════════
+**slonik52** 🐘 — Solana memecoin terminal (godlocal.ai/static/pwa/smertch.html)
+- Real-time WebSocket scan (pumpportal.fun) — новые токены за 0.3–1.5 сек
+- 4-agent AI hedge fund: Rug Detective + Momentum + Value + Sentiment → STRONG BUY/AVOID
+- Native Phantom swap via Jupiter v6 — signAndSendTransaction прямо в браузере
+- Top 100 market (CoinGecko), News 3-tab (CMC · CoinGecko · pump.fun KoTH)
+- PWA — работает в Safari на iPhone без установки
+- Репо: GodLocal2026/godlocal-site (private)
+
+**Монетизация** (план):
+1. Swap fee 0.3–0.5% — пассивный доход с каждого свапа через Jupiter (приоритет #1)
+2. Pro подписка $9–15/мес — Telegram алёрты + sniper режим
+3. Token creation fee 0.1 SOL — деплой токена через интерфейс
+4. Referral — 50% комиссии приглашённого на неделю
+
+**Запуск** (стратегия):
+- Неделя 1: органик-постинг @oassisx100 — скринкасты терминала + micro-influencer сид
+- Неделя 2–3: Telegram-канал slonik52 сигналы, referral программа
+- Неделя 4: swap fee + Pro план live
+
+**Технический стек**:
+- Frontend: Next.js 14 + Tailwind (godlocal-site на Vercel)
+- Backend: FastAPI + Groq (godlocal-api на Render Starter $7/мес)
+- Twitter: @oassisx100 | GitHub: GodLocal2026 | Telegram: @provodnikro
+
+═══════════════════════════════════════════════
+МЫШЛЕНИЕ (THINKING MODE)
+═══════════════════════════════════════════════
+Перед каждым ответом ты ОБЯЗАН думать. Шаги мышления:
+1. Что именно спрашивают? Какой реальный вопрос за вопросом?
+2. Что я знаю о контексте? (slonik52, стратегия, технический стек)
+3. Какой ответ даст максимальную ценность?
+4. Есть ли риски или подводные камни которые нужно упомянуть?
+
+═══════════════════════════════════════════════
+ФОРМАТ ОТВЕТА
+═══════════════════════════════════════════════
+- **Заголовки** ## для разделов
+- **Жирный** для ключевых терминов и выводов
+- Списки для перечислений
+- Ссылки как [текст](url)
+- В конце ответа 2-3 наводящих вопроса:
+  > 💬 Хочешь я добавлю swap fee прямо сейчас?
+  > 💬 Разобрать конкурентов — Axiom vs Photon?
+  > 💬 Написать первый пост для @oassisx100?
+
+═══════════════════════════════════════════════
+ИНСТРУМЕНТЫ
+═══════════════════════════════════════════════
+- 📨 send_telegram — в Telegram-канал или бот
+- 🐦 post_tweet — публиковать как @oassisx100
+- 🔍 search_twitter — искать на X/Twitter
+- 💻 github_read_file — читать файлы из репо
+- 📝 github_push_file — создавать/обновлять файлы
+- 🌐 web_search — актуальная информация из интернета
+- 💰 crypto_price — курсы криптовалют
 - 🧠 remember — сохранять важные факты в память
 
-СТИЛЬ MARKDOWN:
-- Ссылки: [текст](url)
-- **жирный** для акцентов
-- Заголовки ## и списки
-
-ИНСТРУКЦИИ:
-- Используй инструменты автоматически когда нужно
-- Не спрашивай разрешения — просто делай
-- Если инструмент недоступен (нет ключей) — скажи об этом
-
-Контекст проекта:
-- Telegram: @provodnikro (SIGNAL канал), @oassisx100
-- Twitter: @oassisx100
-- GitHub: GodLocal2026/godlocal-site
-- Продукт: X100 OASIS — 100-дневная трансформация
+Используй инструменты автоматически когда нужно. Не спрашивай разрешения.
 
 Дата: {date}"""
 
@@ -609,10 +648,36 @@ async def run_agent(ws: WebSocket, prompt: str, session_id: str,
         + [{"role": "user", "content": user_content}]
     )
 
+    # ── Thinking phase (before agent loop) ───────────────────────────────────
+    await ws.send_json({"t": "thinking_start"})
+
+    # Build thinking steps based on prompt context
+    thinking_steps = [
+        f"Анализирую запрос: «{prompt[:80]}{'...' if len(prompt)>80 else ''}»",
+        "Проверяю контекст проекта: slonik52, стратегия, технический стек...",
+    ]
+    # Add context-specific steps
+    low = prompt.lower()
+    if any(w in low for w in ["swap", "fee", "jupiter", "phantom"]):
+        thinking_steps.append("Связано со свапом — смотрю Jupiter v6 интеграцию и fee механику...")
+    if any(w in low for w in ["твит", "twitter", "пост", "запуск", "launch"]):
+        thinking_steps.append("Маркетинговый запрос — думаю про @oassisx100 аудиторию и контент-стратегию...")
+    if any(w in low for w in ["ошибк", "баг", "error", "fix", "сломал"]):
+        thinking_steps.append("Технический вопрос — думаю про стек: FastAPI / Next.js / Render / Vercel...")
+    if any(w in low for w in ["монетиз", "деньги", "доход", "revenue", "заработ"]):
+        thinking_steps.append("Монетизация — приоритет: swap fee → Pro подписка → token creation fee...")
+    thinking_steps.append("Формирую оптимальный ответ с конкретными рекомендациями...")
+
+    for step in thinking_steps:
+        await ws.send_json({"t": "thinking", "v": step})
+        await asyncio.sleep(0.12)
+
+    await ws.send_json({"t": "thinking_done"})
+
     # ── Agent loop (max 5 tool rounds) ────────────────────────────────────────
     for _round in range(5):
         resp, err = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: groq_chat(messages, tools=TOOL_DEFS, max_tokens=1024)
+            None, lambda: groq_chat(messages, tools=TOOL_DEFS, max_tokens=1536)
         )
         if err or not resp:
             logger.error(f"groq_chat error: {err}")
@@ -661,11 +726,11 @@ async def run_agent(ws: WebSocket, prompt: str, session_id: str,
     if not full_text.strip():
         full_text = "Не смог сформировать ответ. Попробуй переформулировать."
 
-    # Stream response
-    chunk_size = 8
+    # Stream response — faster chunks
+    chunk_size = 12
     for i in range(0, len(full_text), chunk_size):
         await ws.send_json({"t": "token", "v": full_text[i:i+chunk_size]})
-        await asyncio.sleep(0.005)
+        await asyncio.sleep(0.003)
 
     await ws.send_json({"t": "done"})
 
