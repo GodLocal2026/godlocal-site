@@ -15,6 +15,8 @@ export default function Header() {
           <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
           <Link href="/#how" className="hover:text-white transition-colors">How it works</Link>
           <Link href="/oasis" className="hover:text-white transition-colors">Oasis</Link>
+          <Link href="/nebudda" className="hover:text-white transition-colors">NEBUDDA</Link>
+          <Link href="/#projects" className="hover:text-white transition-colors">Projects</Link>
           <a href="https://twitter.com/oassisx100" target="_blank" rel="noopener" className="hover:text-white transition-colors">Twitter</a>
         </nav>
         <div className="flex items-center gap-3">
@@ -43,6 +45,8 @@ export default function Header() {
           <Link href="/#features" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">Features</Link>
           <Link href="/#how" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">How it works</Link>
           <Link href="/oasis" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">Oasis</Link>
+          <Link href="/nebudda" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">NEBUDDA</Link>
+          <Link href="/#projects" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">Projects</Link>
           <a href="https://github.com/GodLocal2026/godlocal" target="_blank" rel="noopener" className="block text-gray-300 hover:text-white py-2">GitHub</a>
         </div>
       )}

@@ -1,5 +1,6 @@
 import Hero from "@/components/sections/Hero";
 import Features from "@/components/sections/Features";
+import Projects from "@/components/sections/Projects";
 import TieredRouter from "@/components/sections/TieredRouter";
 import Agents from "@/components/sections/Agents";
 import HowItWorks from "@/components/sections/HowItWorks";
@@ -11,6 +12,7 @@ export default function HomePage() {
     <>
       <Hero />
       <Features />
+      <Projects />
       <TieredRouter />
       <Agents />
       <HowItWorks />

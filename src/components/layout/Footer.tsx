@@ -11,7 +11,9 @@ export default function Footer() {
           </Link>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
             <Link href="/oasis" className="hover:text-white transition-colors">Oasis</Link>
+            <Link href="/nebudda" className="hover:text-white transition-colors">NEBUDDA</Link>
             <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
+            <Link href="/#projects" className="hover:text-white transition-colors">Projects</Link>
             <a href="https://github.com/GodLocal2026/godlocal" target="_blank" rel="noopener" className="hover:text-white transition-colors">GitHub</a>
             <a href="https://twitter.com/oassisx100" target="_blank" rel="noopener" className="hover:text-white transition-colors">Twitter</a>
           </div>
