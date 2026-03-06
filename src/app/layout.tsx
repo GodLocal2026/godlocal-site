@@ -4,25 +4,76 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "slonik52 🐘 — Solana Memecoin Terminal",
-  description: "The fastest AI-powered Solana memecoin terminal. Real-time scanner, 4-agent hedge fund, native Phantom swap. No install.",
+  title: "GodLocal — Your AI. Your Machine.",
+  description:
+    "The fastest local AI inference platform. 17,000 tokens/sec, autonomous agents with memory and emotions, 5-tier smart routing. Open Core. Runs on iPhone.",
   metadataBase: new URL("https://godlocal.ai"),
+  keywords: [
+    "local AI",
+    "AI inference",
+    "autonomous agents",
+    "local LLM",
+    "self-hosted AI",
+    "AI platform",
+    "open source AI",
+    "Solana DeFi",
+    "crypto terminal",
+    "GodLocal",
+  ],
+  authors: [{ name: "GodLocal", url: "https://godlocal.ai" }],
+  creator: "GodLocal",
   openGraph: {
-    title: "slonik52 🐘 — Solana Memecoin Terminal",
-    description: "Real-time scanner · 4-agent AI · Native Phantom swap · Free",
+    type: "website",
+    locale: "en_US",
     url: "https://godlocal.ai",
-    siteName: "slonik52",
+    siteName: "GodLocal",
+    title: "GodLocal — Your AI. Your Machine.",
+    description:
+      "The fastest local AI inference platform. 17k tok/s, autonomous agents, 5-tier routing. Open Core — community edition free forever.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "GodLocal — Autonomous AI Platform",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "@oassisx100",
-    title: "slonik52 🐘 — Trade Solana memecoins smarter",
+    title: "GodLocal — Your AI. Your Machine.",
+    description:
+      "17k tok/s. Autonomous agents. 5-tier smart routing. Open Core. Runs on iPhone.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "https://godlocal.ai",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className="bg-[#060810] text-[#E0E0E0] antialiased">
         <Header />
         <main>{children}</main>
