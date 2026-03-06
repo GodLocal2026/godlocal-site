@@ -30,7 +30,7 @@ async function sbInsert(table: string, body: object): Promise<void> {
 }
 
 /* ─── Types ─────────────────────────────────────────────────── */
-interface Channel { id: string; name: string; icon: string; description: string }
+interface Channel { id: string; name: string; icon: string; description: string; type?: "group"|"channel"; admin_ids?: string[] }
 interface Message { id: string; channel_id: string; user_id: string; username: string; content: string; is_ai: boolean; created_at: string; msg_type?: string; media_url?: string }
 
 /* ─── Helpers ────────────────────────────────────────────────── */
@@ -57,6 +57,11 @@ export default function NebuddaPage() {
   const [editingName,  setEditingName] = useState(false);
   const [nameInput,    setNameInput]   = useState("");
   const [showStickers, setShowStickers] = useState(false);
+  const [showCreate,   setShowCreate]   = useState(false);
+  const [createName,   setCreateName]   = useState("");
+  const [createType,   setCreateType]   = useState<"group"|"channel">("group");
+  const [createIcon,   setCreateIcon]   = useState("💬");
+  const [createDesc,   setCreateDesc]   = useState("");
   const [stickerPack,  setStickerPack] = useState("Буба");
   const [isRecording,  setIsRecording] = useState(false);
   const [recordTime,   setRecordTime]  = useState(0);
@@ -131,6 +136,49 @@ export default function NebuddaPage() {
     localStorage.setItem("nebudda_name", n); setUsername(n); setEditingName(false);
   };
 
+
+
+  /* ─── Create Channel/Group ─────────────────────────────────── */
+  const createChannel = async () => {
+    const name = createName.trim();
+    if (!name) return;
+    try {
+      await sbInsert("nebudda_channels", {
+        name,
+        icon: createIcon || "💬",
+        description: createDesc.trim() || (createType === "channel" ? "Канал" : "Группа"),
+        type: createType,
+        admin_ids: [myId],
+      });
+      // Reload channels
+      const data = await sbGet<Channel>("nebudda_channels", "order=created_at");
+      setChannels(data);
+      const newCh = data.find(c => c.name === name);
+      if (newCh) setActive(newCh);
+      setShowCreate(false);
+      setCreateName(""); setCreateDesc(""); setCreateIcon("💬"); setCreateType("group");
+    } catch (e) { console.error("Create channel error:", e); }
+  };
+
+  /* ─── Buba auto-greeting ───────────────────────────────────── */
+  const triggerBuba = useCallback(async (channelId: string, channelName: string, prompt: string) => {
+    setAiThinking(true);
+    try {
+      const res = await fetch("/api/nebudda/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: prompt, channel: channelName, persona: "buba" }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        await sbInsert("nebudda_messages", {
+          channel_id: channelId, user_id: "buba_ai",
+          username: "Буба 🧸", content: data.reply, is_ai: true,
+        });
+      }
+    } catch { /* silent */ }
+    setAiThinking(false);
+  }, []);
 
   /* ─── Voice Recording ──────────────────────────────────────── */
   const startRecording = async () => {
@@ -215,26 +263,31 @@ export default function NebuddaPage() {
     });
 
     /* @ai trigger */
-    const m = text.match(/^@(?:ai|godlocal)\s+([\s\S]+)/i);
+    const m = text.match(/^@(?:ai|godlocal|buba|буба)\\s+([\\s\\S]+)/i);
+    const isBuba = m ? /^@(?:buba|буба)/i.test(text) : false;
+    const bm = !m ? text.match(/^@(?:buba|буба)\s+([\s\S]+)/i) : null;
     if (m) {
       setAiThinking(true);
       try {
         const res = await fetch("/api/nebudda/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: m[1], channel: active.name }),
+          body: JSON.stringify({ message: m[1], channel: active.name, persona: isBuba ? "buba" : "ai" }),
         });
         const data = await res.json();
         if (data.reply) {
           await sbInsert("nebudda_messages", {
-            channel_id: active.id, user_id: "godlocal_ai",
-            username: "GodLocal AI", content: data.reply, is_ai: true,
+            user_id: isBuba ? "buba_ai" : "godlocal_ai",
+            username: isBuba ? "Буба 🧸" : "GodLocal AI", content: data.reply, is_ai: true,
           });
         }
       } catch { /* silent */ }
       setAiThinking(false);
     }
-  }, [input, active, myId, username]);
+    if (bm && active) {
+      await triggerBuba(active.id, active.name, bm[1]);
+    }
+  }, [input, active, myId, username, triggerBuba]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -290,7 +343,16 @@ export default function NebuddaPage() {
 
         {/* channels */}
         <div className="flex-1 overflow-y-auto py-2">
-          <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-gray-700">Каналы</div>
+          <div className="flex items-center px-3 py-1.5">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-gray-700 flex-1">Каналы</div>
+            <button onClick={() => setShowCreate(true)}
+              className="w-5 h-5 flex items-center justify-center rounded-md text-gray-600 hover:text-[#FD79A8] hover:bg-[#FD79A815] transition-all"
+              title="Создать канал/группу">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+              </svg>
+            </button>
+          </div>
           {channels.map(ch => (
             <button key={ch.id}
               onClick={() => { setActive(ch); if (window.innerWidth < 640) setSidebar(false); }}
@@ -302,7 +364,10 @@ export default function NebuddaPage() {
                   style={{ color: active?.id === ch.id ? "#FD79A8" : "#9ca3af" }}>
                   # {ch.name}
                 </div>
-                <div className="text-[10px] text-gray-700 truncate">{ch.description}</div>
+                <div className="text-[10px] text-gray-700 truncate flex items-center gap-1">
+                  {ch.type === "channel" && <span className="text-[8px] px-1 py-0 rounded bg-[#FD79A815] text-[#FD79A8]">📢</span>}
+                  {ch.description}
+                </div>
               </div>
             </button>
           ))}
@@ -311,7 +376,7 @@ export default function NebuddaPage() {
         {/* ai hint */}
         <div className="px-3 py-2.5 border-t" style={{ borderColor: "#0d131e" }}>
           <div className="text-[10px] text-gray-700 leading-relaxed">
-            <span style={{ color: "#FD79A8" }}>@ai</span> вопрос → GodLocal AI<br/>🎤 голос · 😀 стикеры · 📷 фото
+            <span style={{ color: "#FD79A8" }}>@ai</span> или <span style={{ color: "#FD79A8" }}>@buba</span> → вызвать ассистента<br/>🎤 голос · 😀 стикеры · 📷 фото
           </div>
         </div>
       </div>
@@ -332,7 +397,10 @@ export default function NebuddaPage() {
             <>
               <span className="text-xl shrink-0">{active.icon}</span>
               <div>
-                <div className="text-sm font-bold text-white"># {active.name}</div>
+                <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                  {active.type === "channel" ? "📢" : "#"} {active.name}
+                  {active.type === "channel" && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FD79A822] text-[#FD79A8] font-mono">канал</span>}
+                </div>
                 <div className="text-[11px] text-gray-600">{active.description}</div>
               </div>
             </>
@@ -366,7 +434,7 @@ export default function NebuddaPage() {
                   {showMeta && (
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
                       style={{ background: color+"22", color, border: `1px solid ${color}40` }}>
-                      {msg.is_ai ? "⚡" : msg.username.slice(0,2).toUpperCase()}
+                      {msg.user_id === "buba_ai" ? "🧸" : msg.is_ai ? "⚡" : msg.username.slice(0,2).toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -374,7 +442,7 @@ export default function NebuddaPage() {
                   {showMeta && (
                     <div className="flex items-baseline gap-2 mb-0.5">
                       <span className="text-xs font-semibold" style={{ color }}>
-                        {msg.is_ai ? "GodLocal AI" : isMe ? `${msg.username} (ты)` : msg.username}
+                        {msg.user_id === "buba_ai" ? "Буба 🧸" : msg.is_ai ? "GodLocal AI" : isMe ? `${msg.username} (ты)` : msg.username}
                       </span>
                       <span className="text-[10px] text-gray-700">{timeStr(msg.created_at)}</span>
                     </div>
@@ -416,7 +484,7 @@ export default function NebuddaPage() {
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
                 style={{ background: "#FD79A822", color: "#FD79A8", border: "1px solid #FD79A840" }}>⚡</div>
               <div>
-                <div className="text-xs font-semibold mb-1" style={{ color: "#FD79A8" }}>GodLocal AI</div>
+                <div className="text-xs font-semibold mb-1" style={{ color: "#FD79A8" }}>🧸 Буба думает...</div>
                 <div className="flex items-center gap-1 px-3 py-2 rounded-lg"
                   style={{ background: "rgba(253,121,168,0.06)", border: "1px solid rgba(253,121,168,0.1)", display: "inline-flex" }}>
                   {[0,1,2].map(n => (
@@ -518,6 +586,72 @@ export default function NebuddaPage() {
           </div>
         )}
       </div>
+
+      {/* ── Create Channel/Group Modal ── */}
+      {showCreate && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+          <div className="w-80 rounded-2xl p-5" style={{ background: "#0d131e", border: "1px solid #1a2535" }}>
+            <div className="text-sm font-bold text-white mb-4">Создать канал / группу</div>
+
+            {/* type toggle */}
+            <div className="flex gap-2 mb-4">
+              {(["group","channel"] as const).map(t => (
+                <button key={t} onClick={() => setCreateType(t)}
+                  className="flex-1 text-xs py-2 rounded-xl font-semibold transition-all"
+                  style={{
+                    background: createType === t ? (t === "group" ? "#00FF9D22" : "#FD79A822") : "#080A0D",
+                    color: createType === t ? (t === "group" ? "#00FF9D" : "#FD79A8") : "#6b7280",
+                    border: `1px solid ${createType === t ? (t === "group" ? "#00FF9D40" : "#FD79A840") : "#1a2535"}`,
+                  }}>
+                  {t === "group" ? "💬 Группа" : "📢 Канал"}
+                </button>
+              ))}
+            </div>
+
+            {/* icon picker */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-2xl">{createIcon}</span>
+              <div className="flex flex-wrap gap-1">
+                {["💬","🎮","🎵","📚","🌍","🔥","💼","🧸","🚀","🌙"].map(e => (
+                  <button key={e} onClick={() => setCreateIcon(e)}
+                    className="text-lg hover:scale-125 transition-transform"
+                    style={{ opacity: createIcon === e ? 1 : 0.4 }}>{e}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* name */}
+            <input value={createName} onChange={e => setCreateName(e.target.value)}
+              placeholder="Название..." autoFocus
+              className="w-full text-sm px-3 py-2 rounded-xl outline-none text-white mb-3"
+              onKeyDown={e => e.key === "Enter" && createChannel()}
+              style={{ background: "#080A0D", border: "1px solid #1a2535" }} />
+
+            {/* description */}
+            <input value={createDesc} onChange={e => setCreateDesc(e.target.value)}
+              placeholder="Описание (необязательно)..."
+              className="w-full text-xs px-3 py-2 rounded-xl outline-none text-gray-400 mb-4"
+              style={{ background: "#080A0D", border: "1px solid #1a2535" }} />
+
+            <div className="text-[10px] text-gray-600 mb-4">
+              {createType === "channel"
+                ? "📢 Канал — только админы пишут, остальные читают"
+                : "💬 Группа — все участники могут писать"}
+            </div>
+
+            {/* buttons */}
+            <div className="flex gap-2">
+              <button onClick={() => setShowCreate(false)}
+                className="flex-1 text-xs py-2 rounded-xl text-gray-500 hover:text-gray-300 transition-colors"
+                style={{ background: "#080A0D", border: "1px solid #1a2535" }}>Отмена</button>
+              <button onClick={createChannel} disabled={!createName.trim()}
+                className="flex-1 text-xs py-2 rounded-xl font-semibold transition-all disabled:opacity-30"
+                style={{ background: "#FD79A8", color: "#000" }}>Создать</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
