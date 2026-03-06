@@ -1,56 +1,53 @@
-"use client";
-import { motion } from "framer-motion";
+'use client';
+
+const specs = [
+  { model: 'LFM2 24B', speed: '40 tok/s', tech: 'CoreML + ANE' },
+  { model: 'PARO 4B', speed: '60 tok/s', tech: 'CoreML + ANE' },
+  { model: 'BitNet 0.4GB', speed: '80 tok/s', tech: 'WASM fallback' },
+];
 
 export default function IPhoneDemo() {
   return (
-    <section className="py-24 bg-[#111316]/30">
-      <div className="container">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} className="flex justify-center">
-            <div className="relative">
-              <div className="w-60 h-[500px] bg-gradient-to-b from-[#111316] to-[#2A2A2A] rounded-[3rem] border-2 border-[#333] p-4 shadow-2xl shadow-[#00FF9D]/5">
-                <div className="w-20 h-5 bg-[#0A0C0F] rounded-full mx-auto mb-4" />
-                <div className="bg-[#0A0C0F] rounded-2xl h-full p-4 font-mono text-xs overflow-hidden">
-                  <div className="text-[#00FF9D] mb-3 font-bold">GodLocal // iPhone</div>
-                  <div className="space-y-3">
-                    {[{name:"LFM2 24B", speed:"40 tok/s", w:"67%"},{name:"PARO 4B", speed:"60 tok/s", w:"100%"}].map((m,i) => (
-                      <div key={m.name} className="bg-[#111316] rounded-lg p-3 border border-[#333]">
-                        <div className="text-[#E0E0E0]/80 font-semibold mb-1">{m.name}</div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-[#E0E0E0]/40 text-xs">CoreML + ANE</span>
-                          <span className="text-[#00FF9D] font-bold">{m.speed}</span>
-                        </div>
-                        <div className="h-1.5 bg-[#333] rounded-full overflow-hidden">
-                          <motion.div initial={{width:0}} whileInView={{width:m.w}} viewport={{once:true}} transition={{duration:1,delay:0.5+i*0.2}}
-                            className="h-full bg-[#00FF9D] rounded-full" />
-                        </div>
-                      </div>
-                    ))}
-                    <div className="bg-[#00FF9D]/10 border border-[#00FF9D]/20 rounded-lg p-3">
-                      <div className="text-[#00FF9D] text-xs">✓ All data stays on device</div>
-                      <div className="text-[#00FF9D]/50 text-xs mt-1">Zero cloud calls</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute inset-0 -z-10 bg-[#00FF9D]/5 blur-3xl rounded-full" />
-            </div>
-          </motion.div>
+    <section className="py-24 bg-[#060810]">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <motion.div initial={{opacity:0,x:20}} whileInView={{opacity:1,x:0}} viewport={{once:true}}
-              className="inline-block px-3 py-1 rounded-full border border-[#00FF9D]/20 bg-[#00FF9D]/5 text-[#00FF9D] text-xs font-mono mb-6">iPhone // CoreML + ANE</motion.div>
-            <motion.h2 initial={{opacity:0,x:20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:0.1}} className="section-title mb-6">
-              AI in your pocket. <span className="text-[#00FF9D]">Without the cloud.</span>
-            </motion.h2>
-            <motion.p initial={{opacity:0,x:20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:0.2}}
-              className="text-[#E0E0E0]/50 text-lg mb-8 leading-relaxed">
-              GodLocal leverages Apple&apos;s Neural Engine to run full LLMs entirely on-device. No internet. No data leaks.
-            </motion.p>
-            <motion.ul initial={{opacity:0,x:20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:0.3}} className="space-y-3 mb-8">
-              {["LFM2 24B — 40 tok/s on iPhone","PARO 4B — 60 tok/s with ANE","CoreML optimization built-in","100% private — zero telemetry"].map(t => (
-                <li key={t} className="flex items-center gap-3 text-[#E0E0E0]/70"><span className="text-[#00FF9D]">✓</span>{t}</li>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm mb-5">Mobile AI</div>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+              AI в кармане. <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">Без облака.</span>
+            </h2>
+            <p className="text-gray-400 text-lg mb-8">Полноценный AI-инференс прямо на iPhone. Данные никогда не покидают устройство.</p>
+            <div className="space-y-4 mb-8">
+              {specs.map(s => (
+                <div key={s.model} className="flex items-center justify-between bg-[#0d1017] border border-white/[0.06] rounded-xl p-4">
+                  <div>
+                    <span className="text-white font-bold">{s.model}</span>
+                    <span className="text-gray-500 text-sm ml-3">{s.tech}</span>
+                  </div>
+                  <div className="text-green-400 font-mono font-bold">{s.speed}</div>
+                </div>
               ))}
-            </motion.ul>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ Полная приватность</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ Оффлайн режим</span>
+              <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-sm border border-green-500/20">✅ PWA</span>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <div className="relative w-[280px] h-[560px] bg-[#0d1017] rounded-[3rem] border-2 border-white/10 p-3 shadow-2xl shadow-green-500/5">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full" />
+              <div className="w-full h-full bg-[#0A0C0F] rounded-[2.4rem] flex flex-col items-center justify-center p-6 text-center">
+                <div className="text-5xl mb-4">🧠</div>
+                <div className="text-white font-bold text-lg mb-1">GodLocal</div>
+                <div className="text-gray-400 text-sm mb-6">On-device AI</div>
+                <div className="w-full bg-green-500/10 rounded-xl p-4 border border-green-500/20">
+                  <div className="text-green-400 text-2xl font-mono font-black">60 tok/s</div>
+                  <div className="text-gray-400 text-xs mt-1">PARO 4B · iPhone 15 Pro</div>
+                </div>
+                <div className="mt-4 text-xs text-gray-500">CoreML + Apple Neural Engine</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
