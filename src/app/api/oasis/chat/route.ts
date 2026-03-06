@@ -4,7 +4,7 @@ import { fetchUserKeys, sendTelegram, postTweet, searchTwitter } from '@/lib/int
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
 const MODEL = process.env.OASIS_MODEL || 'llama-3.3-70b-versatile';
-const VISION_MODEL = 'llama-3.2-90b-vision-preview';
+const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 function buildSystemPrompt(): string {
@@ -367,13 +367,12 @@ export async function POST(req: NextRequest) {
           send({ t: 'thinking', v: 'Generating response...' });
           send({ t: 'thinking_done' });
 
-          let content = choice?.message?.content || '';
-          // Strip raw tool-call markup
-          content = content.replace(/<function\([^)]*\)[\s\S]*?<\/function>/g, '').trim();
+          const content = choice?.message?.content || '';
           if (content) {
-            // Stream in character chunks to preserve exact spacing
-            for (let i = 0; i < content.length; i += 15) {
-              send({ t: 'token', v: content.slice(i, i + 15) });
+            const words = content.split(' ');
+            for (let i = 0; i < words.length; i += 3) {
+              const chunk = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
+              send({ t: 'token', v: chunk });
             }
           }
         }
