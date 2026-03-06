@@ -80,9 +80,9 @@ export function middleware(request: NextRequest) {
 
   // Cleanup old entries periodically
   if (rateMap.size > 10000) {
-    for (const [k, v] of rateMap) {
+    rateMap.forEach((v, k) => {
       if (now > v.resetAt) rateMap.delete(k);
-    }
+    });
   }
 
   return response;
