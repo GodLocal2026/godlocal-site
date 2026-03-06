@@ -48,68 +48,52 @@ export default function Hero() {
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-8">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          Live · Solana Memecoin Terminal
+          Autonomous AI Platform · 5 Products Live
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-6 leading-[1.05]">
-          Trade Solana memecoins{' '}
+          Your AI.{' '}
           <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
-            smarter.
+            Your machine.
           </span>
         </h1>
 
         <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-          Real-time scanner · 4-agent AI hedge fund · Native Phantom swap.<br className="hidden md:block" />
-          No install. Open in browser, start trading.
+          Multi-agent AI workspace, crypto terminal, social network, reality game —<br className="hidden md:block" />
+          all on one open-source platform. Terminal meets soul.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          <a href="/static/pwa/smertch.html"
-            className="group flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] transition-all duration-200">
-            <span>🐘</span>
-            Open Terminal
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="/oasis"
+            className="group flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:scale-[1.02] transition-all duration-200"
+          >
+            <span>🧠</span>
+            Open Oasis
             <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
           </a>
-          <a href="https://pump.fun/create" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 px-8 py-4 rounded-2xl border border-orange-500/30 bg-orange-500/5 text-orange-300 font-bold text-lg hover:bg-orange-500/10 hover:border-orange-500/50 transition-all duration-200">
-            🪙 Создать токен
+          <a
+            href="https://github.com/GodLocal2026/godlocal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl border border-purple-500/30 bg-purple-500/5 text-purple-300 font-bold text-lg hover:bg-purple-500/10 transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            Star on GitHub
           </a>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-x-10 gap-y-4 text-sm text-gray-500">
-          {[{ v: '< 0.5s', l: 'New token latency' }, { v: '4 AI agents', l: 'Hedge fund model' }, { v: 'Top 100', l: 'Market coverage' }, { v: 'Free', l: 'No signup' }].map(s => (
-            <div key={s.l} className="text-center">
-              <div className="text-white font-bold text-base">{s.v}</div>
-              <div>{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative z-10 mt-16 px-4 pb-16">
-        <div className="relative mx-auto w-[260px]">
-          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-48 h-12 bg-purple-500/30 blur-2xl rounded-full" />
-          <div className="relative rounded-[40px] border border-white/10 bg-[#0d1117] shadow-2xl shadow-purple-500/10 overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-2xl z-10" />
-            <div className="p-4 pt-8 space-y-2 min-h-[400px]">
-              {[{ sym: 'PEPE2', mc: '$2.4M', ch: '+142%', up: true }, { sym: 'DOGE2', mc: '$890K', ch: '+87%', up: true }, { sym: 'BONK2', mc: '$1.1M', ch: '+63%', up: true }, { sym: 'SHIB2', mc: '$340K', ch: '-12%', up: false }].map(t => (
-                <div key={t.sym} className="flex items-center justify-between px-3 py-2.5 bg-white/5 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-sm">🐘</div>
-                    <div><div className="text-white text-xs font-bold">{t.sym}</div><div className="text-gray-500 text-[10px]">{t.mc}</div></div>
-                  </div>
-                  <div className={`text-xs font-bold ${t.up ? 'text-green-400' : 'text-red-400'}`}>{t.ch}</div>
-                </div>
-              ))}
-              <div className="flex justify-around pt-3 border-t border-white/5">
-                {['СКАН', 'НОВОСТИ', 'РЫНОК', 'AI'].map((tab, i) => (
-                  <div key={tab} className={`text-[9px] font-bold ${i === 0 ? 'text-purple-400' : 'text-gray-600'}`}>{tab}</div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center justify-center gap-6 mt-8 text-sm text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            7 agents online
+          </span>
+          <span>·</span>
+          <span>17k tok/s</span>
+          <span>·</span>
+          <span>Open Core</span>
         </div>
       </div>
     </section>
