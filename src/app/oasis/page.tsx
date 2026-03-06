@@ -541,7 +541,7 @@ export default function OasisPage() {
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
                 placeholder="Type something..."  rows={1}
-                className="flex-1 bg-transparent resize-none outline-none text-sm text-white placeholder-white/30 leading-relaxed max-h-28 md:max-h-36 overflow-y-auto py-0.5"
+                className="flex-1 bg-transparent resize-none outline-none text-base md:text-sm text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
                 style={{ scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}

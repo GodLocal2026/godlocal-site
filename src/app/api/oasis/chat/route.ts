@@ -367,12 +367,13 @@ export async function POST(req: NextRequest) {
           send({ t: 'thinking', v: 'Generating response...' });
           send({ t: 'thinking_done' });
 
-          const content = choice?.message?.content || '';
+          let content = choice?.message?.content || '';
+          // Strip raw tool-call markup
+          content = content.replace(/<function\([^)]*\)[\s\S]*?<\/function>/g, '').trim();
           if (content) {
-            const words = content.split(' ');
-            for (let i = 0; i < words.length; i += 3) {
-              const chunk = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
-              send({ t: 'token', v: chunk });
+            // Stream in character chunks to preserve exact spacing
+            for (let i = 0; i < content.length; i += 15) {
+              send({ t: 'token', v: content.slice(i, i + 15) });
             }
           }
         }
