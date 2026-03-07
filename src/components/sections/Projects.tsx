@@ -6,10 +6,10 @@ import Link from 'next/link';
 const projects = [
   {
     icon: '🧠',
-    name: 'OASIS',
+    name: 'GodLocal AI',
     tagline: 'AI-ассистент с инструментами',
     description: 'Чат с GodLocal AI — поиск в интернете, тех. анализ, отправка в Telegram и Twitter. Thinking process + streaming.',
-    href: '/oasis',
+    href: '/ai',
     color: 'emerald',
     badge: 'Live',
   },
@@ -27,7 +27,7 @@ const projects = [
     name: 'CodeThinker',
     tagline: 'AI думает кодом',
     description: 'Chain-of-thought AI который решает задачи через код. Генерация, анализ, автоматизация — всё в одном интерфейсе.',
-    href: '/oasis',
+    href: '/ai',
     color: 'violet',
     badge: 'Beta',
   },

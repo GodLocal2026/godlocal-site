@@ -10,7 +10,7 @@ export default function Footer() {
             <span className="font-black text-lg text-white tracking-tight">God<span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">Local</span></span>
           </Link>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
-            <Link href="/oasis" className="hover:text-white transition-colors">Oasis</Link>
+            <Link href="/ai" className="hover:text-white transition-colors">GodLocal AI</Link>
             <Link href="/nebudda" className="hover:text-white transition-colors">NEBUDDA</Link>
             <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
             <Link href="/#projects" className="hover:text-white transition-colors">Projects</Link>

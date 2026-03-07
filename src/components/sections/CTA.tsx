@@ -16,13 +16,13 @@ export default function CTA() {
           <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">live now.</span>
         </h2>
         <p className="text-gray-400 text-xl mb-10">
-          Try Oasis, explore the architecture, fork the repo —<br />
+          Try GodLocal AI, explore the architecture, fork the repo —<br />
           or reach out if you want to build with us.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a href="/oasis"
+          <a href="/ai"
             className="group flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 text-black font-bold text-lg shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:scale-[1.02] transition-all duration-200">
-            🧠 Open Oasis
+            🧠 Open GodLocal AI
             <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>

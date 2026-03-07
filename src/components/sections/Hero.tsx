@@ -67,10 +67,10 @@ export default function Hero() {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/oasis"
+              href="/ai"
               className="group relative px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all hover:scale-[1.02]"
             >
-              Talk to Oasis
+              Try GodLocal AI
               <span className="ml-2 group-hover:translate-x-1 inline-block transition-transform">→</span>
             </Link>
             <a
