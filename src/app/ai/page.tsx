@@ -1,4 +1,5 @@
-'use client'
+
+      <SessionsDrawer open={sessionsOpen} onClose={() => setSessionsOpen(false)} sessions={sessions} currentId={sessionId} onSelect={handleSelectSession} onNew={handleNewSession} onDelete={handleDeleteSession} />'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,6 +18,15 @@ interface Msg {
   thinkingOpen?: boolean
   thinkingDone?: boolean
 }
+
+interface Session {
+  id: string
+  title: string
+  preview: string
+  ts: number
+  msgs: Msg[]
+}
+
 
 const QUICK = [
   'What is GodLocal?',
@@ -185,6 +195,67 @@ function ThinkingBlock({
 }
 
 // ---------------------------------------------------------------------------
+// -- Sessions Drawer ─────────────────────────────────────────────────────────
+function SessionsDrawer({
+  open, onClose, sessions, currentId, onSelect, onNew, onDelete,
+}: {
+  open: boolean
+  onClose: () => void
+  sessions: Session[]
+  currentId: string
+  onSelect: (s: Session) => void
+  onNew: () => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <>
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+      <div
+        className={`fixed top-0 left-0 h-full z-50 w-72 bg-[#0a0a14]/98 border-r border-white/[0.07] flex flex-col transition-transform duration-300 ease-in-out ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between px-4 pt-5 pb-4 border-b border-white/[0.06]">
+          <div>
+            <p className="text-[10px] tracking-widest text-gray-600 uppercase">GodLocal AI</p>
+            <p className="text-[13px] font-semibold text-white/90 mt-0.5">Сессии</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-xl bg-white/[0.04] border border-white/[0.07] text-gray-500 hover:text-white text-xs transition-all flex items-center justify-center">✕</button>
+        </div>
+        <div className="px-3 py-3 border-b border-white/[0.05]">
+          <button onClick={() => { onNew(); onClose(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#00FF9D]/8 border border-[#00FF9D]/15 text-[#00FF9D]/80 text-[12px] hover:bg-[#00FF9D]/15 transition-all">
+            <span className="text-base">＋</span> Новый чат
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+          {sessions.length === 0 && (
+            <p className="text-[11px] text-gray-700 text-center py-8">Нет сохранённых сессий</p>
+          )}
+          {sessions.map(s => (
+            <div key={s.id} className={`group relative rounded-xl border transition-all cursor-pointer ${s.id === currentId ? "bg-[#00FF9D]/8 border-[#00FF9D]/15" : "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04] hover:border-white/[0.08]"}`}
+              onClick={() => { onSelect(s); onClose(); }}>
+              <div className="px-3 py-2.5 pr-8">
+                <p className={`text-[12px] font-medium leading-tight truncate ${s.id === currentId ? "text-[#00FF9D]/80" : "text-gray-300"}`}>{s.title}</p>
+                <p className="text-[10px] text-gray-600 mt-0.5 truncate">{s.preview}</p>
+                <p className="text-[9px] text-gray-700 mt-1">{new Date(s.ts).toLocaleDateString("ru", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+              <button onClick={e => { e.stopPropagation(); onDelete(s.id); }} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-5 h-5 rounded-lg bg-white/[0.06] text-gray-500 hover:text-red-400 text-[9px] flex items-center justify-center transition-all">✕</button>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 py-3 border-t border-white/[0.06]">
+          <p className="text-[9px] text-gray-700 text-center">{sessions.length} сессий · сохранено локально</p>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function AIPage() {
   const [msgs, setMsgs]                 = useState<Msg[]>([])
   const [input, setInput]               = useState('')
@@ -202,6 +273,63 @@ export default function AIPage() {
   const fileRef   = useRef<HTMLInputElement>(null)
   const msgsRef   = useRef<Msg[]>([])
   const abortRef  = useRef<AbortController | null>(null)
+
+  // ── Sessions ──────────────────────────────────────────────────────────────
+  const [sessionsOpen, setSessionsOpen] = useState(false)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [sessionId, setSessionId] = useState<string>('')
+
+  // Load sessions from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('godlocal_sessions') || '[]') as Session[]
+      setSessions(stored)
+      // Use or create current session id
+      let sid = localStorage.getItem('godlocal_ai_session_id') || ''
+      if (!sid) { sid = Math.random().toString(36).slice(2); localStorage.setItem('godlocal_ai_session_id', sid) }
+      setSessionId(sid)
+    } catch {}
+  }, [])
+
+  // Save current msgs to sessions whenever msgs change
+  useEffect(() => {
+    if (msgs.length === 0 || !sessionId) return
+    const firstUser = msgs.find(m => m.role === 'user')
+    if (!firstUser) return
+    const title = firstUser.content.slice(0, 40) || 'Новый чат'
+    const preview = msgs.filter(m => m.role === 'ai').slice(-1)[0]?.content?.slice(0, 60) || ''
+    const session: Session = { id: sessionId, title, preview, ts: Date.now(), msgs }
+    setSessions(prev => {
+      const filtered = prev.filter(s => s.id !== sessionId)
+      const updated = [session, ...filtered].slice(0, 30)
+      try { localStorage.setItem('godlocal_sessions', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+  }, [msgs, sessionId])
+
+  const handleNewSession = () => {
+    const sid = Math.random().toString(36).slice(2)
+    localStorage.setItem('godlocal_ai_session_id', sid)
+    setSessionId(sid)
+    setMsgs([])
+    setInput('')
+  }
+
+  const handleSelectSession = (s: Session) => {
+    localStorage.setItem('godlocal_ai_session_id', s.id)
+    setSessionId(s.id)
+    setMsgs(s.msgs)
+  }
+
+  const handleDeleteSession = (id: string) => {
+    setSessions(prev => {
+      const updated = prev.filter(s => s.id !== id)
+      try { localStorage.setItem('godlocal_sessions', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    if (id === sessionId) handleNewSession()
+  }
+
 
   useEffect(() => { msgsRef.current = msgs }, [msgs])
 
@@ -415,6 +543,7 @@ export default function AIPage() {
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#00FF9D] animate-pulse" />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
+      <button onClick={() => setSessionsOpen(true)} title="История сессий" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all text-sm">☰</button>
           <button onClick={() => setRadioOpen(r => !r)} title="Radio"
              className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#00FF9D]/40 bg-[#00FF9D]/10 text-[#00FF9D] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
             <span className="text-xs">📻</span>
