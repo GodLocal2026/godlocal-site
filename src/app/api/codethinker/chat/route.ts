@@ -121,8 +121,19 @@ export async function POST(req: NextRequest) {
     const reader = groqRes.body!.getReader();
     const decoder = new TextDecoder();
 
+    function sse(obj: Record<string, unknown>) {
+      return encoder.encode('data: ' + JSON.stringify(obj) + '\n\n');
+    }
+
     const stream = new ReadableStream({
       async start(controller) {
+        // Signal thinking phase start
+        controller.enqueue(sse({ t: 'thinking_start' }));
+
+        let buffer = '';
+        let thinkingDone = false;
+        let thinkingBuf  = '';
+
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -138,10 +149,51 @@ export async function POST(req: NextRequest) {
               try {
                 const json = JSON.parse(data);
                 const delta = json.choices?.[0]?.delta?.content;
-                if (delta) controller.enqueue(encoder.encode(delta));
-              } catch {}
+                if (!delta) continue;
+
+                buffer += delta;
+
+                if (!thinkingDone) {
+                  thinkingBuf += delta;
+
+                  // Emit thinking steps from 【...】 markers
+                  const stepRe = /【([^】]+)】/g;
+                  let m: RegExpExecArray | null;
+                  while ((m = stepRe.exec(thinkingBuf)) !== null) {
+                    controller.enqueue(sse({ t: 'thinking', v: m[1] }));
+                  }
+                  // Remove processed markers from buffer
+                  thinkingBuf = thinkingBuf.replace(/【[^】]+】/g, '');
+
+                  // Switch to token mode once we see actual content after thinking
+                  // (first non-marker text that is longer than a few chars)
+                  const plainText = thinkingBuf.replace(/\s+/g, '');
+                  if (plainText.length > 10) {
+                    thinkingDone = true;
+                    controller.enqueue(sse({ t: 'thinking_done' }));
+                    if (thinkingBuf.trim()) {
+                      controller.enqueue(sse({ t: 'token', v: thinkingBuf }));
+                      thinkingBuf = '';
+                    }
+                  }
+                } else {
+                  controller.enqueue(sse({ t: 'token', v: delta }));
+                }
+              } catch { /* skip malformed chunks */ }
             }
           }
+
+          // Flush any remaining thinking buffer as tokens
+          if (!thinkingDone) {
+            controller.enqueue(sse({ t: 'thinking_done' }));
+            if (thinkingBuf.trim()) {
+              controller.enqueue(sse({ t: 'token', v: thinkingBuf }));
+            }
+          }
+
+          controller.enqueue(sse({ t: 'done' }));
+        } catch (err) {
+          controller.enqueue(sse({ t: 'error', v: String(err) }));
         } finally {
           controller.close();
         }
@@ -150,8 +202,9 @@ export async function POST(req: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
         'X-Content-Type-Options': 'nosniff',
       },
     });

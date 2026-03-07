@@ -97,7 +97,16 @@ function renderMarkdown(text: string): React.ReactNode[] {
     if (line.startsWith('```')) {
       const codeLines: string[] = []; i++
       while (i < lines.length && !lines[i].startsWith('```')) { codeLines.push(lines[i]); i++ }
-      nodes.push(<pre key={i} className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 my-2 overflow-x-auto text-xs font-mono text-[#A78BFA]/80 leading-relaxed">{codeLines.join('\n')}</pre>)
+      const codeStr = codeLines.join('\n')
+      nodes.push(
+        <div key={i} className="relative group my-2">
+          <pre className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 overflow-x-auto text-xs font-mono text-[#A78BFA]/80 leading-relaxed">{codeStr}</pre>
+          <button
+            onClick={() => { navigator.clipboard.writeText(codeStr) }}
+            className="absolute top-2 right-2 px-2 py-0.5 text-[9px] font-mono rounded bg-white/8 border border-white/12 text-white/35 hover:text-white/75 hover:bg-white/15 transition-all opacity-0 group-hover:opacity-100"
+          >Копировать</button>
+        </div>
+      )
       i++; continue
     }
     if (line.match(/^---+$/)) { nodes.push(<hr key={i} className="border-white/10 my-2" />); i++; continue }
@@ -532,6 +541,26 @@ export default function CodeThinkerPage() {
             )}
           </AnimatePresence>
 
+          {/* ── Mode selector ── */}
+          <div className="shrink-0 px-3 md:px-4 pb-2">
+            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {MODES.map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => setMode(m.key)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all border ${
+                    mode === m.key
+                      ? 'bg-[#A78BFA]/15 border-[#A78BFA]/50 text-[#A78BFA] shadow-[0_0_12px_rgba(167,139,250,0.25)]'
+                      : 'bg-black/25 border-white/10 text-white/40 hover:text-white/70 hover:border-white/20 hover:bg-white/5'
+                  }`}
+                >
+                  <span>{m.icon}</span>
+                  <span>{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
             <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#A78BFA]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
               <button onClick={() => fileRef.current?.click()}
@@ -551,7 +580,7 @@ export default function CodeThinkerPage() {
               </button>
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-                placeholder="Type something..."  rows={1}
+                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
                 className="flex-1 bg-transparent resize-none outline-none text-base md:text-sm text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
                 style={{ scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
@@ -563,7 +592,7 @@ export default function CodeThinkerPage() {
               </button>
             </div>
             <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
-              Enter — send · Shift+Enter — new line · 🎤 — voice
+              CodeThinker · Chain-of-Thought AI · GodLocal
             </p>
           </div>
 
