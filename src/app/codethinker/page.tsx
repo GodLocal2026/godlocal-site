@@ -2,6 +2,7 @@
 // build-trigger: 24830cac
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useLocalLLM, type LocalLLMStatus } from '@/lib/useLocalLLM'
 import { motion, AnimatePresence } from 'framer-motion'
 
 
@@ -191,6 +192,8 @@ export default function CodeThinkerPage() {
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
   const [imgMime, setImgMime]            = useState<string>('image/jpeg')
   const [mode, setMode]                 = useState<Mode>('vibe')
+  const [aiMode, setAiMode]             = useState<'cloud' | 'local'>('cloud')
+  const localLLM = useLocalLLM()
 
   const [isListening, setIsListening] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
@@ -334,32 +337,73 @@ export default function CodeThinkerPage() {
     abortRef.current = ac
 
     try {
-      const res = await fetch('/api/codethinker/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgBase64 ? imgMime : undefined, mode }),
-        signal: ac.signal,
-      })
+      if (aiMode === 'local') {
+        // ── Local inference via WebLLM ──────────────────────────────────────
+        const loaded = await localLLM.load()
+        if (!loaded) {
+          setMsgs(prev => [...prev, { id: uid(), role: 'system',
+            content: '⚠️ Local AI not available. Switching to Cloud.', ts: Date.now() }])
+          setAiMode('cloud')
+          setLoading(false)
+          return
+        }
 
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+        // Build messages for local model (no image support in local mode)
+        const systemPrompt = `You are CodeThinker — a chain-of-thought AI for developers.
+Think step by step before answering. Use 【step】 markers for reasoning.
+Wrap code in \`\`\`lang blocks. Be concise and practical.`
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+        const localMessages = [
+          { role: 'system', content: systemPrompt },
+          ...history.slice(-10),
+          { role: 'user', content: msg },
+        ]
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        const aiMsgId = uid()
+        setMsgs(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', streaming: true, ts: Date.now(), thinkingSteps: [], thinkingOpen: false }])
 
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('data: ')) continue
-          try {
-            const d = JSON.parse(trimmed.slice(6))
-            handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
-          } catch { /* skip */ }
+        await localLLM.chat(
+          localMessages,
+          (token) => {
+            handleEvent('token', token)
+          },
+          () => {
+            handleEvent('done', '')
+          },
+          (err) => {
+            setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ Local error: ' + err, ts: Date.now() }])
+            setLoading(false)
+          }
+        )
+      } else {
+        // ── Cloud inference via Groq ─────────────────────────────────────────
+        const res = await fetch('/api/codethinker/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgBase64 ? imgMime : undefined, mode }),
+          signal: ac.signal,
+        })
+
+        const reader = res.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed.startsWith('data: ')) continue
+            try {
+              const d = JSON.parse(trimmed.slice(6))
+              handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
+            } catch { /* skip */ }
+          }
         }
       }
     } catch (err) {
