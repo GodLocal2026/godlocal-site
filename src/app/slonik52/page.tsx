@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
@@ -205,7 +207,7 @@ export default function Slonik52Page() {
   const [walletAddr, setWalletAddr] = useState<string | null>(null)
   const [solBalance, setSolBalance] = useState<number | null>(null)
   const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([
-    { id: uid(), role: 'system', content: '🐘 **slonik52 AI** — your crypto analysis assistant.\n\nTry: "scan hot tokens", "analyze [address]", "market overview", "what\'s pumping?"', ts: Date.now() }
+    { id: uid(), role: 'system', content: '🐘 **slonik52 AI** — your crypto analysis assistant.\n\nTry: "scan hot tokens", "analyze [address]", "market overview", "what is pumping?"', ts: Date.now() }
   ])
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
@@ -309,7 +311,7 @@ export default function Slonik52Page() {
 
   // ── Wallet ────────────────────────────────────────────────────────────────
   const connectWallet = useCallback(async () => {
-    const phantom = (window as Record<string, unknown>).solana || ((window as Record<string, Record<string, unknown>>).phantom)?.solana
+    const phantom = (window as unknown as Record<string, unknown>).solana || ((window as unknown as Record<string, Record<string, unknown>>).phantom)?.solana
     if (!phantom || !(phantom as Record<string, boolean>).isPhantom) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       if (isMobile) {
