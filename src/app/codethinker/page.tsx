@@ -369,8 +369,7 @@ export default function CodeThinkerPage() {
           const wait = data.retry_after || 60
           throw new Error(`⏳ Лимит запросов исчерпан. Подожди ${wait} сек и попробуй снова.`)
         }
-        const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error === 'API key not configured' ? 'API key not configured' : 'API error')
+        throw new Error('API error')
       }
 
       const reader = res.body.getReader()
@@ -398,11 +397,7 @@ export default function CodeThinkerPage() {
 
     } catch (e: unknown) {
       setMsgs(prev => prev.map(m => m.id === aiMsg.id ? {
-        ...m, content: e instanceof Error && e.message.startsWith('⏳')
-          ? e.message
-          : e instanceof Error && e.message.includes('API key')
-          ? '⚠️ GROQ_API_KEY не настроен. Добавь ключ в переменные окружения Vercel.'
-          : '⚠️ Ошибка соединения. Попробуй ещё раз.', streaming: false, thinkingDone: true
+        ...m, content: e instanceof Error && e.message.startsWith('⏳') ? e.message : '⚠️ Ошибка соединения. Попробуй ещё раз.', streaming: false, thinkingDone: true
       } : m))
     } finally { setBusy(false) }
   }, [input, busy, msgs, mode])
