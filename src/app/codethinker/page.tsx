@@ -118,7 +118,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
 function MsgContent({ content, streaming }: { content: string; streaming?: boolean }) {
   return (
-    <div className="text-sm space-y-0.5">
+    <div className="text-sm space-y-0.5 break-words overflow-hidden">
       {renderMarkdown(content)}
       {streaming && <span className="inline-block w-1.5 h-4 bg-[#A78BFA] rounded-sm ml-0.5 animate-pulse align-middle" />}
     </div>
@@ -584,8 +584,8 @@ export default function CodeThinkerPage() {
               </button>
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
-                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
+                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={3}
+                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed min-h-[60px] max-h-40 overflow-y-auto py-1"
                 style={{ fontSize: '16px', scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}

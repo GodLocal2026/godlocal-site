@@ -99,9 +99,10 @@ export async function POST(req: NextRequest) {
       : (message?.trim() || '');
 
     // Use vision-capable model when image is attached
-    const activeModel = image
+    const primaryModel = image
       ? 'meta-llama/llama-4-scout-17b-16e-instruct'
       : MODEL;
+    const fallbackModels = ['llama-3.1-8b-instant', 'gemma2-9b-it'];
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: activeModel,
+        model: primaryModel,
         messages,
         temperature: 0.4,
         max_tokens: 8192,
@@ -124,14 +125,29 @@ export async function POST(req: NextRequest) {
       }),
     });
 
+    let finalRes = groqRes;
     if (!groqRes.ok) {
-      const err = await groqRes.text();
-      console.error('Groq error:', err);
-      return NextResponse.json({ error: 'Model error' }, { status: 502 });
+      const errText = await groqRes.text();
+      // 429 rate limit — try fallback models
+      if (groqRes.status === 429) {
+        let retried = false;
+        for (const fb of fallbackModels) {
+          const fbRes = await fetch(GROQ_URL, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: fb, messages, temperature: 0.4, max_tokens: 4096, stream: true }),
+          });
+          if (fbRes.ok) { finalRes = fbRes; retried = true; break; }
+        }
+        if (!retried) return NextResponse.json({ error: 'Слишком много запросов. Подожди секунду и попробуй снова.' }, { status: 429 });
+      } else {
+        console.error('Groq error:', errText);
+        return NextResponse.json({ error: 'Model error' }, { status: 502 });
+      }
     }
 
     const encoder = new TextEncoder();
-    const reader = groqRes.body!.getReader();
+    const reader = finalRes.body!.getReader();
     const decoder = new TextDecoder();
 
     function sse(obj: Record<string, unknown>) {
