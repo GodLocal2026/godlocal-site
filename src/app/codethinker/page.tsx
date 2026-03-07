@@ -393,8 +393,8 @@ export default function CodeThinkerPage() {
 
   return (
     <div
-      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden" style={{ height: "100dvh" }}
-      style={{ backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden"
+      style={{ height: "100dvh", backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
       
