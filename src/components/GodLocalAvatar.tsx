@@ -21,7 +21,7 @@ function loadScript(src: string) {
   })
 }
 
-export default function OasisAvatar({ talking }: Props) {
+export default function GodLocalAvatar({ talking }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const appRef       = useRef<any>(null)
   const modelRef     = useRef<any>(null)
@@ -130,7 +130,7 @@ export default function OasisAvatar({ talking }: Props) {
         {ready && (
           <div className="absolute bottom-1 left-0 right-0 flex justify-center">
             <span className="text-[9px] font-mono text-[#00FF9D]/50 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-              OASIS
+              GodLocal AI
               {talking && (
                 <span className="ml-1 inline-flex gap-0.5 align-middle">
                   {[0, 0.1, 0.2].map((d, i) => (

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
-const AIAvatar = dynamic(() => import('@/components/AIAvatar'), { ssr: false })
+const GodLocalAvatar = dynamic(() => import('@/components/GodLocalAvatar'), { ssr: false })
 
 interface Msg {
   id: string
@@ -377,7 +377,7 @@ export default function AIPage() {
       style={{ backgroundImage: 'url(/oasis-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
-      <AIAvatar talking={isTalking} />
+      <GodLocalAvatar talking={isTalking} />
 
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
