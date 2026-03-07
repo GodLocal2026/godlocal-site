@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
-const GodLocalAvatar = dynamic(() => import('@/components/GodLocalAvatar'), { ssr: false })
+const AIAvatar = dynamic(() => import('@/components/AIAvatar'), { ssr: false })
 
 interface Msg {
   id: string
@@ -16,15 +16,6 @@ interface Msg {
   thinkingSteps?: string[]
   thinkingOpen?: boolean
   thinkingDone?: boolean
-  feedback?: 'up' | 'down' | null
-}
-
-interface Session {
-  id: string
-  title: string
-  preview: string
-  ts: number
-  msgs: Msg[]
 }
 
 const QUICK = [
@@ -106,54 +97,9 @@ function renderMarkdown(text: string): React.ReactNode[] {
   return nodes
 }
 
-
-// ── Copy Response Button ────────────────────────────────────────────────────
-function CopyResponseBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button onClick={handleCopy}
-      className="flex items-center gap-1 text-[10px] font-mono text-white/25 hover:text-white/60 transition-colors mt-1.5 ml-auto">
-      {copied ? (
-        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Copied</>
-      ) : (
-        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
-      )}
-    </button>
-  )
-}
-
 function MsgContent({ content, streaming }: { content: string; streaming?: boolean }) {
   return (
     <div className="text-sm space-y-0.5">
-      {settingsOpen && (
-        <div className="fixed top-14 right-4 z-50 w-64 bg-[#0a0a14]/98 border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06]">
-            <p className="text-[11px] text-gray-500 uppercase tracking-widest">Настройки</p>
-          </div>
-          <div className="px-4 py-3 space-y-3">
-            <div>
-              <p className="text-[11px] text-gray-500 mb-2">Стиль ответов</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(['default', 'concise', 'detailed', 'friendly'] as const).map(s => (
-                  <button key={s} onClick={() => setStyle(s)}
-                    className={`px-2 py-1.5 rounded-lg text-[11px] border transition-all ${aiStyle === s ? 'bg-[#00FF9D]/10 border-[#00FF9D]/25 text-[#00FF9D]/80' : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300'}`}>
-                    {s === 'default' ? '⚡ Default' : s === 'concise' ? '✂️ Кратко' : s === 'detailed' ? '📖 Подробно' : '😊 Дружелюбно'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="px-4 py-2 border-t border-white/[0.06]">
-            <button onClick={() => setSettingsOpen(false)} className="text-[10px] text-gray-700 hover:text-gray-500 w-full text-center">Закрыть</button>
-          </div>
-        </div>
-      )}
-      <SessionsDrawer open={sessionsOpen} onClose={() => setSessionsOpen(false)} sessions={sessions} currentId={sessionId} onSelect={handleSelectSession} onNew={handleNewSession} onDelete={handleDeleteSession} />
       {renderMarkdown(content)}
       {streaming && <span className="inline-block w-1.5 h-4 bg-[#00FF9D] rounded-sm ml-0.5 animate-pulse align-middle" />}
     </div>
@@ -218,57 +164,12 @@ function ThinkingBlock({
 }
 
 // ---------------------------------------------------------------------------
-function SessionsDrawer({ open, onClose, sessions, currentId, onSelect, onNew, onDelete }: {
-  open: boolean; onClose: () => void; sessions: Session[]; currentId: string
-  onSelect: (s: Session) => void; onNew: () => void; onDelete: (id: string) => void
-}) {
-  return (
-    <>
-      {open && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />}
-      <div className={`fixed top-0 left-0 h-full z-50 w-72 bg-[#0a0a14]/98 border-r border-white/[0.07] flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between px-4 pt-5 pb-4 border-b border-white/[0.06]">
-          <div>
-            <p className="text-[10px] tracking-widest text-gray-600 uppercase">GodLocal AI</p>
-            <p className="text-[13px] font-semibold text-white/90 mt-0.5">Сессии</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-xl bg-white/[0.04] border border-white/[0.07] text-gray-500 hover:text-white text-xs flex items-center justify-center">✕</button>
-        </div>
-        <div className="px-3 py-3 border-b border-white/[0.05]">
-          <button onClick={() => { onNew(); onClose(); }} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#00FF9D]/8 border border-[#00FF9D]/15 text-[#00FF9D]/80 text-[12px] hover:bg-[#00FF9D]/15 transition-all">
-            ＋ Новый чат
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
-          {sessions.length === 0 && <p className="text-[11px] text-gray-700 text-center py-8">Нет сохранённых сессий</p>}
-          {sessions.map(s => (
-            <div key={s.id}
-              className={`group relative rounded-xl border cursor-pointer transition-all ${s.id === currentId ? 'bg-[#00FF9D]/8 border-[#00FF9D]/15' : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]'}`}
-              onClick={() => { onSelect(s); onClose(); }}>
-              <div className="px-3 py-2.5 pr-8">
-                <p className={`text-[12px] font-medium truncate ${s.id === currentId ? 'text-[#00FF9D]/80' : 'text-gray-300'}`}>{s.title}</p>
-                <p className="text-[10px] text-gray-600 mt-0.5 truncate">{s.preview}</p>
-                <p className="text-[9px] text-gray-700 mt-1">{new Date(s.ts).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-              </div>
-              <button onClick={e => { e.stopPropagation(); onDelete(s.id); }} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-5 h-5 rounded-lg bg-white/[0.06] text-gray-500 hover:text-red-400 text-[9px] flex items-center justify-center">✕</button>
-            </div>
-          ))}
-        </div>
-        <div className="px-4 py-3 border-t border-white/[0.06]">
-          <p className="text-[9px] text-gray-700 text-center">{sessions.length} сессий · сохранено локально</p>
-        </div>
-      </div>
-    </>
-  )
-}
-
-
 export default function AIPage() {
   const [msgs, setMsgs]                 = useState<Msg[]>([])
   const [input, setInput]               = useState('')
   const [loading, setLoading]           = useState(false)
   const [imgPreview, setImgPreview]     = useState<string | null>(null)
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
-  const [imgMime, setImgMime]           = useState<string>('image/jpeg')
 
   const [isListening, setIsListening] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
@@ -280,78 +181,6 @@ export default function AIPage() {
   const fileRef   = useRef<HTMLInputElement>(null)
   const msgsRef   = useRef<Msg[]>([])
   const abortRef  = useRef<AbortController | null>(null)
-
-
-  // Settings
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [aiStyle, setAiStyle] = useState<'default' | 'concise' | 'detailed' | 'friendly'>(() => {
-    if (typeof window !== 'undefined') return (localStorage.getItem('godlocal_ai_style') as any) || 'default'
-    return 'default'
-  })
-  const setStyle = (s: typeof aiStyle) => {
-    setAiStyle(s)
-    if (typeof window !== 'undefined') localStorage.setItem('godlocal_ai_style', s)
-  }
-  const giveFeedback = (id: string, vote: 'up' | 'down') => {
-    setMsgs(prev => prev.map(m => m.id === id ? { ...m, feedback: vote } : m))
-    try {
-      const key = 'godlocal_feedback'
-      const existing = JSON.parse(localStorage.getItem(key) || '[]')
-      existing.push({ id, vote, ts: Date.now() })
-      localStorage.setItem(key, JSON.stringify(existing.slice(-100)))
-    } catch {}
-  }
-
-  // Sessions
-  const [sessionsOpen, setSessionsOpen] = useState(false)
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [sessionId, setSessionId] = useState<string>('')
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('godlocal_sessions') || '[]') as Session[]
-      setSessions(stored)
-      let sid = localStorage.getItem('godlocal_ai_session_id') || ''
-      if (!sid) { sid = Math.random().toString(36).slice(2); localStorage.setItem('godlocal_ai_session_id', sid) }
-      setSessionId(sid)
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    if (msgs.length === 0 || !sessionId) return
-    const firstUser = msgs.find(m => m.role === 'user')
-    if (!firstUser) return
-    const title = firstUser.content.slice(0, 40) || 'Новый чат'
-    const preview = msgs.filter(m => m.role === 'ai').slice(-1)[0]?.content?.slice(0, 60) || ''
-    const session: Session = { id: sessionId, title, preview, ts: Date.now(), msgs }
-    setSessions(prev => {
-      const filtered = prev.filter(s => s.id !== sessionId)
-      const updated = [session, ...filtered].slice(0, 30)
-      try { localStorage.setItem('godlocal_sessions', JSON.stringify(updated)) } catch {}
-      return updated
-    })
-  }, [msgs, sessionId])
-
-  const handleNewSession = () => {
-    const sid = Math.random().toString(36).slice(2)
-    localStorage.setItem('godlocal_ai_session_id', sid)
-    setSessionId(sid)
-    setMsgs([])
-    setInput('')
-  }
-  const handleSelectSession = (s: Session) => {
-    localStorage.setItem('godlocal_ai_session_id', s.id)
-    setSessionId(s.id)
-    setMsgs(s.msgs)
-  }
-  const handleDeleteSession = (id: string) => {
-    setSessions(prev => {
-      const updated = prev.filter(s => s.id !== id)
-      try { localStorage.setItem('godlocal_sessions', JSON.stringify(updated)) } catch {}
-      return updated
-    })
-    if (id === sessionId) handleNewSession()
-  }
 
   useEffect(() => { msgsRef.current = msgs }, [msgs])
 
@@ -487,17 +316,11 @@ export default function AIPage() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgMime, style: aiStyle }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined }),
         signal: ac.signal,
       })
 
-      if (!res.ok) {
-          if (res.status === 429) {
-            setMsgs(prev => { const l = prev[prev.length - 1]; return l?.role === 'ai' ? [...prev.slice(0, -1), { ...l, content: '⏳ Лимит запросов. Подожди минуту и попробуй снова.', streaming: false, thinkingDone: true }] : prev })
-            setLoading(false); return
-          }
-        }
-        const reader = res.body!.getReader()
+      const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
@@ -525,7 +348,7 @@ export default function AIPage() {
       setLoading(false)
     }
 
-    setImgPreview(null); setImgBase64(null); setImgMime('image/jpeg')
+    setImgPreview(null); setImgBase64(null)
     // Mobile: dismiss keyboard, Desktop: keep focus
     const isMobile = 'ontouchstart' in globalThis
     if (isMobile) { inputRef.current?.blur() }
@@ -537,12 +360,10 @@ export default function AIPage() {
   }
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
-    const mime = file.type || 'image/jpeg'
-    setImgMime(mime)
     const reader = new FileReader()
     reader.onload = () => {
       const r = reader.result as string
-      setImgPreview(mime === 'application/pdf' ? '📄 PDF attached' : r); setImgBase64(r)
+      setImgPreview(r); setImgBase64(r.split(',')[1])
     }
     reader.readAsDataURL(file)
   }
@@ -556,7 +377,7 @@ export default function AIPage() {
       style={{ backgroundImage: 'url(/oasis-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
-      <GodLocalAvatar talking={isTalking} />
+      <AIAvatar talking={isTalking} />
 
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
@@ -567,9 +388,7 @@ export default function AIPage() {
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#00FF9D] animate-pulse" />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
-          <button onClick={() => setSettingsOpen(s => !s)} title="Настройки" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 transition-all text-sm">⚙️</button>
-              <button onClick={() => setSessionsOpen(true)} title="История сессий" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 transition-all text-sm">☰</button>
-              <button onClick={() => setRadioOpen(r => !r)} title="Radio"
+          <button onClick={() => setRadioOpen(r => !r)} title="Radio"
              className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#00FF9D]/40 bg-[#00FF9D]/10 text-[#00FF9D] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
             <span className="text-xs">📻</span>
           </button>
@@ -641,20 +460,7 @@ export default function AIPage() {
                       }`}>
                         {m.role === 'user'
                           ? <span className="text-sm leading-relaxed">{m.content}</span>
-                          : <>
-                          <MsgContent content={m.content} streaming={m.streaming} />
-                          {!m.streaming && m.content && <CopyResponseBtn text={m.content} />}
-                          {!m.streaming && m.content && (
-                            <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-white/[0.04]">
-                              <span className="text-[10px] text-gray-600">Полезно?</span>
-                              <button onClick={() => giveFeedback(m.id, 'up')}
-                                className={`text-sm transition-all ${m.feedback === 'up' ? 'text-[#00FF9D]' : 'text-gray-600 hover:text-[#00FF9D]'}`}>👍</button>
-                              <button onClick={() => giveFeedback(m.id, 'down')}
-                                className={`text-sm transition-all ${m.feedback === 'down' ? 'text-red-400' : 'text-gray-600 hover:text-red-400'}`}>👎</button>
-                              {m.feedback && <span className="text-[10px] text-gray-600 ml-1">{m.feedback === 'up' ? 'Спасибо!' : 'Учту'}</span>}
-                            </div>
-                          )}
-                        </>}
+                          : <MsgContent content={m.content} streaming={m.streaming} />}
                       </div>
                     </div>
                   )}

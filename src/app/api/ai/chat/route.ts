@@ -7,25 +7,17 @@ const MODEL = process.env.GODLOCAL_AI_MODEL || 'llama-3.3-70b-versatile';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// ── Retry helper for 429 rate limits ────────────────────────────────
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetch(url, options);
-    if (res.status !== 429 || attempt === maxRetries) return res;
-    const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
-    const waitMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(1000 * Math.pow(2, attempt), 30000);
-    console.log(`Rate limited (429), retry ${attempt + 1}/${maxRetries} after ${waitMs}ms`);
-    await new Promise(r => setTimeout(r, waitMs));
-  }
-  throw new Error('Should not reach here');
-}
-
-
 function buildSystemPrompt(): string {
-  const now = new Date()
-  const dateStr = now.toISOString().split('T')[0]
-  const timeStr = now.toTimeString().split(' ')[0]
-  return `You are GodLocal AI — the brain-inspired AI core of GodLocal.
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    timeZone: 'UTC'
+  });
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'UTC'
+  });
+
+  return `You are GodLocal AI \u2014 the brain-inspired AI core of GodLocal.
 
 ## Current Time
 Today is ${dateStr}, ${timeStr} UTC. The year is 2026.
@@ -34,30 +26,26 @@ Today is ${dateStr}, ${timeStr} UTC. The year is 2026.
 1. **NEVER repeat yourself.** Move the conversation forward.
 2. **Answer the user's ACTUAL question.** Do not list capabilities unless asked.
 3. **Be concise.** Short paragraphs, clear structure.
-4. **ALWAYS respond in the SAME language the user writes in.** If they write in Russian, respond fully in Russian. If English, respond in English. If mixed, match their dominant language. Never switch languages mid-conversation unless the user does.
+4. **Respond in the SAME language** the user writes in.
 5. **Always provide clickable links** using markdown: [text](https://url).
 6. **Use markdown formatting**: headers (##), bold (**text**), lists, \`code\`, code blocks.
-7. **Use web_search** for ANY question about current events, prices, news, or facts you're unsure about.
+7. **You MUST use the web_search tool** for ANY question about current events, prices, news, or facts you're unsure about.
 8. **NEVER say "How can I help you?" or list capabilities unprompted.**
-9. **Remember context**: refer back to earlier in this conversation when relevant. Build on what was discussed.
-10. **Be personal**: use the user's phrasing, tone, and style. Mirror their energy.
 
 ## Available Tools
-You have these tools — use them proactively:
-- **web_search** — search the web for current info, prices, news, docs
-- **send_telegram** — send a message/note to user's Telegram channel
-- **post_tweet** — post a tweet to user's X/Twitter account
-- **search_twitter** — search recent tweets on X/Twitter
-- **github_code** — read/write/create files on GitHub, list repo contents, commit code
+You have these tools \u2014 use them proactively:
+- **web_search** \u2014 search the web for current info, prices, news, docs
+- **send_telegram** \u2014 send a message/note to user's Telegram channel (use as notebook)
+- **post_tweet** \u2014 post a tweet to user's X/Twitter account
+- **search_twitter** \u2014 search recent tweets on X/Twitter
 
 When to use each:
-- "save this" / "note" / "send to telegram" → send_telegram
-- "tweet" / "post on X" → post_tweet
-- "what's trending" / "search X for" → search_twitter
-- prices, news, facts → web_search
-- "show me file X", "read repo", "create file", "push code", "edit X on GitHub" → github_code
+- "save this" / "note" / "send to telegram" / "remember" \u2192 send_telegram
+- "tweet" / "post on X" / "publish" \u2192 post_tweet
+- "what's trending" / "search X for" \u2192 search_twitter
+- prices, news, facts \u2192 web_search
 
-If a service isn't configured, tell the user what env var to set (e.g., TELEGRAM_BOT_TOKEN).
+If a service isn't configured, tell the user to set it up in Settings.
 
 ## Your Identity
 Local-first AI assistant built into GodLocal.
@@ -65,11 +53,9 @@ Products: **GodLocal AI** (AI chat), **WOLF** (crypto), **NEBUDDA** (social), **
 Website: [godlocal.ai](https://godlocal.ai)
 
 ## Behavior
-- Direct, knowledgeable, confident — humble when uncertain
+- Direct, knowledgeable, confident \u2014 humble when uncertain
 - Practical answers with examples and links
-- For code: working snippets with explanations
-- For general topics: insightful, brief, with sources
-- Adapt your depth to the question: simple question = simple answer, complex = thorough`;
+- For code: working snippets. For general: insightful but brief`;
 }
 
 const TOOLS = [
@@ -164,81 +150,6 @@ async function tavilySearch(query: string): Promise<string> {
   }
 }
 
-
-async function executeGithub(args: Record<string, string>): Promise<string> {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
-  if (!GITHUB_TOKEN) return 'GitHub not configured: add GITHUB_TOKEN to env vars.';
-  
-  const headers: Record<string, string> = {
-    'Authorization': `token ${GITHUB_TOKEN}`,
-    'Accept': 'application/vnd.github.v3+json',
-    'Content-Type': 'application/json',
-  };
-  
-  const { action, owner, repo, path = '', content = '', message = 'Updated by GodLocal AI', query = '' } = args;
-  const base = `https://api.github.com`;
-  
-  try {
-    if (action === 'list_files') {
-      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
-      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        return data.map((f: {name: string; type: string; size?: number}) => `${f.type === 'dir' ? '📁' : '📄'} ${f.name}${f.size ? ` (${f.size}b)` : ''}`).join('\n');
-      }
-      return JSON.stringify(data).slice(0, 1000);
-    }
-    
-    if (action === 'read_file') {
-      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
-      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
-      const data = await res.json();
-      if (data.encoding === 'base64' && data.content) {
-        return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8');
-      }
-      return data.content || 'Empty file';
-    }
-    
-    if (action === 'write_file' || action === 'create_file') {
-      // Get current SHA if updating
-      let sha = '';
-      const existing = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
-      if (existing.ok) {
-        const d = await existing.json();
-        sha = d.sha || '';
-      }
-      
-      const body: Record<string, string> = {
-        message,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
-      };
-      if (sha) body.sha = sha;
-      
-      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, {
-        method: 'PUT', headers,
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
-      const data = await res.json();
-      return `✅ File ${sha ? 'updated' : 'created'}: ${path}\nCommit: ${data.commit?.sha?.slice(0, 8)} — ${data.commit?.html_url || ''}`;
-    }
-    
-    if (action === 'search_code') {
-      const q = owner && repo ? `${query} repo:${owner}/${repo}` : query;
-      const res = await fetch(`${base}/search/code?q=${encodeURIComponent(q)}&per_page=5`, { headers });
-      if (!res.ok) return `GitHub search error ${res.status}`;
-      const data = await res.json();
-      return (data.items || []).slice(0, 5).map((i: {name: string; path: string; html_url: string}) => 
-        `- [${i.name}](${i.html_url})\n  Path: ${i.path}`
-      ).join('\n\n');
-    }
-    
-    return 'Unknown GitHub action';
-  } catch (e) {
-    return `GitHub error: ${e instanceof Error ? e.message : String(e)}`;
-  }
-}
-
 async function executeTool(
   name: string,
   args: Record<string, string>,
@@ -266,8 +177,6 @@ async function executeTool(
         userKeys['TWITTER_BEARER_TOKEN'] || '',
         args.query || ''
       );
-    case 'github_code':
-      return executeGithub(args);
     default:
       return `Unknown tool: ${name}`;
   }
@@ -288,7 +197,7 @@ export async function POST(req: NextRequest) {
     return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
   }
 
-  const { message, history = [], session_id = '', image = '', imageMime = '', style = 'default' } = await req.json();
+  const { message, history = [], session_id = '', image = '' } = await req.json();
   const recentHistory = history.slice(-16);
 
   // Anti-loop detection
@@ -311,15 +220,15 @@ export async function POST(req: NextRequest) {
   }
 
   const messages: Array<Record<string, unknown>> = [
-    { role: 'system', content: buildSystemPrompt() + (style === 'concise' ? '\n\nIMPORTANT: Be very concise. Max 3-4 sentences unless code needed.' : style === 'detailed' ? '\n\nIMPORTANT: Give thorough detailed responses with examples.' : style === 'friendly' ? '\n\nIMPORTANT: Be warm, friendly and casual.' : '') + antiLoopNudge },
+    { role: 'system', content: buildSystemPrompt() + antiLoopNudge },
     ...recentHistory.map((m: { role: string; content: string }) => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     })),
     { role: 'user', content: image
       ? [
-          { type: 'text', text: message || 'Describe this image or file in detail.' },
-          { type: 'image_url', image_url: { url: image.startsWith('data:') ? image : `data:${imageMime || 'image/jpeg'};base64,${image}` } }
+          { type: 'text', text: message || 'What is in this image?' },
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } }
         ]
       : message
     },
@@ -345,7 +254,7 @@ export async function POST(req: NextRequest) {
           max_tokens: 4096,
         };
 
-        const phase1Res = await fetchWithRetry(GROQ_URL, {
+        const phase1Res = await fetch(GROQ_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -360,7 +269,7 @@ export async function POST(req: NextRequest) {
           if (errText.includes('tool_use_failed') || errText.includes('failed_generation')) {
             send({ t: 'thinking', v: 'Retrying without tools...' });
             const retryBody = { model: MODEL, messages, stream: true, temperature: 0.7, max_tokens: 4096 };
-            const retryRes = await fetchWithRetry(GROQ_URL, {
+            const retryRes = await fetch(GROQ_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_API_KEY },
               body: JSON.stringify(retryBody),
@@ -415,27 +324,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Execute all tool calls
-          const toolMessages = [...messages, choice.message  {
-    type: 'function' as const,
-    function: {
-      name: 'github_code',
-      description: 'Read files from GitHub, create/update files, list repo contents, search code, or commit changes. Use when user asks to read/write code on GitHub, view files, create a file, or push changes.',
-      parameters: {
-        type: 'object',
-        properties: {
-          action: { type: 'string', enum: ['read_file', 'write_file', 'list_files', 'create_file', 'search_code'], description: 'What to do' },
-          owner: { type: 'string', description: 'GitHub repo owner/org' },
-          repo: { type: 'string', description: 'Repository name' },
-          path: { type: 'string', description: 'File path in the repo' },
-          content: { type: 'string', description: 'File content (for write/create)' },
-          message: { type: 'string', description: 'Commit message (for write/create)' },
-          query: { type: 'string', description: 'Search query (for search_code)' },
-        },
-        required: ['action'],
-      },
-    },
-  },
-];
+          const toolMessages = [...messages, choice.message];
 
           for (const tc of toolCalls) {
             const fnName = tc.function?.name || '';
@@ -447,9 +336,6 @@ export async function POST(req: NextRequest) {
               send({ t: 'thinking', v: 'Posting to X/Twitter...' });
             } else if (fnName === 'search_twitter') {
               send({ t: 'thinking', v: 'Searching X/Twitter...' });
-            } else if (fnName === 'github_code') {
-              const actionName = fnArgs.action || 'accessing';
-              send({ t: 'thinking', v: `GitHub: ${actionName} ${fnArgs.path || fnArgs.repo || ''}...` });
             } else if (fnName === 'web_search') {
               send({ t: 'thinking', v: 'Searching the web...' });
             }
@@ -466,7 +352,7 @@ export async function POST(req: NextRequest) {
           send({ t: 'thinking_done' });
 
           // Phase 2: Streaming response with tool results
-          const phase2Res = await fetchWithRetry(GROQ_URL, {
+          const phase2Res = await fetch(GROQ_URL, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
