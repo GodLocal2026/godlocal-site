@@ -78,7 +78,7 @@ const MODULES = [
 /* ═══════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════ */
-export default function X100Oasis() {
+export default function GodLocalAI() {
   const [tab, setTab] = useState<TabId>("home");
   const [walletAddr, setWalletAddr] = useState<string | null>(null);
   const [solPrice, setSolPrice] = useState<number | null>(null);
@@ -179,8 +179,8 @@ export default function X100Oasis() {
         {donateOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setDonateOpen(false)}>
             <div className="w-full max-w-sm bg-[#12121a] border border-white/10 rounded-xl p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-base font-semibold text-white mb-1">Donate to Project Pool</h3>
-              <p className="text-xs text-gray-500 mb-5">Support X100 development, collaborations & ecosystem growth</p>
+              <h3 className="text-base font-semibold text-white mb-1">Donate to GodLocal Pool</h3>
+              <p className="text-xs text-gray-500 mb-5">Support GodLocal development, collaborations & ecosystem growth</p>
 
               <div className="bg-white/5 rounded-lg p-3 mb-4">
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Pool Balance</div>
@@ -216,10 +216,10 @@ export default function X100Oasis() {
         <header className="px-5 pt-5 pb-4 border-b border-white/5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 text-sm font-bold">∞</div>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400 text-sm font-bold">⚡</div>
               <div>
-                <div className="text-sm font-bold text-white">X100 Oasis</div>
-                <div className="text-[10px] text-gray-500">Play-to-Earn Self-Development</div>
+                <div className="text-sm font-bold text-white">GodLocal AI</div>
+                <div className="text-[10px] text-gray-500">AI-Powered Self-Development Game</div>
               </div>
             </div>
             {walletAddr ? (
