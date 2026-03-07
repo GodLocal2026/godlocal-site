@@ -180,6 +180,7 @@ export default function CodeThinkerPage() {
   const [loading, setLoading]           = useState(false)
   const [imgPreview, setImgPreview]     = useState<string | null>(null)
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
+  const [mode, setMode]                 = useState<Mode>('vibe')
 
   const [isListening, setIsListening] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
