@@ -18,6 +18,44 @@ interface Msg {
 
 type Mode = 'vibe' | 'debug' | 'refactor' | 'architect' | 'explain'
 
+
+// ── Chat History Types ──────────────────────────────────────────────────────
+interface ChatSession {
+  id: string
+  title: string
+  mode: Mode
+  msgs: Msg[]
+  createdAt: number
+  updatedAt: number
+}
+
+const MAX_SESSIONS = 15
+const STORAGE_KEY = 'codethinker_sessions'
+const ACTIVE_KEY  = 'codethinker_active_session'
+
+function loadSessions(): ChatSession[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveSessions(sessions: ChatSession[]) {
+  // Keep only last MAX_SESSIONS, sorted by updatedAt desc
+  const trimmed = sessions
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, MAX_SESSIONS)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed))
+}
+
+function sessionTitle(msgs: Msg[]): string {
+  const first = msgs.find(m => m.role === 'user')
+  if (!first) return 'Новый чат'
+  const text = first.content.slice(0, 50)
+  return text.length < first.content.length ? text + '…' : text
+}
+
 const MODES: { key: Mode; icon: string; label: string; desc: string }[] = [
   { key: 'vibe',      icon: '🔨', label: 'Vibe Code', desc: 'Опиши идею — получи проект' },
   { key: 'debug',     icon: '🧩', label: 'Debug',     desc: 'Вставь ошибку — найду баг' },
@@ -213,8 +251,84 @@ export default function CodeThinkerPage() {
   const [mode, setMode] = useState<Mode>('vibe')
   const [busy, setBusy] = useState(false)
   const [showModes, setShowModes] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Load sessions on mount
+  useEffect(() => {
+    const loaded = loadSessions()
+    setSessions(loaded)
+    const activeId = localStorage.getItem(ACTIVE_KEY)
+    if (activeId) {
+      const active = loaded.find(s => s.id === activeId)
+      if (active) {
+        setMsgs(active.msgs)
+        setMode(active.mode)
+        setActiveSessionId(active.id)
+        setShowModes(active.msgs.length === 0)
+      }
+    }
+  }, [])
+
+  // Auto-save current session when msgs change
+  useEffect(() => {
+    if (msgs.length === 0) return
+    setSessions(prev => {
+      let updated: ChatSession[]
+      if (activeSessionId) {
+        updated = prev.map(s => s.id === activeSessionId
+          ? { ...s, msgs, mode, title: sessionTitle(msgs), updatedAt: Date.now() }
+          : s
+        )
+      } else {
+        const newSession: ChatSession = {
+          id: uid(),
+          title: sessionTitle(msgs),
+          mode,
+          msgs,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+        setActiveSessionId(newSession.id)
+        localStorage.setItem(ACTIVE_KEY, newSession.id)
+        updated = [newSession, ...prev]
+      }
+      saveSessions(updated)
+      return updated.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_SESSIONS)
+    })
+  }, [msgs, activeSessionId, mode])
+
+  const startNewChat = useCallback(() => {
+    setMsgs([])
+    setShowModes(true)
+    setActiveSessionId(null)
+    localStorage.removeItem(ACTIVE_KEY)
+    setSidebarOpen(false)
+  }, [])
+
+  const loadSession = useCallback((session: ChatSession) => {
+    setMsgs(session.msgs)
+    setMode(session.mode)
+    setActiveSessionId(session.id)
+    setShowModes(session.msgs.length === 0)
+    localStorage.setItem(ACTIVE_KEY, session.id)
+    setSidebarOpen(false)
+  }, [])
+
+  const deleteSession = useCallback((id: string) => {
+    setSessions(prev => {
+      const updated = prev.filter(s => s.id !== id)
+      saveSessions(updated)
+      return updated
+    })
+    if (activeSessionId === id) {
+      startNewChat()
+    }
+  }, [activeSessionId, startNewChat])
 
   const scroll = useCallback(() => {
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }))
@@ -297,9 +411,109 @@ export default function CodeThinkerPage() {
   return (
     <div className="h-dvh flex flex-col bg-[#06060e] text-white overflow-hidden">
 
+      {/* ── Sidebar Overlay ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-0 top-0 bottom-0 w-[300px] bg-[#0a0a1a] border-r border-violet-500/15 z-50 flex flex-col"
+            >
+              {/* Sidebar Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-violet-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-sm font-bold text-white">История</span>
+                  <span className="text-[10px] font-mono text-violet-400/40">{sessions.length}/{MAX_SESSIONS}</span>
+                </div>
+                <button onClick={() => setSidebarOpen(false)} className="text-violet-400/40 hover:text-violet-300 transition-colors p-1">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* New Chat Button */}
+              <button onClick={startNewChat}
+                className="mx-3 mt-3 mb-2 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-violet-500/20 bg-violet-500/10 hover:bg-violet-500/20 transition-all text-sm text-violet-300 font-medium">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Новый чат
+              </button>
+
+              {/* Search */}
+              <div className="px-3 mb-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Поиск..."
+                  className="w-full bg-white/[0.04] border border-violet-500/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/25 font-mono"
+                />
+              </div>
+
+              {/* Session List */}
+              <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+                {sessions
+                  .filter(s => !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map(session => (
+                    <div key={session.id}
+                      className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
+                        session.id === activeSessionId
+                          ? 'bg-violet-500/15 border border-violet-500/20'
+                          : 'hover:bg-white/[0.04] border border-transparent'
+                      }`}
+                      onClick={() => loadSession(session)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs truncate ${session.id === activeSessionId ? 'text-violet-200 font-medium' : 'text-gray-400'}`}>
+                          {session.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] font-mono text-violet-500/40">
+                            {new Date(session.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className="text-[9px] text-violet-500/30">
+                            {session.msgs.filter(m => m.role === 'user').length} сообщ.
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteSession(session.id) }}
+                        className="shrink-0 opacity-0 group-hover:opacity-100 text-violet-400/30 hover:text-red-400/70 transition-all p-1"
+                        title="Удалить"
+                      >
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  ))
+                }
+                {sessions.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-gray-600 font-mono">Пока пусто</p>
+                    <p className="text-[10px] text-gray-700 mt-1">Начни чат — он сохранится автоматически</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 py-2 border-t border-violet-500/10">
+                <p className="text-[9px] text-gray-700 font-mono text-center">Хранится в браузере · Макс. {MAX_SESSIONS} чатов</p>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-violet-500/10 bg-[#06060e]/90 backdrop-blur-xl z-20">
         <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="text-violet-400 hover:text-violet-300 transition-colors p-1">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
           <Link href="/" className="text-violet-400 hover:text-violet-300 transition-colors">
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </Link>
@@ -320,7 +534,7 @@ export default function CodeThinkerPage() {
           }`}>
             {busy ? '⚡ thinking' : '● ready'}
           </span>
-          <button onClick={() => { setMsgs([]); setShowModes(true) }}
+          <button onClick={startNewChat}
             className="text-violet-400/40 hover:text-violet-300 transition-colors p-1" title="New chat">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           </button>
