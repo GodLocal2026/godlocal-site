@@ -2,7 +2,6 @@
 // build-trigger: 24830cac
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useLocalLLM, type LocalLLMStatus } from '@/lib/useLocalLLM'
 import { motion, AnimatePresence } from 'framer-motion'
 
 
@@ -192,8 +191,6 @@ export default function CodeThinkerPage() {
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
   const [imgMime, setImgMime]            = useState<string>('image/jpeg')
   const [mode, setMode]                 = useState<Mode>('vibe')
-  const [aiMode, setAiMode]             = useState<'cloud' | 'local'>('cloud')
-  const localLLM = useLocalLLM()
 
   const [isListening, setIsListening] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
@@ -337,73 +334,32 @@ export default function CodeThinkerPage() {
     abortRef.current = ac
 
     try {
-      if (aiMode === 'local') {
-        // ── Local inference via WebLLM ──────────────────────────────────────
-        const loaded = await localLLM.load()
-        if (!loaded) {
-          setMsgs(prev => [...prev, { id: uid(), role: 'system',
-            content: '⚠️ Local AI not available. Switching to Cloud.', ts: Date.now() }])
-          setAiMode('cloud')
-          setLoading(false)
-          return
-        }
+      const res = await fetch('/api/codethinker/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgBase64 ? imgMime : undefined, mode }),
+        signal: ac.signal,
+      })
 
-        // Build messages for local model (no image support in local mode)
-        const systemPrompt = `You are CodeThinker — a chain-of-thought AI for developers.
-Think step by step before answering. Use 【step】 markers for reasoning.
-Wrap code in \`\`\`lang blocks. Be concise and practical.`
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
 
-        const localMessages = [
-          { role: 'system', content: systemPrompt },
-          ...history.slice(-10),
-          { role: 'user', content: msg },
-        ]
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-        const aiMsgId = uid()
-        setMsgs(prev => [...prev, { id: aiMsgId, role: 'ai', content: '', streaming: true, ts: Date.now(), thinkingSteps: [], thinkingOpen: false }])
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
 
-        await localLLM.chat(
-          localMessages,
-          (token) => {
-            handleEvent('token', token)
-          },
-          () => {
-            handleEvent('done', '')
-          },
-          (err) => {
-            setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ Local error: ' + err, ts: Date.now() }])
-            setLoading(false)
-          }
-        )
-      } else {
-        // ── Cloud inference via Groq ─────────────────────────────────────────
-        const res = await fetch('/api/codethinker/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgBase64 ? imgMime : undefined, mode }),
-          signal: ac.signal,
-        })
-
-        const reader = res.body!.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ''
-
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed.startsWith('data: ')) continue
-            try {
-              const d = JSON.parse(trimmed.slice(6))
-              handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
-            } catch { /* skip */ }
-          }
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          try {
+            const d = JSON.parse(trimmed.slice(6))
+            handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
+          } catch { /* skip */ }
         }
       }
     } catch (err) {
@@ -456,6 +412,51 @@ Wrap code in \`\`\`lang blocks. Be concise and practical.`
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#A78BFA] animate-pulse" />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
+          {/* Local AI toggle */}
+          <button
+            onClick={() => {
+              if (aiMode === 'local') {
+                localLLM.unload()
+                setAiMode('cloud')
+              } else {
+                if (!localLLM.isSupported()) {
+                  setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ Local AI requires WebGPU. Supported in Chrome 124+ or Safari iOS 17+.', ts: Date.now() }])
+                  return
+                }
+                setAiMode('local')
+              }
+            }}
+            title={aiMode === 'local' ? 'LOCAL AI (click to switch to Cloud)' : 'CLOUD AI (click to switch to Local)'}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] md:text-[10px] font-mono border transition-all ${
+              aiMode === 'local'
+                ? 'bg-[#00FF9D]/15 border-[#00FF9D]/40 text-[#00FF9D]'
+                : 'bg-white/5 border-white/10 text-white/35 hover:text-white/60'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${aiMode === 'local' ? 'bg-[#00FF9D] animate-pulse' : 'bg-white/20'}`} />
+            {aiMode === 'local'
+              ? (localLLM.status.phase === 'loading' ? `${(localLLM.status as {phase:string;progress:number}).progress}%` : 'LOCAL')
+              : 'CLOUD'}
+          </button>
+          {/* Model loading progress (full-width bar below header) */}
+          {localLLM.status.phase === 'loading' && (
+            <div className="absolute top-full left-0 right-0 z-20 bg-[#0d1017]/95 border-b border-white/10 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-0.5 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#00FF9D] rounded-full transition-all duration-500"
+                    style={{ width: `${(localLLM.status as {phase:string;progress:number}).progress}%` }}
+                  />
+                </div>
+                <span className="text-[9px] text-white/40 font-mono">
+                  {(localLLM.status as {phase:string;progress:number}).progress}%
+                </span>
+              </div>
+              <p className="text-[9px] text-white/25 mt-0.5 truncate">
+                Qwen2.5-1.5B · {(localLLM.status as {phase:string;text:string}).text}
+              </p>
+            </div>
+          )}
           <button onClick={() => setRadioOpen(r => !r)} title="Radio"
              className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#A78BFA]/40 bg-[#A78BFA]/10 text-[#A78BFA] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
             <span className="text-xs">📻</span>
