@@ -96,49 +96,24 @@ export async function POST(req: NextRequest) {
       { role: 'user', content: message },
     ];
 
-    // Fetch with retry on 429 (rate limit)
-    const MAX_RETRIES = 3;
-    let groqRes: Response | null = null;
+    const groqRes = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GROQ_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.4,
+        max_tokens: 8192,
+        stream: true,
+      }),
+    });
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      groqRes = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${GROQ_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          temperature: 0.4,
-          max_tokens: 8192,
-          stream: true,
-        }),
-      });
-
-      if (groqRes.status !== 429 || attempt === MAX_RETRIES) break;
-
-      // Rate limited — wait and retry
-      const retryAfter = parseInt(groqRes.headers.get('retry-after') || '0', 10);
-      const waitMs = retryAfter > 0
-        ? retryAfter * 1000
-        : Math.min(1000 * Math.pow(2, attempt), 30000); // exponential backoff, max 30s
-      console.log(`Rate limited (429), retry ${attempt + 1}/${MAX_RETRIES} after ${waitMs}ms`);
-      await new Promise(r => setTimeout(r, waitMs));
-    }
-
-    if (!groqRes || !groqRes.ok) {
-      const status = groqRes?.status || 500;
-      const err = groqRes ? await groqRes.text() : 'No response';
-      console.error('Groq error:', status, err);
-
-      if (status === 429) {
-        const retryAfter = groqRes?.headers.get('retry-after') || '60';
-        return NextResponse.json(
-          { error: 'rate_limit', retry_after: parseInt(retryAfter, 10), message: `Лимит запросов. Подожди ${retryAfter} сек.` },
-          { status: 429 }
-        );
-      }
+    if (!groqRes.ok) {
+      const err = await groqRes.text();
+      console.error('Groq error:', err);
       return NextResponse.json({ error: 'Model error' }, { status: 502 });
     }
 

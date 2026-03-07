@@ -2,59 +2,21 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+
 interface Msg {
   id: string
   role: 'user' | 'ai' | 'system'
   content: string
   streaming?: boolean
   ts: number
+  image?: string
   thinkingSteps?: string[]
   thinkingOpen?: boolean
   thinkingDone?: boolean
 }
 
 type Mode = 'vibe' | 'debug' | 'refactor' | 'architect' | 'explain'
-
-
-// ── Chat History Types ──────────────────────────────────────────────────────
-interface ChatSession {
-  id: string
-  title: string
-  mode: Mode
-  msgs: Msg[]
-  createdAt: number
-  updatedAt: number
-}
-
-const MAX_SESSIONS = 15
-const STORAGE_KEY = 'codethinker_sessions'
-const ACTIVE_KEY  = 'codethinker_active_session'
-
-function loadSessions(): ChatSession[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveSessions(sessions: ChatSession[]) {
-  // Keep only last MAX_SESSIONS, sorted by updatedAt desc
-  const trimmed = sessions
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, MAX_SESSIONS)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed))
-}
-
-function sessionTitle(msgs: Msg[]): string {
-  const first = msgs.find(m => m.role === 'user')
-  if (!first) return 'Новый чат'
-  const text = first.content.slice(0, 50)
-  return text.length < first.content.length ? text + '…' : text
-}
 
 const MODES: { key: Mode; icon: string; label: string; desc: string }[] = [
   { key: 'vibe',      icon: '🔨', label: 'Vibe Code', desc: 'Опиши идею — получи проект' },
@@ -74,49 +36,7 @@ const QUICK: Record<Mode, string[]> = {
 
 function uid() { return Math.random().toString(36).slice(2) }
 
-
-// ── Copy Response Button ────────────────────────────────────────────────────
-function CopyResponseBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button onClick={handleCopy}
-      className="flex items-center gap-1 text-[10px] font-mono text-violet-400/40 hover:text-violet-300 transition-colors mt-1.5 ml-auto">
-      {copied ? (
-        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Скопировано</>
-      ) : (
-        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Копировать</>
-      )}
-    </button>
-  )
-}
-
-// ── Code Block Renderer ─────────────────────────────────────────────────────
-function CodeBlock({ code, lang }: { code: string; lang?: string }) {
-  const [copied, setCopied] = useState(false)
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <div className="relative group my-3 rounded-xl overflow-hidden border border-violet-500/20 bg-[#0a0a1a]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-violet-500/10 border-b border-violet-500/15">
-        <span className="text-[10px] font-mono text-violet-400/60 uppercase tracking-wider">{lang || 'code'}</span>
-        <button onClick={handleCopy} className="text-[10px] font-mono text-violet-400/50 hover:text-violet-300 transition-colors">
-          {copied ? '✓ Copied' : 'Copy'}
-        </button>
-      </div>
-      <pre className="px-4 py-3 overflow-x-auto text-xs font-mono text-violet-200/80 leading-relaxed whitespace-pre">{code}</pre>
-    </div>
-  )
-}
-
-// ── Markdown Renderer ───────────────────────────────────────────────────────
+// -- Markdown renderer -------------------------------------------------------
 function renderMarkdown(text: string): React.ReactNode[] {
   const lines = text.split('\n')
   const nodes: React.ReactNode[] = []
@@ -127,28 +47,15 @@ function renderMarkdown(text: string): React.ReactNode[] {
     const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
     let lastIdx = 0; let key = 0; let m: RegExpExecArray | null
     while ((m = linkRe.exec(line)) !== null) {
-      if (m.index > lastIdx) parts.push(inlineCode(line.slice(lastIdx, m.index), key++))
+      if (m.index > lastIdx) parts.push(inlineBold(line.slice(lastIdx, m.index), key++))
       parts.push(
         <a key={key++} href={m[2]} target="_blank" rel="noopener noreferrer"
-          className="text-violet-400 underline underline-offset-2 hover:text-violet-300 transition-colors break-all">{m[1]}</a>
+          className="text-[#A78BFA] underline underline-offset-2 hover:text-[#A78BFA]/80 transition-colors break-all">{m[1]}</a>
       )
       lastIdx = m.index + m[0].length
     }
-    if (lastIdx < line.length) parts.push(inlineCode(line.slice(lastIdx), key++))
+    if (lastIdx < line.length) parts.push(inlineBold(line.slice(lastIdx), key++))
     return parts.length === 1 ? parts[0] : <>{parts}</>
-  }
-
-  function inlineCode(text: string, key: number): React.ReactNode {
-    const parts: React.ReactNode[] = []
-    const codeRe = /`([^`]+)`/g
-    let lastIdx = 0; let m: RegExpExecArray | null; let k = 0
-    while ((m = codeRe.exec(text)) !== null) {
-      if (m.index > lastIdx) parts.push(inlineBold(text.slice(lastIdx, m.index), k++))
-      parts.push(<code key={k++} className="bg-violet-500/15 text-violet-300 px-1.5 py-0.5 rounded text-xs font-mono">{m[1]}</code>)
-      lastIdx = m.index + m[0].length
-    }
-    if (lastIdx < text.length) parts.push(inlineBold(text.slice(lastIdx), k++))
-    return parts.length === 0 ? text : parts.length === 1 ? parts[0] : <>{parts}</>
   }
 
   function inlineBold(text: string, key: number): React.ReactNode {
@@ -167,13 +74,13 @@ function renderMarkdown(text: string): React.ReactNode[] {
   while (i < lines.length) {
     const line = lines[i]
     if (!line.trim()) { nodes.push(<div key={i} className="h-2" />); i++; continue }
-    if (line.startsWith('# '))  { nodes.push(<h1 key={i} className="text-base font-bold text-white mt-3 mb-1">{inlineRender(line.slice(2))}</h1>); i++; continue }
-    if (line.startsWith('## ')) { nodes.push(<h2 key={i} className="text-sm font-bold text-violet-200 mt-2 mb-0.5">{inlineRender(line.slice(3))}</h2>); i++; continue }
-    if (line.startsWith('### ')){ nodes.push(<h3 key={i} className="text-sm font-semibold text-violet-300/80 mt-1">{inlineRender(line.slice(4))}</h3>); i++; continue }
-    if (line.match(/^[-*] /)) {
+    if (line.startsWith('# '))  { nodes.push(<h1 key={i} className="text-base font-bold text-white mt-2 mb-1">{inlineRender(line.slice(2))}</h1>); i++; continue }
+    if (line.startsWith('## ')) { nodes.push(<h2 key={i} className="text-sm font-bold text-white/90 mt-2 mb-0.5">{inlineRender(line.slice(3))}</h2>); i++; continue }
+    if (line.startsWith('### ')){ nodes.push(<h3 key={i} className="text-sm font-semibold text-white/75 mt-1">{inlineRender(line.slice(4))}</h3>); i++; continue }
+    if (line.match(/^[-*\u2022] /)) {
       const items: React.ReactNode[] = []
-      while (i < lines.length && lines[i].match(/^[-*] /)) {
-        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-violet-500/60 mt-0.5 shrink-0">▸</span><span>{inlineRender(lines[i].replace(/^[-*] /,''))}</span></li>)
+      while (i < lines.length && lines[i].match(/^[-*\u2022] /)) {
+        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-[#A78BFA]/60 mt-0.5 shrink-0">&middot;</span><span>{inlineRender(lines[i].replace(/^[-*\u2022] /,''))}</span></li>)
         i++
       }
       nodes.push(<ul key={`ul-${i}`} className="space-y-1 my-1">{items}</ul>); continue
@@ -181,62 +88,83 @@ function renderMarkdown(text: string): React.ReactNode[] {
     if (line.match(/^\d+\. /)) {
       const items: React.ReactNode[] = []; let num = 1
       while (i < lines.length && lines[i].match(/^\d+\. /)) {
-        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-violet-400/50 shrink-0 w-5 text-right font-mono text-xs">{num}.</span><span>{inlineRender(lines[i].replace(/^\d+\. /,''))}</span></li>)
+        items.push(<li key={i} className="flex gap-2 items-start"><span className="text-[#A78BFA]/50 shrink-0 w-5 text-right">{num}.</span><span>{inlineRender(lines[i].replace(/^\d+\. /,''))}</span></li>)
         i++; num++
       }
       nodes.push(<ol key={`ol-${i}`} className="space-y-1 my-1">{items}</ol>); continue
     }
     if (line.startsWith('```')) {
-      const lang = line.slice(3).trim()
       const codeLines: string[] = []; i++
       while (i < lines.length && !lines[i].startsWith('```')) { codeLines.push(lines[i]); i++ }
-      nodes.push(<CodeBlock key={i} code={codeLines.join('\n')} lang={lang} />)
+      nodes.push(<pre key={i} className="bg-black/50 border border-white/10 rounded-xl px-3 py-2 my-2 overflow-x-auto text-xs font-mono text-[#A78BFA]/80 leading-relaxed">{codeLines.join('\n')}</pre>)
       i++; continue
     }
-    if (line.match(/^---+$/)) { nodes.push(<hr key={i} className="border-violet-500/15 my-2" />); i++; continue }
+    if (line.match(/^---+$/)) { nodes.push(<hr key={i} className="border-white/10 my-2" />); i++; continue }
     nodes.push(<p key={i} className="leading-relaxed">{inlineRender(line)}</p>)
     i++
   }
   return nodes
 }
 
-// ── Message Content ─────────────────────────────────────────────────────────
 function MsgContent({ content, streaming }: { content: string; streaming?: boolean }) {
   return (
-    <div className="text-sm text-gray-300 space-y-0.5 break-words">
+    <div className="text-sm space-y-0.5">
       {renderMarkdown(content)}
-      {streaming && (
-        <span className="inline-flex gap-0.5 ml-1 align-middle">
-          <span className="w-1 h-1 rounded-full bg-violet-400 animate-pulse" />
-          <span className="w-1 h-1 rounded-full bg-violet-400 animate-pulse [animation-delay:150ms]" />
-          <span className="w-1 h-1 rounded-full bg-violet-400 animate-pulse [animation-delay:300ms]" />
-        </span>
-      )}
+      {streaming && <span className="inline-block w-1.5 h-4 bg-[#A78BFA] rounded-sm ml-0.5 animate-pulse align-middle" />}
     </div>
   )
 }
 
-// ── Thinking Steps ──────────────────────────────────────────────────────────
-function ThinkingBlock({ steps, open, done, onToggle }: { steps: string[]; open: boolean; done: boolean; onToggle: () => void }) {
+// -- ThinkingBlock -----------------------------------------------------------
+function ThinkingBlock({
+  steps, streaming, open, onToggle,
+}: {
+  steps: string[]; streaming?: boolean; open: boolean; onToggle: () => void
+}) {
+  if (!steps || steps.length === 0) return null
   return (
     <div className="mb-2">
-      <button onClick={onToggle}
-        className="flex items-center gap-2 text-xs text-violet-400/70 hover:text-violet-300 transition-colors font-mono">
-        <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-        <span>{done ? `Мыслительная цепочка (${steps.length} шагов)` : 'Думаю...'}</span>
-        {!done && <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />}
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 text-[10px] font-mono px-2.5 py-1 rounded-full border border-[#A78BFA]/15 bg-[#A78BFA]/5 text-[#A78BFA]/50 hover:text-[#A78BFA]/80 hover:border-[#A78BFA]/30 transition-all"
+      >
+        {streaming
+          ? <span className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]/70 animate-pulse" />
+          : <span className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]/35" />}
+        {streaming ? 'Thinking...' : `Thought process · ${steps.length} steps`}
+        <span className="opacity-40">{open ? '▲' : '▼'}</span>
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden mt-2 ml-3 border-l border-violet-500/20 pl-3">
-            {steps.map((step, j) => (
-              <motion.div key={j} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: j * 0.05 }}
-                className="text-xs text-violet-400/50 font-mono py-0.5 flex items-start gap-2">
-                <span className="text-violet-500/40 shrink-0">›</span>
-                <span>{step}</span>
-              </motion.div>
-            ))}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mt-1.5 px-3 py-2.5 bg-black/40 border border-white/8 rounded-xl font-mono text-[10px] md:text-[11px] text-white/40 leading-relaxed space-y-1 max-h-52 overflow-y-auto"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.1) transparent' }}
+            >
+              {steps.map((s, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-[#A78BFA]/25 shrink-0 select-none">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="text-white/45 break-words">{s}</span>
+                </div>
+              ))}
+              {streaming && (
+                <div className="flex gap-2 items-center">
+                  <span className="text-[#A78BFA]/25 shrink-0">--</span>
+                  <span className="inline-flex gap-1">
+                    {[0, 0.2, 0.4].map((d, i) => (
+                      <span key={i} className="w-1 h-1 rounded-full bg-[#A78BFA]/40 animate-bounce"
+                        style={{ animationDelay: `${d}s` }} />
+                    ))}
+                  </span>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -244,414 +172,399 @@ function ThinkingBlock({ steps, open, done, onToggle }: { steps: string[]; open:
   )
 }
 
-// ── Main Page ───────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 export default function CodeThinkerPage() {
-  const [msgs, setMsgs] = useState<Msg[]>([])
-  const [input, setInput] = useState('')
-  const [mode, setMode] = useState<Mode>('vibe')
-  const [busy, setBusy] = useState(false)
-  const [showModes, setShowModes] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [sessions, setSessions] = useState<ChatSession[]>([])
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [msgs, setMsgs]                 = useState<Msg[]>([])
+  const [input, setInput]               = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [imgPreview, setImgPreview]     = useState<string | null>(null)
+  const [imgBase64, setImgBase64]       = useState<string | null>(null)
 
-  // Load sessions on mount
-  useEffect(() => {
-    const loaded = loadSessions()
-    setSessions(loaded)
-    const activeId = localStorage.getItem(ACTIVE_KEY)
-    if (activeId) {
-      const active = loaded.find(s => s.id === activeId)
-      if (active) {
-        setMsgs(active.msgs)
-        setMode(active.mode)
-        setActiveSessionId(active.id)
-        setShowModes(active.msgs.length === 0)
+  const [isListening, setIsListening] = useState(false)
+  const [radioOpen, setRadioOpen] = useState(false)
+  const [radioPlaying, setRadioPlaying] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const recognitionRef = useRef<ReturnType<typeof Object> | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef  = useRef<HTMLTextAreaElement>(null)
+  const fileRef   = useRef<HTMLInputElement>(null)
+  const msgsRef   = useRef<Msg[]>([])
+  const abortRef  = useRef<AbortController | null>(null)
+
+  useEffect(() => { msgsRef.current = msgs }, [msgs])
+
+  const scroll = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  useEffect(scroll, [msgs])
+
+  // Speech recognition setup
+  const toggleVoice = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = globalThis as any
+    const SR = W.SpeechRecognition || W.webkitSpeechRecognition
+    if (!SR) { alert('Speech recognition not supported'); return }
+    if (isListening && recognitionRef.current) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (recognitionRef.current as any).stop()
+      setIsListening(false)
+      return
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SR()
+    recognition.lang = navigator.language || 'en-US'
+    recognition.interimResults = true
+    recognition.continuous = true
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
+      let transcript = ''
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript
       }
+      setInput(transcript)
+    }
+    recognition.onend = () => setIsListening(false)
+    recognition.onerror = () => setIsListening(false)
+    recognition.start()
+    recognitionRef.current = recognition
+    setIsListening(true)
+  }, [isListening])
+
+  // Radio stations
+  const RADIO_STATIONS = [
+    { name: 'Kiss FM 🇺🇦', url: 'https://online.kissfm.ua/KissFM', emoji: '💋' },
+    { name: 'Afro House', url: 'https://stream.sunshine-live.de/afrohouse/mp3-128', emoji: '🌍' },
+    { name: 'Hit FM 🇺🇦', url: 'https://online.hitfm.ua/HitFM', emoji: '🎤' },
+    { name: 'Київ FM', url: 'https://radio.kiev.fm', emoji: '🏙️' },
+    { name: 'Record FM', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp', emoji: '🔴' },
+  ]
+
+  const toggleRadio = (stationUrl: string) => {
+    if (radioPlaying === stationUrl) {
+      audioRef.current?.pause()
+      setRadioPlaying(null)
+      return
+    }
+    if (audioRef.current) audioRef.current.pause()
+    const audio = new Audio(stationUrl)
+    audio.play().catch(() => {})
+    audio.onerror = () => setRadioPlaying(null)
+    audioRef.current = audio
+    setRadioPlaying(stationUrl)
+  }
+
+  const isTalking = loading || (msgs.length > 0 &&
+    msgs[msgs.length - 1]?.role === 'ai' &&
+    msgs[msgs.length - 1]?.streaming === true)
+
+  const handleEvent = useCallback((type: string, val: string) => {
+    if (type === 'thinking_start') {
+      setMsgs(prev => [
+        ...prev,
+        { id: uid(), role: 'ai', content: '', streaming: true,
+          thinkingSteps: [], thinkingOpen: true, thinkingDone: false, ts: Date.now() }
+      ])
+    } else if (type === 'thinking') {
+      setMsgs(prev => {
+        const last = prev[prev.length - 1]
+        if (last?.role === 'ai')
+          return [...prev.slice(0, -1), {
+            ...last, thinkingSteps: [...(last.thinkingSteps || []), val]
+          }]
+        return prev
+      })
+    } else if (type === 'thinking_done') {
+      setMsgs(prev => {
+        const last = prev[prev.length - 1]
+        if (last?.role === 'ai')
+          return [...prev.slice(0, -1), {
+            ...last, thinkingDone: true, thinkingOpen: false
+          }]
+        return prev
+      })
+    } else if (type === 'token') {
+      setMsgs(prev => {
+        const last = prev[prev.length - 1]
+        if (last?.role === 'ai' && last.streaming)
+          return [...prev.slice(0, -1), { ...last, content: last.content + val }]
+        return [...prev, { id: uid(), role: 'ai', content: val, streaming: true,
+                           thinkingSteps: [], thinkingOpen: false, thinkingDone: true, ts: Date.now() }]
+      })
+    } else if (type === 'done') {
+      setMsgs(prev => {
+        const l = prev[prev.length - 1]
+        if (l?.role === 'ai') return [...prev.slice(0, -1), { ...l, streaming: false }]
+        return prev
+      })
+      setLoading(false)
+    } else if (type === 'error') {
+      setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ ' + val, ts: Date.now() }])
+      setLoading(false)
     }
   }, [])
-
-  // Auto-save current session when msgs change
-  useEffect(() => {
-    if (msgs.length === 0) return
-    setSessions(prev => {
-      let updated: ChatSession[]
-      if (activeSessionId) {
-        updated = prev.map(s => s.id === activeSessionId
-          ? { ...s, msgs, mode, title: sessionTitle(msgs), updatedAt: Date.now() }
-          : s
-        )
-      } else {
-        const newSession: ChatSession = {
-          id: uid(),
-          title: sessionTitle(msgs),
-          mode,
-          msgs,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }
-        setActiveSessionId(newSession.id)
-        localStorage.setItem(ACTIVE_KEY, newSession.id)
-        updated = [newSession, ...prev]
-      }
-      saveSessions(updated)
-      return updated.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_SESSIONS)
-    })
-  }, [msgs, activeSessionId, mode])
-
-  const startNewChat = useCallback(() => {
-    setMsgs([])
-    setShowModes(true)
-    setActiveSessionId(null)
-    localStorage.removeItem(ACTIVE_KEY)
-    setSidebarOpen(false)
-  }, [])
-
-  const loadSession = useCallback((session: ChatSession) => {
-    setMsgs(session.msgs)
-    setMode(session.mode)
-    setActiveSessionId(session.id)
-    setShowModes(session.msgs.length === 0)
-    localStorage.setItem(ACTIVE_KEY, session.id)
-    setSidebarOpen(false)
-  }, [])
-
-  const deleteSession = useCallback((id: string) => {
-    setSessions(prev => {
-      const updated = prev.filter(s => s.id !== id)
-      saveSessions(updated)
-      return updated
-    })
-    if (activeSessionId === id) {
-      startNewChat()
-    }
-  }, [activeSessionId, startNewChat])
-
-  const scroll = useCallback(() => {
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }))
-  }, [])
-
-  useEffect(() => { scroll() }, [msgs, scroll])
-
-  useEffect(() => {
-    const el = inputRef.current
-    if (!el) return
-    el.style.height = '0'
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
-  }, [input])
 
   const send = useCallback(async (text?: string) => {
-    const msg = (text || input).trim()
-    if (!msg || busy) return
-    setInput('')
-    setShowModes(false)
+    const msg = (text ?? input).trim()
+    if (!msg && !imgBase64) return
 
-    const userMsg: Msg = { id: uid(), role: 'user', content: msg, ts: Date.now() }
-    const aiMsg: Msg = { id: uid(), role: 'ai', content: '', streaming: true, ts: Date.now(), thinkingSteps: [], thinkingOpen: true, thinkingDone: false }
-    setMsgs(prev => [...prev, userMsg, aiMsg])
-    setBusy(true)
+    setMsgs(prev => [...prev, { id: uid(), role: 'user', content: msg,
+                                image: imgPreview ?? undefined, ts: Date.now() }])
+    setInput('')
+    setLoading(true)
+
+    const history = msgsRef.current
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content,
+      }))
+
+    if (abortRef.current) abortRef.current.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
 
     try {
-      const history = msgs.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
-
       const res = await fetch('/api/codethinker/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', mode }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, mode }),
+        signal: ac.signal,
       })
 
-      if (!res.ok || !res.body) {
-        if (res.status === 429) {
-          const data = await res.json().catch(() => ({}))
-          const wait = data.retry_after || 60
-          throw new Error(`⏳ Лимит запросов исчерпан. Подожди ${wait} сек и попробуй снова.`)
-        }
-        throw new Error('API error')
-      }
-
-      const reader = res.body.getReader()
-      const dec = new TextDecoder()
-      let full = ''
-      const steps: string[] = []
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = dec.decode(value, { stream: true })
-        full += chunk
 
-        const thinkMatch = chunk.match(/【(.+?)】/g)
-        if (thinkMatch) thinkMatch.forEach(m => steps.push(m.replace(/[【】]/g, '')))
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
 
-        setMsgs(prev => prev.map(m => m.id === aiMsg.id ? {
-          ...m, content: full.replace(/【.+?】/g, '').trim(), thinkingSteps: [...steps], thinkingDone: false
-        } : m))
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          try {
+            const d = JSON.parse(trimmed.slice(6))
+            handleEvent(d.t || d.type || '', d.v ?? d.content ?? '')
+          } catch { /* skip */ }
+        }
       }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setMsgs(prev => [...prev, { id: uid(), role: 'system', content: '⚠️ Connection error', ts: Date.now() }])
+      }
+      setLoading(false)
+    }
 
-      setMsgs(prev => prev.map(m => m.id === aiMsg.id ? {
-        ...m, content: full.replace(/【.+?】/g, '').trim(), streaming: false, thinkingSteps: [...steps], thinkingDone: true, thinkingOpen: steps.length > 0
-      } : m))
+    setImgPreview(null); setImgBase64(null)
+    // Mobile: dismiss keyboard, Desktop: keep focus
+    const isMobile = 'ontouchstart' in globalThis
+    if (isMobile) { inputRef.current?.blur() }
+    else { setTimeout(() => inputRef.current?.focus(), 50) }
+  }, [input, imgBase64, imgPreview, handleEvent])
 
-    } catch (e: unknown) {
-      setMsgs(prev => prev.map(m => m.id === aiMsg.id ? {
-        ...m, content: e instanceof Error && e.message.startsWith('⏳') ? e.message : '⚠️ Ошибка соединения. Попробуй ещё раз.', streaming: false, thinkingDone: true
-      } : m))
-    } finally { setBusy(false) }
-  }, [input, busy, msgs, mode])
-
-  const handleKey = (e: React.KeyboardEvent) => {
+  const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const r = reader.result as string
+      setImgPreview(r); setImgBase64(r.split(',')[1])
+    }
+    reader.readAsDataURL(file)
+  }
 
-  const activeMode = MODES.find(m => m.key === mode)!
+  const toggleThinking = (id: string) =>
+    setMsgs(prev => prev.map(m => m.id === id ? { ...m, thinkingOpen: !m.thinkingOpen } : m))
 
   return (
-    <div className="h-dvh flex flex-col bg-[#06060e] text-white overflow-hidden">
+    <div
+      className="flex flex-col h-screen text-[#E0E0E0] font-sans relative overflow-hidden"
+      style={{ backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
+      
 
-      {/* ── Sidebar Overlay ─────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed left-0 top-0 bottom-0 w-[300px] bg-[#0a0a1a] border-r border-violet-500/15 z-50 flex flex-col"
-            >
-              {/* Sidebar Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-violet-500/10">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⚡</span>
-                  <span className="text-sm font-bold text-white">История</span>
-                  <span className="text-[10px] font-mono text-violet-400/40">{sessions.length}/{MAX_SESSIONS}</span>
-                </div>
-                <button onClick={() => setSidebarOpen(false)} className="text-violet-400/40 hover:text-violet-300 transition-colors p-1">
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              {/* New Chat Button */}
-              <button onClick={startNewChat}
-                className="mx-3 mt-3 mb-2 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-violet-500/20 bg-violet-500/10 hover:bg-violet-500/20 transition-all text-sm text-violet-300 font-medium">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                Новый чат
-              </button>
-
-              {/* Search */}
-              <div className="px-3 mb-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Поиск..."
-                  className="w-full bg-white/[0.04] border border-violet-500/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/25 font-mono"
-                />
-              </div>
-
-              {/* Session List */}
-              <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
-                {sessions
-                  .filter(s => !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map(session => (
-                    <div key={session.id}
-                      className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
-                        session.id === activeSessionId
-                          ? 'bg-violet-500/15 border border-violet-500/20'
-                          : 'hover:bg-white/[0.04] border border-transparent'
-                      }`}
-                      onClick={() => loadSession(session)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs truncate ${session.id === activeSessionId ? 'text-violet-200 font-medium' : 'text-gray-400'}`}>
-                          {session.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] font-mono text-violet-500/40">
-                            {new Date(session.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                          </span>
-                          <span className="text-[9px] text-violet-500/30">
-                            {session.msgs.filter(m => m.role === 'user').length} сообщ.
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteSession(session.id) }}
-                        className="shrink-0 opacity-0 group-hover:opacity-100 text-violet-400/30 hover:text-red-400/70 transition-all p-1"
-                        title="Удалить"
-                      >
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </div>
-                  ))
-                }
-                {sessions.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-gray-600 font-mono">Пока пусто</p>
-                    <p className="text-[10px] text-gray-700 mt-1">Начни чат — он сохранится автоматически</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-4 py-2 border-t border-violet-500/10">
-                <p className="text-[9px] text-gray-700 font-mono text-center">Хранится в браузере · Макс. {MAX_SESSIONS} чатов</p>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-violet-500/10 bg-[#06060e]/90 backdrop-blur-xl z-20">
+      <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} className="text-violet-400 hover:text-violet-300 transition-colors p-1">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-          </button>
-          <Link href="/" className="text-violet-400 hover:text-violet-300 transition-colors">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </Link>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-              <span className="text-lg">⚡</span>
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-white leading-tight">CodeThinker</h1>
-              <p className="text-[10px] text-violet-400/60 font-mono">AI думает кодом</p>
-            </div>
-          </div>
+          <span className="text-lg md:text-xl">{"⚡"}</span>
+          <span className="font-bold text-white tracking-tight text-sm md:text-base">GodLocal</span>
+          <span className="text-[10px] md:text-xs font-mono text-[#A78BFA]/70 border border-[#A78BFA]/25 px-2 py-0.5 rounded-full">CodeThinker</span>
         </div>
-
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-            busy ? 'text-amber-400/70 border-amber-500/25 bg-amber-500/10' : 'text-violet-400/70 border-violet-500/25 bg-violet-500/10'
-          }`}>
-            {busy ? '⚡ thinking' : '● ready'}
-          </span>
-          <button onClick={startNewChat}
-            className="text-violet-400/40 hover:text-violet-300 transition-colors p-1" title="New chat">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+          <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#A78BFA] animate-pulse" />
+          <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
+          <button onClick={() => setRadioOpen(r => !r)} title="Radio"
+             className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#A78BFA]/40 bg-[#A78BFA]/10 text-[#A78BFA] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
+            <span className="text-xs">📻</span>
           </button>
+          <a href="/codethinker" title="Settings"
+             className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 1 21 12a10 10 0 0 1-1.93 7.07M4.93 4.93A10 10 0 0 0 3 12a10 10 0 0 0 1.93 7.07"/>
+              <path d="m16.24 7.76-1.22 1.22M7.76 16.24l-1.22 1.22M16.24 16.24l-1.22-1.22M7.76 7.76 6.54 6.54"/>
+            </svg>
+          </a>
         </div>
       </header>
 
-      {/* ── Messages Area ───────────────────────────────────────────────── */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth">
+      <div className="relative z-10 flex flex-1 overflow-hidden justify-center">
+        <div className="flex flex-col w-full md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-hidden">
 
-        {showModes && msgs.length === 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto pt-8 md:pt-16">
+          <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 md:py-6 space-y-3 md:space-y-4"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.15) transparent' }}>
 
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/20 mb-4">
-                <span className="text-3xl">⚡</span>
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
-                Code<span className="text-violet-400">Thinker</span>
-              </h2>
-              <p className="text-gray-500 text-sm">Chain-of-thought AI для разработчиков</p>
-            </div>
+            {msgs.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+                className="flex flex-col items-center justify-center h-full gap-6 md:gap-10 pb-12"
+              >
+                <div className="text-center px-4">
+                  <motion.div className="text-4xl md:text-6xl mb-3 md:mb-5"
+                    animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
+                    {"⚡"}
+                  </motion.div>
+                  <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">CodeThinker</h1>
+                  <p className="text-white/45 text-xs md:text-sm">Your AI with memory, search, and tools</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full max-w-xs md:max-w-md px-2">
+                  {QUICK.map(q => (
+                    <button key={q} onClick={() => send(q)}
+                      className="text-left text-[11px] md:text-xs px-3 py-2.5 md:py-3 rounded-xl border border-white/10 bg-black/30 hover:bg-[#A78BFA]/10 hover:border-[#A78BFA]/35 transition-all text-white/50 hover:text-white/85 leading-snug backdrop-blur-sm">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
-            <div className="flex flex-wrap gap-2 justify-center mb-8">
-              {MODES.map(m => (
-                <button key={m.key} onClick={() => setMode(m.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
-                    mode === m.key
-                      ? 'bg-violet-500/20 border-violet-500/30 text-violet-300 shadow-lg shadow-violet-500/10'
-                      : 'bg-white/[0.02] border-white/10 text-gray-400 hover:bg-white/[0.05] hover:text-gray-300'
-                  }`}>
-                  <span>{m.icon}</span>
-                  <span>{m.label}</span>
-                </button>
+            <AnimatePresence initial={false}>
+              {msgs.map(m => (
+                <motion.div key={m.id}
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {m.role === 'system' ? (
+                    <span className="text-[10px] md:text-xs text-white/25 font-mono px-3 py-1 rounded-full bg-black/30 border border-white/8 backdrop-blur-sm">
+                      {m.content}
+                    </span>
+                  ) : (
+                    <div className={`max-w-[88%] md:max-w-[78%] ${m.role === 'user' ? 'order-2' : ''}`}>
+                      {m.image && <img src={m.image} alt="" className="rounded-xl mb-2 max-h-44 md:max-h-56 object-cover" />}
+                      {m.role === 'ai' && (
+                        <ThinkingBlock
+                          steps={m.thinkingSteps || []}
+                          streaming={!m.thinkingDone}
+                          open={m.thinkingOpen || false}
+                          onToggle={() => toggleThinking(m.id)}
+                        />
+                      )}
+                      <div className={`rounded-2xl px-3.5 md:px-4 py-2.5 md:py-3 ${
+                        m.role === 'user'
+                          ? 'bg-[#A78BFA]/15 border border-[#A78BFA]/25 text-white ml-auto backdrop-blur-sm'
+                          : 'bg-black/45 border border-white/12 text-[#E8E8E8] backdrop-blur-sm'
+                      }`}>
+                        {m.role === 'user'
+                          ? <span className="text-sm leading-relaxed">{m.content}</span>
+                          : <MsgContent content={m.content} streaming={m.streaming} />}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
               ))}
-            </div>
+            </AnimatePresence>
 
-            <div className="text-center mb-6">
-              <p className="text-violet-400/80 text-sm font-medium">{activeMode.icon} {activeMode.desc}</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {QUICK[mode].map((q, idx) => (
-                <motion.button key={`${mode}-${idx}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                  onClick={() => send(q)}
-                  className="group text-left px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-violet-500/[0.08] hover:border-violet-500/20 transition-all">
-                  <span className="text-xs text-gray-400 group-hover:text-violet-300 transition-colors leading-snug">{q}</span>
-                  <span className="text-violet-500/0 group-hover:text-violet-500/50 text-xs ml-1 transition-colors">→</span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {msgs.map(msg => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className={`max-w-3xl mx-auto ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
-
-            {msg.role === 'user' ? (
-              <div className="bg-violet-500/15 border border-violet-500/20 rounded-2xl rounded-br-md px-4 py-3 max-w-[85%]">
-                <p className="text-sm text-violet-200 whitespace-pre-wrap">{msg.content}</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {msg.thinkingSteps && msg.thinkingSteps.length > 0 && (
-                  <ThinkingBlock
-                    steps={msg.thinkingSteps}
-                    open={!!msg.thinkingOpen}
-                    done={!!msg.thinkingDone}
-                    onToggle={() => setMsgs(prev => prev.map(m => m.id === msg.id ? { ...m, thinkingOpen: !m.thinkingOpen } : m))}
-                  />
-                )}
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3">
-                  <MsgContent content={msg.content} streaming={msg.streaming} />
-                  {!msg.streaming && msg.content && <CopyResponseBtn text={msg.content} />}
+            {loading && msgs[msgs.length - 1]?.role !== 'ai' && (
+              <div className="flex justify-start">
+                <div className="bg-black/45 border border-white/12 backdrop-blur-sm rounded-2xl px-4 py-3">
+                  <div className="flex gap-1">
+                    {[0, 0.15, 0.3].map((d, i) => (
+                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]/60 animate-bounce"
+                        style={{ animationDelay: `${d}s` }} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
-          </motion.div>
-        ))}
-      </div>
-
-      {/* ── Input Area ──────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-violet-500/10 bg-[#06060e]/90 backdrop-blur-xl px-4 py-3">
-        <div className="max-w-3xl mx-auto">
-          {!showModes && (
-            <div className="flex items-center gap-2 mb-2">
-              {MODES.map(m => (
-                <button key={m.key} onClick={() => setMode(m.key)}
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full border transition-all ${
-                    mode === m.key
-                      ? 'text-violet-300 border-violet-500/30 bg-violet-500/15'
-                      : 'text-gray-600 border-transparent hover:text-gray-400'
-                  }`}>
-                  {m.icon} {m.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-end gap-2">
-            <div className="flex-1 relative">
-              <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
-                placeholder={activeMode.desc + '...'}
-                rows={1}
-                className="w-full bg-white/[0.04] border border-violet-500/15 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-violet-500/30 focus:ring-1 focus:ring-violet-500/20 resize-none font-mono transition-all"
-              />
-            </div>
-            <button onClick={() => send()} disabled={busy || !input.trim()}
-              className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/25 flex items-center justify-center text-violet-400 hover:bg-violet-500/30 hover:text-violet-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-              {busy ? (
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
-              ) : (
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" /></svg>
-              )}
-            </button>
+            <div ref={bottomRef} />
           </div>
-          <p className="text-[10px] text-gray-700 text-center mt-2 font-mono">CodeThinker · Chain-of-Thought AI · GodLocal</p>
+
+          <AnimatePresence>
+            {imgPreview && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} className="shrink-0 px-3 md:px-4 pb-2">
+                <div className="relative inline-block">
+                  <img src={imgPreview} alt="" className="h-16 md:h-20 rounded-xl object-cover border border-white/15" />
+                  <button onClick={() => { setImgPreview(null); setImgBase64(null) }}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">{'\u2715'}</button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+
+          {/* Radio Panel */}
+          <AnimatePresence>
+            {radioOpen && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} className="shrink-0 px-3 md:px-4 pb-2">
+                <div className="bg-black/60 border border-white/15 backdrop-blur-md rounded-2xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">📻 Radio</span>
+                    <button onClick={() => { setRadioOpen(false); audioRef.current?.pause(); setRadioPlaying(null) }}
+                      className="text-white/30 hover:text-white/60 text-xs">✕</button>
+                  </div>
+                  {RADIO_STATIONS.map(s => (
+                    <button key={s.url} onClick={() => toggleRadio(s.url)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs transition-all ${radioPlaying === s.url ? 'bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-white' : 'bg-white/5 border border-white/8 text-white/50 hover:text-white/80 hover:bg-white/10'}`}>
+                      <span>{s.emoji}</span>
+                      <span className="flex-1">{s.name}</span>
+                      {radioPlaying === s.url && <span className="text-[#A78BFA] text-[10px] animate-pulse">▶ LIVE</span>}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
+            <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#A78BFA]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
+              <button onClick={() => fileRef.current?.click()}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-white/35 hover:text-white/65 hover:bg-white/10 transition-all"
+                title="Attach image">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/>
+                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                </svg>
+              </button>
+              <button onClick={toggleVoice}
+                className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-xl transition-all ${isListening ? 'text-red-400 bg-red-500/20 animate-pulse border border-red-500/40' : 'text-white/35 hover:text-white/65 hover:bg-white/10'}`}
+                title={isListening ? 'Stop recording' : 'Voice input'}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+              </button>
+              <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
+              <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
+                placeholder="Type something..."  rows={1}
+                className="flex-1 bg-transparent resize-none outline-none text-base md:text-sm text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
+                style={{ scrollbarWidth: 'none' }} />
+              <button onClick={() => send()}
+                disabled={(!input.trim() && !imgBase64) || loading}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-[#A78BFA]/20 border border-[#A78BFA]/40 text-[#A78BFA] disabled:opacity-20 disabled:cursor-not-allowed hover:bg-[#A78BFA]/35 hover:border-[#A78BFA]/60 transition-all active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>
+                </svg>
+              </button>
+            </div>
+            <p className="text-center text-[9px] md:text-[10px] text-white/18 mt-1.5 font-mono">
+              Enter — send · Shift+Enter — new line · 🎤 — voice
+            </p>
+          </div>
+
         </div>
       </div>
     </div>
