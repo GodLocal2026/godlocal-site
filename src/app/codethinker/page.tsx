@@ -393,8 +393,8 @@ export default function CodeThinkerPage() {
 
   return (
     <div
-      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden" style={{ height: "100dvh" }}
-      style={{ backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden"
+      style={{ height: "100dvh", backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
       
@@ -581,8 +581,8 @@ export default function CodeThinkerPage() {
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
                 placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
-                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1" style={{ fontSize: '16px' }}
-                style={{ scrollbarWidth: 'none' }} />
+                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
+                style={{ fontSize: '16px', scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}
                 className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-[#A78BFA]/20 border border-[#A78BFA]/40 text-[#A78BFA] disabled:opacity-20 disabled:cursor-not-allowed hover:bg-[#A78BFA]/35 hover:border-[#A78BFA]/60 transition-all active:scale-95">
