@@ -1,123 +1,204 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 /* ═══════════════════════════════════════════════
-   TYPES & CONFIG
+   100-DAY PROGRAM CONTENT
    ═══════════════════════════════════════════════ */
-type Tab = "today" | "journey" | "growth" | "profile";
-type Mood = 1 | 2 | 3 | 4 | 5;
-type OnboardStep = 0 | 1 | 2 | 3 | 4 | 5;
+const PROGRAM: Record<number, {
+  sprint: string; sprintIcon: string; title: string; desc: string; mantra: string;
+  articles: { title: string; url: string; emoji: string }[];
+  practices: { name: string; duration: string; icon: string }[];
+  aiGreeting: string;
+}> = {
+  1: {
+    sprint: "Пробуждение", sprintIcon: "🌅", title: "Наблюдатель",
+    desc: "Сегодня ты учишься наблюдать. Не менять, не бороться — просто замечать. 10 минут тишины. Что ты слышишь внутри?",
+    mantra: "Я наблюдаю, не реагирую",
+    articles: [
+      { title: "Зачем нужна осознанность: нейронаука внимания", url: "https://www.mindful.org/the-science-of-mindfulness/", emoji: "🧠" },
+      { title: "10-минутная медитация для начинающих", url: "https://www.headspace.com/meditation/10-minute-meditation", emoji: "🧘" },
+      { title: "Как тишина меняет мозг", url: "https://www.bbc.com/future/article/20170525-the-surprising-benefits-of-silence", emoji: "🤫" },
+      { title: "Дневник наблюдений: как начать", url: "https://psychcentral.com/blog/ready-set-journal-64-journaling-prompts-for-self-discovery", emoji: "📓" },
+    ],
+    practices: [
+      { name: "Тишина 10 мин", duration: "10 мин", icon: "🤫" },
+      { name: "Дыхание 4-2-6", duration: "5 мин", icon: "🫁" },
+      { name: "Запись 3 мыслей", duration: "5 мин", icon: "✍️" },
+    ],
+    aiGreeting: "Привет! День 1 — начало пути. Сегодня задача простая: 10 минут тишины. Не нужно ничего менять — просто наблюдай. Что замечаешь внутри прямо сейчас?",
+  },
+  2: {
+    sprint: "Пробуждение", sprintIcon: "🌅", title: "Карта состояния",
+    desc: "Оцени каждую сферу жизни. Честно, без приукрашивания. Это твоя стартовая точка — через 100 дней сравнишь.",
+    mantra: "Честность — первый шаг к изменению",
+    articles: [
+      { title: "Колесо жизни: как оценить все сферы", url: "https://www.mindtools.com/aor16a3/the-wheel-of-life", emoji: "🎯" },
+      { title: "Почему самооценка искажена и как это исправить", url: "https://hbr.org/2018/01/what-self-awareness-really-is-and-how-to-cultivate-it", emoji: "🪞" },
+      { title: "Честный аудит: 5 вопросов к себе", url: "https://markmanson.net/life-audit", emoji: "📋" },
+    ],
+    practices: [
+      { name: "Оценка 5 сфер (1-10)", duration: "10 мин", icon: "📊" },
+      { name: "Одно слово для каждой", duration: "5 мин", icon: "🏷️" },
+      { name: "Дыхание 4-2-6", duration: "5 мин", icon: "🫁" },
+    ],
+    aiGreeting: "День 2. Сегодня — честный аудит. Тело, разум, деньги, энергия, душа. Оцени каждое от 1 до 10. Не думай долго — первая цифра обычно самая честная. Какая сфера просит внимания больше всего?",
+  },
+  3: {
+    sprint: "Пробуждение", sprintIcon: "🌅", title: "Цифровой рассвет",
+    desc: "Первые 2 часа без телефона. Заполни это время чем-то живым: движение, дыхание, запись мыслей.",
+    mantra: "Утро определяет день",
+    articles: [
+      { title: "Что происходит с мозгом при утреннем скроллинге", url: "https://www.forbes.com/health/mind/phone-addiction/", emoji: "📱" },
+      { title: "Утренние ритуалы продуктивных людей", url: "https://www.cnbc.com/morning-routine-tips/", emoji: "☀️" },
+      { title: "Допамин и привычки: как перезагрузить", url: "https://hubermanlab.com/controlling-your-dopamine-for-motivation-focus-and-satisfaction/", emoji: "⚡" },
+    ],
+    practices: [
+      { name: "2 часа без телефона", duration: "120 мин", icon: "📵" },
+      { name: "Дыхание при пробуждении", duration: "5 мин", icon: "🫁" },
+      { name: "Утренняя запись", duration: "10 мин", icon: "✍️" },
+    ],
+    aiGreeting: "День 3 — цифровой рассвет. Как это: проснуться и НЕ потянуться к телефону? Сегодня проверим. 2 часа утренней свободы. Что ты сделаешь вместо скроллинга?",
+  },
+};
 
-interface UserState {
-  name: string;
-  startDate: string;
-  focus: string;
-  energy: number;
-  timePerDay: number;
-  completedDays: number[];
-  streak: number;
-  journalEntries: Record<number, { morning?: string; evening?: string }>;
-  moods: Record<number, Mood>;
-  realms: { body: number; mind: number; money: number; energy: number; soul: number };
-  breathSessions: number;
-  onboarded: boolean;
-}
+// Generic content for days without specific program
+const getDay = (n: number) => {
+  if (PROGRAM[n]) return PROGRAM[n];
+  const sprintIdx = Math.floor((n - 1) / 10);
+  const sprintNames = ["Пробуждение","Очищение","Дисциплина","Тело","Разум","Деньги","Отношения","Творчество","Миссия","Интеграция"];
+  const sprintIcons = ["🌅","🌊","⚡","🔥","🧠","💎","🤝","🎨","🎯","∞"];
+  const themes = [
+    { articles: [
+        { title: "Осознанность в повседневной жизни", url: "https://www.mindful.org/how-to-practice-mindfulness/", emoji: "🧘" },
+        { title: "Нейропластичность: мозг меняется", url: "https://www.verywellmind.com/what-is-brain-plasticity-2794886", emoji: "🧠" },
+        { title: "Привычки: наука маленьких шагов", url: "https://jamesclear.com/atomic-habits-summary", emoji: "🪜" },
+        { title: "Дыхательные техники для каждого дня", url: "https://www.healthline.com/health/breathing-exercises", emoji: "🫁" },
+      ],
+    },
+  ];
+  return {
+    sprint: sprintNames[sprintIdx] || "Путь", sprintIcon: sprintIcons[sprintIdx] || "○",
+    title: `День ${n}`,
+    desc: `Спринт "${sprintNames[sprintIdx]}". Продолжай практику, записывай наблюдения, дыши.`,
+    mantra: "Каждый день — один шаг вперёд",
+    articles: themes[0].articles,
+    practices: [
+      { name: "Практика дня", duration: "15 мин", icon: sprintIcons[sprintIdx] || "○" },
+      { name: "Дыхание 4-2-6", duration: "5 мин", icon: "🫁" },
+      { name: "Дневник", duration: "10 мин", icon: "✍️" },
+    ],
+    aiGreeting: `День ${n}. Ты уже ${n} дней на пути — это больше, чем у 90% людей. Как себя чувствуешь сегодня?`,
+  };
+};
 
-const SPRINTS = [
-  { id: 1, name: "Пробуждение", desc: "Осознанность, наблюдение за собой", icon: "🌅", color: "#fbbf24" },
-  { id: 2, name: "Очищение", desc: "Отпускание старого, ментальная гигиена", icon: "🌊", color: "#38bdf8" },
-  { id: 3, name: "Дисциплина", desc: "Фундамент привычек, режим, ритуалы", icon: "⚡", color: "#a78bfa" },
-  { id: 4, name: "Тело", desc: "Движение, питание, сон, энергия", icon: "🔥", color: "#fb7185" },
-  { id: 5, name: "Разум", desc: "Обучение, фокус, ментальные модели", icon: "🧠", color: "#34d399" },
-  { id: 6, name: "Деньги", desc: "Финансовые привычки, мышление изобилия", icon: "💎", color: "#fbbf24" },
-  { id: 7, name: "Отношения", desc: "Границы, коммуникация, эмпатия", icon: "🤝", color: "#fb7185" },
-  { id: 8, name: "Творчество", desc: "Самовыражение, поток, эксперименты", icon: "🎨", color: "#a78bfa" },
-  { id: 9, name: "Миссия", desc: "Цель, вклад, наследие", icon: "🎯", color: "#34d399" },
-  { id: 10, name: "Интеграция", desc: "Синтез всего пути, новая идентичность", icon: "∞", color: "#38bdf8" },
+/* ═══════════════════════════════════════════════
+   RADIO STATIONS
+   ═══════════════════════════════════════════════ */
+const RADIO = [
+  { name: "Lofi Focus", url: "https://streams.ilovemusic.de/iloveradio17.mp3", icon: "🎧" },
+  { name: "Chill Ambient", url: "https://ice1.somafm.com/dronezone-128-mp3", icon: "🌙" },
+  { name: "Nature Sounds", url: "https://ice1.somafm.com/fluid-128-mp3", icon: "🌿" },
 ];
 
-const QUESTS: Record<number, { title: string; desc: string; mantra: string }> = {
-  1: { title: "Наблюдатель", desc: "Проведи 10 минут в тишине. Просто наблюдай свои мысли — не оценивай, не гони. Запиши 3 мысли, которые приходили чаще всего.", mantra: "Я наблюдаю, не реагирую" },
-  2: { title: "Карта состояния", desc: "Оцени каждую сферу жизни от 1 до 10: тело, разум, деньги, энергия, душа. Честно. Запиши одно слово для каждой.", mantra: "Честность — первый шаг" },
-  3: { title: "Цифровой детокс", desc: "Первые 2 часа после пробуждения — без телефона. Замени скроллинг на 10 минут дыхания и записи в дневник.", mantra: "Утро определяет день" },
-  14: { title: "Диалог с тенью", desc: "Напиши разговор с внутренним критиком. Спроси, чего он боится. Выслушай без осуждения, ответь с сочувствием.", mantra: "Я больше, чем мои мысли" },
-};
-
-const DEFAULT_QUEST = { title: "Практика дня", desc: "Выдели 15 минут на осознанное действие в сфере текущего спринта. Запиши наблюдение в дневник.", mantra: "Каждый день — один шаг" };
-
-const MOOD_MAP: Record<Mood, { emoji: string; label: string; color: string }> = {
-  1: { emoji: "😔", label: "Тяжело", color: "#6b7280" },
-  2: { emoji: "😐", label: "Так себе", color: "#9ca3af" },
-  3: { emoji: "🙂", label: "Нормально", color: "#38bdf8" },
-  4: { emoji: "😊", label: "Хорошо", color: "#34d399" },
-  5: { emoji: "🔥", label: "Огонь", color: "#fbbf24" },
-};
-
 /* ═══════════════════════════════════════════════
-   HELPERS
+   AI CHAT (local, pre-scripted)
    ═══════════════════════════════════════════════ */
-const getDay = (startDate: string): number => {
-  const diff = Date.now() - new Date(startDate).getTime();
-  return Math.max(1, Math.min(100, Math.floor(diff / 86400000) + 1));
+const AI_RESPONSES: Record<string, string[]> = {
+  default: [
+    "Расскажи подробнее — что именно чувствуешь?",
+    "Интересно. А что бы ты сделал, если бы не было страха?",
+    "Попробуй записать это в дневник — мысли становятся яснее на бумаге.",
+    "Как думаешь, это связано с чем-то конкретным?",
+    "Хороший вопрос. Давай разберём по частям.",
+    "Обрати внимание на своё дыхание прямо сейчас. Глубокий вдох.",
+    "Это нормально. Рост не линейный — бывают и тяжёлые дни.",
+  ],
+  good: [
+    "Отлично! Что именно дало энергию сегодня?",
+    "Держи волну. Запиши, что сработало — пригодится в трудный день.",
+    "Красиво. Когда ты в потоке — всё получается.",
+  ],
+  bad: [
+    "Бывает. Не нужно быть на пике каждый день.",
+    "Что если сегодня — просто дышать и быть? Без целей, без давления.",
+    "Тяжёлые дни — часть процесса. Ты не откатился. Ты отдыхаешь.",
+  ],
 };
 
-const getSprint = (day: number) => SPRINTS[Math.min(9, Math.floor((day - 1) / 10))];
-const getQuest = (day: number) => QUESTS[day] || DEFAULT_QUEST;
-
-const loadState = (): UserState | null => {
-  if (typeof window === "undefined") return null;
-  try { const s = localStorage.getItem("x100_oasis"); return s ? JSON.parse(s) : null; } catch { return null; }
-};
-
-const saveState = (s: UserState) => {
-  if (typeof window !== "undefined") localStorage.setItem("x100_oasis", JSON.stringify(s));
+const getAIResponse = (msg: string): string => {
+  const lower = msg.toLowerCase();
+  const goodWords = ["хорошо","отлично","круто","огонь","класс","супер","кайф","энергия","рад","happy"];
+  const badWords = ["плохо","тяжело","устал","сложно","грустно","лень","не хочу","тревога","sad"];
+  let pool = AI_RESPONSES.default;
+  if (goodWords.some(w => lower.includes(w))) pool = AI_RESPONSES.good;
+  if (badWords.some(w => lower.includes(w))) pool = AI_RESPONSES.bad;
+  return pool[Math.floor(Math.random() * pool.length)];
 };
 
 /* ═══════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════ */
 export default function X100Oasis() {
-  const [user, setUser] = useState<UserState | null>(null);
-  const [tab, setTab] = useState<Tab>("today");
-  const [onboardStep, setOnboardStep] = useState<OnboardStep>(0);
-  const [loaded, setLoaded] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  // Onboarding temp state
-  const [obName, setObName] = useState("");
-  const [obFocus, setObFocus] = useState("");
-  const [obEnergy, setObEnergy] = useState(5);
-  const [obTime, setObTime] = useState(30);
-
-  // Journal temp
-  const [journalText, setJournalText] = useState("");
-
-  // Breathing
+  // State
+  const [currentDay, setCurrentDay] = useState(1);
+  const [chatMessages, setChatMessages] = useState<{role:"ai"|"user";text:string}[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [radioPlaying, setRadioPlaying] = useState(false);
+  const [radioIdx, setRadioIdx] = useState(0);
   const [breathActive, setBreathActive] = useState(false);
-  const [breathPhase, setBreathPhase] = useState<"in" | "hold" | "out">("in");
+  const [breathPhase, setBreathPhase] = useState<"in"|"hold"|"out">("in");
   const [breathCount, setBreathCount] = useState(0);
+  const [journalText, setJournalText] = useState("");
+  const [journalSaved, setJournalSaved] = useState(false);
+  const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const mainRef = useRef<HTMLDivElement | null>(null);
 
+  const dayData = getDay(currentDay);
+
+  // Init AI greeting
   useEffect(() => {
-    const s = loadState();
-    if (s) setUser(s);
-    setLoaded(true);
+    setChatMessages([{ role: "ai", text: dayData.aiGreeting }]);
+    setJournalText("");
+    setJournalSaved(false);
+  }, [currentDay]);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Load saved state
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("x100v2_completed");
+      if (saved) setCompletedDays(JSON.parse(saved));
+      const savedDay = localStorage.getItem("x100v2_day");
+      if (savedDay) setCurrentDay(parseInt(savedDay));
+    } catch {}
   }, []);
 
-  useEffect(() => { if (user) saveState(user); }, [user]);
+  // Save state
+  useEffect(() => {
+    localStorage.setItem("x100v2_completed", JSON.stringify(completedDays));
+    localStorage.setItem("x100v2_day", currentDay.toString());
+  }, [completedDays, currentDay]);
 
   // Breathing timer
   useEffect(() => {
     if (!breathActive) return;
-    const phases: Array<{ phase: "in" | "hold" | "out"; dur: number }> = [
-      { phase: "in", dur: 4000 }, { phase: "hold", dur: 2000 }, { phase: "out", dur: 6000 },
+    const phases: Array<{phase:"in"|"hold"|"out";dur:number}> = [
+      {phase:"in",dur:4000},{phase:"hold",dur:2000},{phase:"out",dur:6000}
     ];
     let idx = 0;
     let timer: ReturnType<typeof setTimeout>;
     const cycle = () => {
       setBreathPhase(phases[idx].phase);
       timer = setTimeout(() => {
-        idx = (idx + 1) % 3;
-        if (idx === 0) setBreathCount((c) => c + 1);
+        idx = (idx+1)%3;
+        if(idx===0) setBreathCount(c=>c+1);
         cycle();
       }, phases[idx].dur);
     };
@@ -125,531 +206,325 @@ export default function X100Oasis() {
     return () => clearTimeout(timer);
   }, [breathActive]);
 
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  const update = useCallback((fn: (s: UserState) => UserState) => {
-    setUser((prev) => (prev ? fn({ ...prev }) : prev));
-  }, []);
-
-  const day = user ? getDay(user.startDate) : 1;
-  const sprint = getSprint(day);
-  const quest = getQuest(day);
-  const todayDone = user?.completedDays.includes(day) || false;
-  const todayMood = user?.moods[day];
-
-  /* ─── Onboarding ────────────────────── */
-  const completeOnboarding = () => {
-    const newUser: UserState = {
-      name: obName || "Путник",
-      startDate: new Date().toISOString().split("T")[0],
-      focus: obFocus || "body",
-      energy: obEnergy,
-      timePerDay: obTime,
-      completedDays: [],
-      streak: 0,
-      journalEntries: {},
-      moods: {},
-      realms: { body: 10, mind: 10, money: 10, energy: 10, soul: 10 },
-      breathSessions: 0,
-      onboarded: true,
-    };
-    setUser(newUser);
+  // Radio
+  const toggleRadio = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(RADIO[radioIdx].url);
+      audioRef.current.volume = 0.3;
+    }
+    if (radioPlaying) { audioRef.current.pause(); }
+    else { audioRef.current.src = RADIO[radioIdx].url; audioRef.current.play().catch(()=>{}); }
+    setRadioPlaying(!radioPlaying);
   };
 
-  if (!loaded) return <div className="min-h-screen bg-[#08080c]" />;
-
-  /* ═══════════════════════════════════════
-     ONBOARDING FLOW
-     ═══════════════════════════════════════ */
-  if (!user || !user.onboarded) {
-    const focusOptions = [
-      { id: "body", label: "Тело и здоровье", icon: "🔥" },
-      { id: "mind", label: "Разум и фокус", icon: "🧠" },
-      { id: "money", label: "Деньги и карьера", icon: "💎" },
-      { id: "energy", label: "Энергия и эмоции", icon: "⚡" },
-      { id: "soul", label: "Смысл и покой", icon: "🌊" },
-    ];
-
-    return (
-      <div className="min-h-screen bg-[#08080c] flex justify-center font-sans">
-        <div className="w-full max-w-[460px] min-h-screen flex flex-col items-center justify-center px-8">
-
-          {onboardStep === 0 && (
-            <div className="text-center animate-fade-in">
-              <div className="text-4xl mb-6">🌅</div>
-              <h1 className="text-2xl font-bold text-white mb-3">X100</h1>
-              <p className="text-sm text-gray-400 leading-relaxed mb-2">100 дней трансформации</p>
-              <p className="text-xs text-gray-600 leading-relaxed mb-10 max-w-[280px]">
-                Персональная система роста — адаптируется под тебя, помогает не бросить, измеряет прогресс
-              </p>
-              <button onClick={() => setOnboardStep(1)}
-                className="px-8 py-3.5 rounded-xl bg-white/[0.06] text-white text-sm font-medium border border-white/[0.08] hover:bg-white/[0.10] transition-all active:scale-[0.97]">
-                Начать путь →
-              </button>
-              <div className="mt-6 text-[10px] text-gray-700">Бесплатно · 5 минут на настройку</div>
-            </div>
-          )}
-
-          {onboardStep === 1 && (
-            <div className="w-full animate-fade-in">
-              <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-6">Шаг 1 из 4</div>
-              <h2 className="text-lg font-semibold text-white mb-2">Как тебя зовут?</h2>
-              <p className="text-xs text-gray-500 mb-6">Можно ник или просто имя</p>
-              <input value={obName} onChange={(e) => setObName(e.target.value)} placeholder="Имя"
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-gray-600 focus:border-white/[0.15] focus:outline-none mb-8" />
-              <button onClick={() => setOnboardStep(2)}
-                className="w-full py-3.5 rounded-xl bg-white/[0.06] text-white text-sm font-medium border border-white/[0.08] hover:bg-white/[0.10] transition-all">
-                Дальше
-              </button>
-            </div>
-          )}
-
-          {onboardStep === 2 && (
-            <div className="w-full animate-fade-in">
-              <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-6">Шаг 2 из 4</div>
-              <h2 className="text-lg font-semibold text-white mb-2">Что хочешь прокачать?</h2>
-              <p className="text-xs text-gray-500 mb-6">Выбери главный фокус — остальное тоже будет, но с меньшим акцентом</p>
-              <div className="space-y-2.5 mb-8">
-                {focusOptions.map((f) => (
-                  <button key={f.id} onClick={() => setObFocus(f.id)}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${obFocus === f.id
-                      ? "bg-white/[0.06] border-white/[0.15] text-white"
-                      : "bg-transparent border-white/[0.06] text-gray-500 hover:border-white/[0.10]"}`}>
-                    <span className="text-lg">{f.icon}</span>
-                    <span className="text-sm">{f.label}</span>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => obFocus && setOnboardStep(3)} disabled={!obFocus}
-                className="w-full py-3.5 rounded-xl bg-white/[0.06] text-white text-sm font-medium border border-white/[0.08] hover:bg-white/[0.10] transition-all disabled:opacity-30">
-                Дальше
-              </button>
-            </div>
-          )}
-
-          {onboardStep === 3 && (
-            <div className="w-full animate-fade-in">
-              <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-6">Шаг 3 из 4</div>
-              <h2 className="text-lg font-semibold text-white mb-2">Уровень энергии сейчас?</h2>
-              <p className="text-xs text-gray-500 mb-8">Честно — это влияет на сложность первых дней</p>
-              <div className="flex items-center justify-between mb-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                  <button key={n} onClick={() => setObEnergy(n)}
-                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${obEnergy === n
-                      ? "bg-white/[0.12] text-white border border-white/[0.20]"
-                      : "text-gray-600 hover:text-gray-400"}`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-between text-[10px] text-gray-600 mb-8">
-                <span>На дне</span><span>Огонь</span>
-              </div>
-              <button onClick={() => setOnboardStep(4)}
-                className="w-full py-3.5 rounded-xl bg-white/[0.06] text-white text-sm font-medium border border-white/[0.08] hover:bg-white/[0.10] transition-all">
-                Дальше
-              </button>
-            </div>
-          )}
-
-          {onboardStep === 4 && (
-            <div className="w-full animate-fade-in">
-              <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-6">Шаг 4 из 4</div>
-              <h2 className="text-lg font-semibold text-white mb-2">Сколько минут в день?</h2>
-              <p className="text-xs text-gray-500 mb-6">Лучше честно мало, чем амбициозно и бросить</p>
-              <div className="grid grid-cols-3 gap-3 mb-8">
-                {[{ v: 15, l: "15 мин", d: "Минимум" }, { v: 30, l: "30 мин", d: "Оптимум" }, { v: 60, l: "60 мин", d: "Глубоко" }].map((o) => (
-                  <button key={o.v} onClick={() => setObTime(o.v)}
-                    className={`p-4 rounded-xl border text-center transition-all ${obTime === o.v
-                      ? "bg-white/[0.06] border-white/[0.15]"
-                      : "border-white/[0.06] hover:border-white/[0.10]"}`}>
-                    <div className={`text-lg font-bold mb-1 ${obTime === o.v ? "text-white" : "text-gray-500"}`}>{o.l}</div>
-                    <div className="text-[10px] text-gray-600">{o.d}</div>
-                  </button>
-                ))}
-              </div>
-              <button onClick={completeOnboarding}
-                className="w-full py-3.5 rounded-xl bg-emerald-500/15 text-emerald-400 text-sm font-medium border border-emerald-500/25 hover:bg-emerald-500/20 transition-all">
-                Начать 100 дней
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  /* ═══════════════════════════════════════
-     MAIN APP
-     ═══════════════════════════════════════ */
-  const realmEntries = Object.entries(user.realms) as [string, number][];
-  const realmLabels: Record<string, { label: string; icon: string; color: string }> = {
-    body: { label: "Тело", icon: "🔥", color: "#fb7185" },
-    mind: { label: "Разум", icon: "🧠", color: "#34d399" },
-    money: { label: "Деньги", icon: "💎", color: "#fbbf24" },
-    energy: { label: "Энергия", icon: "⚡", color: "#a78bfa" },
-    soul: { label: "Душа", icon: "🌊", color: "#38bdf8" },
+  const nextStation = () => {
+    const next = (radioIdx+1)%RADIO.length;
+    setRadioIdx(next);
+    if (audioRef.current && radioPlaying) {
+      audioRef.current.src = RADIO[next].url;
+      audioRef.current.play().catch(()=>{});
+    }
   };
 
-  const completeQuest = () => {
-    if (todayDone) return;
-    update((s) => {
-      s.completedDays = [...s.completedDays, day];
-      s.streak = s.streak + 1;
-      // Grow realm based on sprint focus
-      const realmKeys = ["body", "mind", "money", "energy", "soul"];
-      const sprintRealm = realmKeys[Math.min(4, Math.floor((day - 1) / 20))] as keyof UserState["realms"];
-      s.realms[sprintRealm] = Math.min(100, s.realms[sprintRealm] + 3);
-      // Small growth for all
-      for (const k of realmKeys) {
-        s.realms[k as keyof typeof s.realms] = Math.min(100, s.realms[k as keyof typeof s.realms] + 1);
-      }
-      return s;
-    });
-    flash("✓ День " + day + " завершён");
+  // Chat
+  const sendChat = () => {
+    if (!chatInput.trim()) return;
+    const userMsg = chatInput.trim();
+    setChatMessages(prev => [...prev, {role:"user",text:userMsg}]);
+    setChatInput("");
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, {role:"ai",text:getAIResponse(userMsg)}]);
+    }, 800 + Math.random()*1200);
   };
 
-  const saveMood = (m: Mood) => {
-    update((s) => { s.moods = { ...s.moods, [day]: m }; return s; });
+  // Complete day
+  const completeDay = () => {
+    if (!completedDays.includes(currentDay)) {
+      setCompletedDays(prev => [...prev, currentDay]);
+    }
   };
 
-  const saveJournal = () => {
-    if (!journalText.trim()) return;
-    update((s) => {
-      s.journalEntries = { ...s.journalEntries, [day]: { ...s.journalEntries[day], morning: journalText } };
-      s.realms.mind = Math.min(100, s.realms.mind + 2);
-      s.realms.soul = Math.min(100, s.realms.soul + 1);
-      return s;
-    });
-    setJournalText("");
-    flash("✓ Запись сохранена");
-  };
-
-  const finishBreathing = () => {
-    setBreathActive(false);
-    setBreathCount(0);
-    update((s) => {
-      s.breathSessions = s.breathSessions + 1;
-      s.realms.energy = Math.min(100, s.realms.energy + 2);
-      s.realms.soul = Math.min(100, s.realms.soul + 1);
-      return s;
-    });
-    flash("✓ Дыхание завершено");
-  };
-
-  const pct = Math.round((user.completedDays.length / 100) * 100);
+  // Sprint progress
+  const sprintStart = Math.floor((currentDay-1)/10)*10+1;
+  const sprintDays = Array.from({length:10},(_,i)=>sprintStart+i);
+  const pct = Math.round((completedDays.length/100)*100);
 
   return (
-    <div className="min-h-screen bg-[#08080c] flex justify-center font-sans">
-      <div className="w-full max-w-[460px] min-h-screen flex flex-col text-gray-300">
+    <div className="min-h-screen bg-[#050510] text-gray-300 font-sans relative overflow-x-hidden">
 
-        {/* Toast */}
-        {toast && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-2.5 rounded-xl backdrop-blur-sm">
-            {toast}
+      {/* ═══ Background atmosphere ═══ */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a20] via-[#050510] to-[#080815]" />
+        {/* Soft glow orbs */}
+        <div className="absolute top-[10%] left-[10%] w-[400px] h-[400px] bg-violet-900/8 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[20%] right-[5%] w-[350px] h-[350px] bg-cyan-900/6 rounded-full blur-[100px]" />
+        <div className="absolute top-[60%] left-[50%] w-[300px] h-[300px] bg-emerald-900/5 rounded-full blur-[100px]" />
+        <div className="absolute top-[5%] right-[20%] w-[200px] h-[200px] bg-pink-900/4 rounded-full blur-[80px]" />
+      </div>
+
+      {/* ═══ Breathing overlay ═══ */}
+      {breathActive && (
+        <div className="fixed inset-0 z-[100] bg-[#050510]/95 backdrop-blur-xl flex flex-col items-center justify-center"
+          onClick={()=>{if(breathCount>=3){setBreathActive(false);setBreathCount(0);}}}>
+          <div className={`w-36 h-36 rounded-full border flex items-center justify-center transition-all duration-[4000ms] ${
+            breathPhase==="in"?"scale-[1.4] border-cyan-400/30 bg-cyan-500/5 shadow-[0_0_60px_rgba(34,211,238,0.08)]":
+            breathPhase==="hold"?"scale-[1.4] border-violet-400/30 bg-violet-500/5 shadow-[0_0_60px_rgba(167,139,250,0.08)]":
+            "scale-100 border-white/10 bg-transparent"}`}>
+            <span className="text-sm text-gray-400">
+              {breathPhase==="in"?"Вдох...":breathPhase==="hold"?"Держим...":"Выдох..."}
+            </span>
           </div>
-        )}
+          <div className="mt-8 text-xs text-gray-600">{breathCount} / 5 циклов</div>
+          <div className="mt-2 text-[10px] text-gray-700">4 — 2 — 6</div>
+          {breathCount>=3 && <div className="mt-8 text-xs text-gray-500 animate-pulse">Нажми чтобы завершить</div>}
+        </div>
+      )}
 
-        {/* Breathing overlay */}
-        {breathActive && (
-          <div className="fixed inset-0 z-50 bg-[#08080c]/95 backdrop-blur-md flex flex-col items-center justify-center" onClick={() => breathCount >= 3 && finishBreathing()}>
-            <div className={`w-32 h-32 rounded-full border-2 flex items-center justify-center transition-all duration-[4000ms] ${breathPhase === "in" ? "scale-125 border-sky-400/40 bg-sky-500/5" : breathPhase === "hold" ? "scale-125 border-violet-400/40 bg-violet-500/5" : "scale-100 border-gray-600/30 bg-transparent"}`}>
-              <span className="text-sm text-gray-400">
-                {breathPhase === "in" ? "Вдох" : breathPhase === "hold" ? "Пауза" : "Выдох"}
-              </span>
-            </div>
-            <div className="mt-8 text-xs text-gray-600">{breathCount} / 5 циклов</div>
-            <div className="mt-2 text-[10px] text-gray-700">4 — 2 — 6</div>
-            {breathCount >= 3 && <div className="mt-6 text-xs text-gray-500">Нажми чтобы завершить</div>}
-          </div>
-        )}
+      {/* ═══ Content ═══ */}
+      <div ref={mainRef} className="relative z-10 mx-auto max-w-[520px] lg:max-w-[900px] min-h-screen flex flex-col">
 
-        {/* ─── Header ───────────────────── */}
-        <header className="px-5 pt-5 pb-4">
-          <div className="flex items-center justify-between mb-4">
+        {/* ─── Header ─── */}
+        <header className="px-5 pt-6 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-xl">{dayData.sprintIcon}</div>
             <div>
-              <div className="text-xs text-gray-600">Привет, {user.name}</div>
-              <div className="text-sm font-medium text-white">День {day} из 100</div>
-            </div>
-            <div className="flex items-center gap-2">
-              {user.streak > 0 && (
-                <span className="text-xs text-amber-400/80 bg-amber-500/8 px-2.5 py-1 rounded-lg border border-amber-500/10">
-                  🔥 {user.streak}
-                </span>
-              )}
+              <div className="text-[11px] text-gray-600 tracking-wide">X100 OASIS</div>
+              <div className="text-sm font-medium text-white">День {currentDay} · {dayData.sprint}</div>
             </div>
           </div>
-          {/* Sprint indicator */}
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-3">
-            <span>{sprint.icon}</span>
-            <span>Спринт {sprint.id}: {sprint.name}</span>
-          </div>
-          {/* Progress bar */}
-          <div className="h-1 bg-white/[0.04] rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: sprint.color }} />
-          </div>
-          <div className="flex justify-between text-[10px] text-gray-700 mt-1.5">
-            <span>{pct}%</span>
-            <span>{100 - user.completedDays.length} дней осталось</span>
+          <div className="flex items-center gap-2">
+            {/* Radio toggle */}
+            <button onClick={toggleRadio}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] border transition-all ${
+                radioPlaying?"bg-violet-500/10 border-violet-500/20 text-violet-400":"bg-white/[0.03] border-white/[0.06] text-gray-600 hover:text-gray-400"}`}>
+              <span>{radioPlaying?"⏸":"▶"}</span>
+              <span>{RADIO[radioIdx].name}</span>
+              {radioPlaying && <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />}
+            </button>
+            {radioPlaying && (
+              <button onClick={nextStation} className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors">⟳</button>
+            )}
+            {/* Day picker */}
+            <button onClick={()=>setShowDayPicker(!showDayPicker)}
+              className="w-8 h-8 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-[10px] text-gray-500 hover:text-white transition-colors">
+              {currentDay}
+            </button>
           </div>
         </header>
 
-        {/* ─── Tab Bar ─────────────────── */}
-        <nav className="flex px-5 gap-1 mb-1">
-          {([
-            { id: "today" as Tab, label: "Сегодня", icon: "○" },
-            { id: "journey" as Tab, label: "Путь", icon: "◇" },
-            { id: "growth" as Tab, label: "Рост", icon: "△" },
-            { id: "profile" as Tab, label: "Профиль", icon: "□" },
-          ]).map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 py-2.5 text-center text-[11px] rounded-lg transition-all ${
-                tab === t.id ? "text-white bg-white/[0.05]" : "text-gray-600 hover:text-gray-400"}`}>
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        {/* Day picker dropdown */}
+        {showDayPicker && (
+          <div className="mx-5 mb-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
+            <div className="text-[10px] text-gray-600 mb-3 uppercase tracking-wider">Выбери день</div>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({length:100},(_,i)=>i+1).map(d=>(
+                <button key={d} onClick={()=>{setCurrentDay(d);setShowDayPicker(false);}}
+                  className={`w-7 h-7 rounded-lg text-[10px] transition-all ${
+                    d===currentDay?"bg-white/10 text-white font-bold":
+                    completedDays.includes(d)?"bg-emerald-500/10 text-emerald-400/70":
+                    "text-gray-700 hover:text-gray-400 hover:bg-white/[0.03]"}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-[9px] text-gray-700">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/30" /> Пройден</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-white/20" /> Текущий</span>
+              <span>{completedDays.length}/100 · {pct}%</span>
+            </div>
+          </div>
+        )}
 
-        {/* ─── Content ─────────────────── */}
-        <main className="flex-1 overflow-y-auto px-5 py-5">
+        {/* ─── Main scrollable content (magazine layout) ─── */}
+        <main className="flex-1 px-5 pb-24 space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 lg:items-start">
 
-          {/* ═══ TODAY ═══ */}
-          {tab === "today" && (
-            <div className="space-y-6">
+          {/* ═══ LEFT COLUMN (or full on mobile) ═══ */}
+          <div className="space-y-5">
 
-              {/* Mood check-in */}
-              {!todayMood && (
+            {/* Today's theme card */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">{dayData.sprintIcon}</span>
                 <div>
-                  <div className="text-xs text-gray-500 mb-3">Как сегодня?</div>
-                  <div className="flex gap-2">
-                    {([1, 2, 3, 4, 5] as Mood[]).map((m) => (
-                      <button key={m} onClick={() => saveMood(m)}
-                        className="flex-1 py-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.12] transition-all text-center active:scale-95">
-                        <div className="text-xl mb-0.5">{MOOD_MAP[m].emoji}</div>
-                        <div className="text-[9px] text-gray-600">{MOOD_MAP[m].label}</div>
-                      </button>
-                    ))}
-                  </div>
+                  <div className="text-[10px] text-gray-600 uppercase tracking-wider">Тема дня</div>
+                  <h2 className="text-base font-semibold text-white">{dayData.title}</h2>
                 </div>
-              )}
-
-              {todayMood && (
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="text-base">{MOOD_MAP[todayMood].emoji}</span>
-                  <span>Настроение: {MOOD_MAP[todayMood].label}</span>
-                </div>
-              )}
-
-              {/* Daily Quest */}
-              <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base">{sprint.icon}</span>
-                  <span className="text-[10px] text-gray-600 uppercase tracking-wider">Квест дня</span>
-                </div>
-                <h3 className="text-base font-semibold text-white mb-2">{quest.title}</h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-4">{quest.desc}</p>
-
-                {/* Mantra */}
-                <div className="bg-white/[0.02] rounded-xl p-3 mb-4 text-center">
-                  <div className="text-[10px] text-gray-600 mb-1">Мантра</div>
-                  <div className="text-sm text-white/70 italic">「 {quest.mantra} 」</div>
-                </div>
-
-                {todayDone ? (
-                  <div className="text-center py-3 text-xs text-emerald-400/70">✓ Выполнено</div>
-                ) : (
-                  <button onClick={completeQuest}
-                    className="w-full py-3 rounded-xl bg-white/[0.04] text-white/80 text-sm border border-white/[0.06] hover:bg-white/[0.07] transition-all active:scale-[0.98]">
-                    Завершить квест
-                  </button>
-                )}
               </div>
-
-              {/* Journal */}
-              <div>
-                <div className="text-xs text-gray-500 mb-2.5">Дневник</div>
-                <textarea value={journalText} onChange={(e) => setJournalText(e.target.value)}
-                  className="w-full bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 text-sm text-gray-300 resize-none focus:border-white/[0.12] focus:outline-none placeholder:text-gray-700 leading-relaxed"
-                  rows={3} placeholder="Что на уме? Наблюдение, мысль, урок..." />
-                {journalText.trim() && (
-                  <button onClick={saveJournal}
-                    className="mt-2 w-full py-2.5 rounded-xl bg-white/[0.03] text-gray-400 text-xs border border-white/[0.05] hover:bg-white/[0.06] transition-all">
-                    Сохранить
-                  </button>
-                )}
-                {user.journalEntries[day]?.morning && !journalText && (
-                  <div className="mt-2 text-[11px] text-gray-600 italic">✓ Запись сохранена</div>
-                )}
+              <p className="text-[13px] text-gray-400 leading-relaxed mb-4">{dayData.desc}</p>
+              {/* Mantra */}
+              <div className="bg-white/[0.02] rounded-xl p-3 text-center">
+                <div className="text-[13px] text-white/60 italic">「 {dayData.mantra} 」</div>
               </div>
-
-              {/* Breathing */}
-              <button onClick={() => { setBreathActive(true); setBreathCount(0); }}
-                className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.10] transition-all group">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg opacity-60 group-hover:opacity-100 transition-opacity">🫁</span>
-                  <div>
-                    <div className="text-xs text-gray-400">Дыхание 4-2-6</div>
-                    <div className="text-[10px] text-gray-600">{user.breathSessions} сессий выполнено</div>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-600">→</span>
-              </button>
             </div>
-          )}
 
-          {/* ═══ JOURNEY ═══ */}
-          {tab === "journey" && (
-            <div className="space-y-3">
-              <div className="text-xs text-gray-500 mb-4">10 спринтов × 10 дней</div>
-              {SPRINTS.map((s) => {
-                const startDay = (s.id - 1) * 10 + 1;
-                const endDay = s.id * 10;
-                const isCurrent = day >= startDay && day <= endDay;
-                const isDone = day > endDay;
-                const daysInSprint = Array.from({ length: 10 }, (_, i) => startDay + i);
-                const completedInSprint = daysInSprint.filter((d) => user.completedDays.includes(d)).length;
-
-                return (
-                  <div key={s.id} className={`rounded-xl border p-4 transition-all ${
-                    isCurrent ? "bg-white/[0.03] border-white/[0.08]" : isDone ? "bg-white/[0.01] border-white/[0.04] opacity-60" : "border-white/[0.04] opacity-40"}`}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-base">{s.icon}</span>
-                        <div>
-                          <div className={`text-sm font-medium ${isCurrent ? "text-white" : isDone ? "text-gray-400" : "text-gray-600"}`}>
-                            {s.name}
-                          </div>
-                          <div className="text-[11px] text-gray-600">{s.desc}</div>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] ${isDone ? "text-emerald-400/60" : isCurrent ? "text-white/50" : "text-gray-700"}`}>
-                        {isDone ? "✓" : isCurrent ? `${completedInSprint}/10` : `Day ${startDay}-${endDay}`}
-                      </span>
+            {/* Practices */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-3">Практики</div>
+              <div className="space-y-2">
+                {dayData.practices.map((p,i)=>(
+                  <button key={i}
+                    onClick={()=>{if(p.icon==="🫁"){setBreathActive(true);setBreathCount(0);}}}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.10] transition-all text-left group">
+                    <span className="text-base opacity-70 group-hover:opacity-100">{p.icon}</span>
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-300">{p.name}</div>
+                      <div className="text-[10px] text-gray-600">{p.duration}</div>
                     </div>
-                    {isCurrent && (
-                      <div className="flex gap-1 mt-3">
-                        {daysInSprint.map((d) => (
-                          <div key={d} className={`flex-1 h-1.5 rounded-full ${
-                            user.completedDays.includes(d) ? "bg-emerald-400/50" : d === day ? "bg-white/20" : "bg-white/[0.05]"}`} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ═══ GROWTH ═══ */}
-          {tab === "growth" && (
-            <div className="space-y-6">
-              {/* Realms */}
-              <div>
-                <div className="text-xs text-gray-500 mb-4">5 сфер жизни</div>
-                <div className="space-y-4">
-                  {realmEntries.map(([key, val]) => {
-                    const info = realmLabels[key];
-                    return (
-                      <div key={key}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{info.icon}</span>
-                            <span className="text-xs text-gray-400">{info.label}</span>
-                          </div>
-                          <span className="text-xs font-medium" style={{ color: info.color }}>{val}%</span>
-                        </div>
-                        <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${val}%`, background: info.color, opacity: 0.6 }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                    {p.icon==="🫁" && <span className="text-[10px] text-gray-700">→</span>}
+                  </button>
+                ))}
               </div>
+              {!completedDays.includes(currentDay) ? (
+                <button onClick={completeDay}
+                  className="mt-4 w-full py-3 rounded-xl bg-emerald-500/8 text-emerald-400/80 text-xs border border-emerald-500/15 hover:bg-emerald-500/15 transition-all">
+                  ✓ Отметить день выполненным
+                </button>
+              ) : (
+                <div className="mt-4 text-center text-xs text-emerald-400/50 py-2">✓ День завершён</div>
+              )}
+            </div>
 
-              {/* Stats */}
-              <div>
-                <div className="text-xs text-gray-500 mb-3">Статистика</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Дней пройдено", value: user.completedDays.length.toString(), sub: `из 100` },
-                    { label: "Текущий streak", value: user.streak.toString(), sub: "дней подряд" },
-                    { label: "Записей в дневнике", value: Object.keys(user.journalEntries).length.toString(), sub: "записей" },
-                    { label: "Дыхание", value: user.breathSessions.toString(), sub: "сессий" },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3.5">
-                      <div className="text-[10px] text-gray-600 mb-1">{s.label}</div>
-                      <div className="text-xl font-bold text-white">{s.value}</div>
-                      <div className="text-[10px] text-gray-600">{s.sub}</div>
+            {/* Journal */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-3">Дневник</div>
+              {!journalSaved ? (
+                <>
+                  <textarea value={journalText} onChange={e=>setJournalText(e.target.value)}
+                    className="w-full bg-transparent border-none resize-none text-[13px] text-gray-300 focus:outline-none placeholder:text-gray-700 leading-relaxed"
+                    rows={4} placeholder="Что заметил сегодня? Мысль, чувство, наблюдение..." />
+                  {journalText.trim() && (
+                    <button onClick={()=>{setJournalSaved(true);try{const j=JSON.parse(localStorage.getItem("x100v2_journal")||"{}");j[currentDay]=journalText;localStorage.setItem("x100v2_journal",JSON.stringify(j));}catch{}}}
+                      className="mt-2 w-full py-2.5 rounded-xl bg-white/[0.03] text-gray-500 text-xs border border-white/[0.05] hover:bg-white/[0.06] transition-all">
+                      Сохранить
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-gray-500 italic">✓ Запись сохранена</div>
+              )}
+            </div>
+          </div>
+
+          {/* ═══ RIGHT COLUMN (or continues below on mobile) ═══ */}
+          <div className="space-y-5">
+
+            {/* Articles & Reading */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-3">📚 Почитать</div>
+              <div className="space-y-2">
+                {dayData.articles.map((a,i)=>(
+                  <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.015] border border-white/[0.04] hover:border-white/[0.12] hover:bg-white/[0.03] transition-all group">
+                    <span className="text-base opacity-60 group-hover:opacity-100">{a.emoji}</span>
+                    <span className="text-xs text-gray-400 group-hover:text-white transition-colors flex-1 leading-relaxed">{a.title}</span>
+                    <span className="text-[10px] text-gray-700 group-hover:text-gray-400">↗</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Sprint progress mini-map */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[10px] text-gray-600 uppercase tracking-wider">Спринт: {dayData.sprint}</div>
+                <div className="text-[10px] text-gray-700">{completedDays.filter(d=>d>=sprintStart&&d<sprintStart+10).length}/10</div>
+              </div>
+              <div className="flex gap-1.5">
+                {sprintDays.map(d=>(
+                  <button key={d} onClick={()=>setCurrentDay(d)}
+                    className={`flex-1 h-8 rounded-lg flex items-center justify-center text-[10px] transition-all ${
+                      d===currentDay?"bg-white/10 text-white border border-white/15":
+                      completedDays.includes(d)?"bg-emerald-500/10 text-emerald-400/60":"bg-white/[0.02] text-gray-700 hover:bg-white/[0.04]"}`}>
+                    {d%10||10}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick links / explore */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-5 backdrop-blur-sm">
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-3">🔗 Ещё</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Медитации", url: "https://www.headspace.com/meditation", icon: "🧘" },
+                  { label: "TED Talks", url: "https://www.ted.com/topics/personal+growth", icon: "🎤" },
+                  { label: "Stoic Quotes", url: "https://dailystoic.com/stoic-quotes/", icon: "🏛️" },
+                  { label: "Breathwork", url: "https://www.wimhofmethod.com/breathing-exercises", icon: "🫁" },
+                  { label: "Journaling Guide", url: "https://bulletjournal.com/blogs/faq", icon: "📓" },
+                  { label: "Sleep Science", url: "https://www.sleepfoundation.org/", icon: "🌙" },
+                ].map((l,i)=>(
+                  <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.01] border border-white/[0.03] hover:border-white/[0.10] hover:bg-white/[0.03] transition-all">
+                    <span className="text-sm opacity-60">{l.icon}</span>
+                    <span className="text-[11px] text-gray-500 hover:text-gray-300">{l.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Overall progress */}
+            <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-4 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] text-gray-600">Общий прогресс</div>
+                <div className="text-xs text-white/70">{completedDays.length}/100</div>
+              </div>
+              <div className="mt-2 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-violet-500/50 to-cyan-500/50 transition-all duration-700" style={{width:`${pct}%`}} />
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* ─── AI Chat bar (fixed bottom) ─── */}
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <div className="mx-auto max-w-[520px] lg:max-w-[900px]">
+            {/* Chat messages (collapsible above input) */}
+            {chatMessages.length > 0 && (
+              <div className="mx-3 mb-1 max-h-[200px] overflow-y-auto rounded-t-2xl bg-[#0a0a18]/90 backdrop-blur-xl border border-b-0 border-white/[0.06] px-4 py-3">
+                <div className="space-y-2.5">
+                  {chatMessages.map((m,i)=>(
+                    <div key={i} className={`flex ${m.role==="user"?"justify-end":"justify-start"}`}>
+                      <div className={`max-w-[80%] px-3 py-2 rounded-xl text-[12px] leading-relaxed ${
+                        m.role==="ai"?"bg-white/[0.04] text-gray-400":"bg-violet-500/10 text-violet-300 border border-violet-500/10"}`}>
+                        {m.role==="ai" && <span className="text-violet-400/60 text-[10px] font-medium">X100 AI · </span>}
+                        {m.text}
+                      </div>
                     </div>
                   ))}
+                  <div ref={chatEndRef} />
                 </div>
               </div>
-
-              {/* Mood history */}
-              {Object.keys(user.moods).length > 0 && (
-                <div>
-                  <div className="text-xs text-gray-500 mb-3">Настроение за неделю</div>
-                  <div className="flex gap-1.5">
-                    {Array.from({ length: 7 }, (_, i) => day - 6 + i).filter((d) => d > 0).map((d) => {
-                      const m = user.moods[d];
-                      return (
-                        <div key={d} className="flex-1 text-center">
-                          <div className="text-base mb-1">{m ? MOOD_MAP[m].emoji : "·"}</div>
-                          <div className={`text-[9px] ${d === day ? "text-white" : "text-gray-700"}`}>{d}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            )}
+            {/* Input bar */}
+            <div className="mx-3 mb-3 flex items-center gap-2 bg-[#0a0a18]/90 backdrop-blur-xl border border-white/[0.08] rounded-2xl px-4 py-2.5">
+              <span className="text-violet-400/50 text-[10px] font-medium shrink-0">X100</span>
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}}
+                className="flex-1 bg-transparent text-sm text-gray-300 focus:outline-none placeholder:text-gray-700"
+                placeholder="Напиши что-нибудь..." />
+              {chatInput.trim() && (
+                <button onClick={sendChat}
+                  className="w-7 h-7 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-400 text-xs hover:bg-violet-500/25 transition-all shrink-0">
+                  ↑
+                </button>
               )}
             </div>
-          )}
-
-          {/* ═══ PROFILE ═══ */}
-          {tab === "profile" && (
-            <div className="space-y-6">
-              <div className="text-center py-4">
-                <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-2xl mx-auto mb-3">
-                  {sprint.icon}
-                </div>
-                <div className="text-base font-semibold text-white">{user.name}</div>
-                <div className="text-xs text-gray-500 mt-1">День {day} · Спринт {sprint.id}</div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                  <span className="text-xs text-gray-500">Начало пути</span>
-                  <span className="text-xs text-gray-400">{new Date(user.startDate).toLocaleDateString("ru")}</span>
-                </div>
-                <div className="flex justify-between p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                  <span className="text-xs text-gray-500">Фокус</span>
-                  <span className="text-xs text-gray-400">{realmLabels[user.focus]?.label || user.focus}</span>
-                </div>
-                <div className="flex justify-between p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                  <span className="text-xs text-gray-500">Время в день</span>
-                  <span className="text-xs text-gray-400">{user.timePerDay} мин</span>
-                </div>
-                <div className="flex justify-between p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                  <span className="text-xs text-gray-500">Пройдено</span>
-                  <span className="text-xs text-gray-400">{user.completedDays.length} / 100 дней</span>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-white/[0.04]">
-                <div className="text-[10px] text-gray-700 text-center mb-3">X100 · 100 дней трансформации</div>
-                <button onClick={() => { if (confirm("Сбросить весь прогресс?")) { localStorage.removeItem("x100_oasis"); setUser(null); }}}
-                  className="w-full py-2.5 rounded-xl text-xs text-gray-700 hover:text-rose-400 transition-colors">
-                  Начать заново
-                </button>
-              </div>
-            </div>
-          )}
-        </main>
+          </div>
+        </div>
       </div>
+
+      {/* Global styles */}
+      <style jsx global>{`
+        @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out; }
+        * { -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 0; background: transparent; }
+        html { -webkit-font-smoothing: antialiased; }
+        @media (min-width: 1024px) {
+          .lg\\:grid { display: grid !important; }
+          .lg\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }
