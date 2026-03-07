@@ -16,6 +16,7 @@ interface Msg {
   thinkingSteps?: string[]
   thinkingOpen?: boolean
   thinkingDone?: boolean
+  feedback?: 'up' | 'down' | null
 }
 
 interface Session {
@@ -129,6 +130,29 @@ function CopyResponseBtn({ text }: { text: string }) {
 function MsgContent({ content, streaming }: { content: string; streaming?: boolean }) {
   return (
     <div className="text-sm space-y-0.5">
+      {settingsOpen && (
+        <div className="fixed top-14 right-4 z-50 w-64 bg-[#0a0a14]/98 border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.06]">
+            <p className="text-[11px] text-gray-500 uppercase tracking-widest">Настройки</p>
+          </div>
+          <div className="px-4 py-3 space-y-3">
+            <div>
+              <p className="text-[11px] text-gray-500 mb-2">Стиль ответов</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['default', 'concise', 'detailed', 'friendly'] as const).map(s => (
+                  <button key={s} onClick={() => setStyle(s)}
+                    className={`px-2 py-1.5 rounded-lg text-[11px] border transition-all ${aiStyle === s ? 'bg-[#00FF9D]/10 border-[#00FF9D]/25 text-[#00FF9D]/80' : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300'}`}>
+                    {s === 'default' ? '⚡ Default' : s === 'concise' ? '✂️ Кратко' : s === 'detailed' ? '📖 Подробно' : '😊 Дружелюбно'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-2 border-t border-white/[0.06]">
+            <button onClick={() => setSettingsOpen(false)} className="text-[10px] text-gray-700 hover:text-gray-500 w-full text-center">Закрыть</button>
+          </div>
+        </div>
+      )}
       <SessionsDrawer open={sessionsOpen} onClose={() => setSessionsOpen(false)} sessions={sessions} currentId={sessionId} onSelect={handleSelectSession} onNew={handleNewSession} onDelete={handleDeleteSession} />
       {renderMarkdown(content)}
       {streaming && <span className="inline-block w-1.5 h-4 bg-[#00FF9D] rounded-sm ml-0.5 animate-pulse align-middle" />}
@@ -256,6 +280,27 @@ export default function AIPage() {
   const fileRef   = useRef<HTMLInputElement>(null)
   const msgsRef   = useRef<Msg[]>([])
   const abortRef  = useRef<AbortController | null>(null)
+
+
+  // Settings
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [aiStyle, setAiStyle] = useState<'default' | 'concise' | 'detailed' | 'friendly'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('godlocal_ai_style') as any) || 'default'
+    return 'default'
+  })
+  const setStyle = (s: typeof aiStyle) => {
+    setAiStyle(s)
+    if (typeof window !== 'undefined') localStorage.setItem('godlocal_ai_style', s)
+  }
+  const giveFeedback = (id: string, vote: 'up' | 'down') => {
+    setMsgs(prev => prev.map(m => m.id === id ? { ...m, feedback: vote } : m))
+    try {
+      const key = 'godlocal_feedback'
+      const existing = JSON.parse(localStorage.getItem(key) || '[]')
+      existing.push({ id, vote, ts: Date.now() })
+      localStorage.setItem(key, JSON.stringify(existing.slice(-100)))
+    } catch {}
+  }
 
   // Sessions
   const [sessionsOpen, setSessionsOpen] = useState(false)
@@ -442,7 +487,7 @@ export default function AIPage() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgMime }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgMime, style: aiStyle }),
         signal: ac.signal,
       })
 
@@ -522,7 +567,8 @@ export default function AIPage() {
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#00FF9D] animate-pulse" />
           <span className="text-[10px] md:text-xs text-white/35 font-mono hidden sm:block">online</span>
-          <button onClick={() => setSessionsOpen(true)} title="История сессий" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 transition-all text-sm">☰</button>
+          <button onClick={() => setSettingsOpen(s => !s)} title="Настройки" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 transition-all text-sm">⚙️</button>
+              <button onClick={() => setSessionsOpen(true)} title="История сессий" className="w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 transition-all text-sm">☰</button>
               <button onClick={() => setRadioOpen(r => !r)} title="Radio"
              className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#00FF9D]/40 bg-[#00FF9D]/10 text-[#00FF9D] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
             <span className="text-xs">📻</span>
@@ -595,7 +641,20 @@ export default function AIPage() {
                       }`}>
                         {m.role === 'user'
                           ? <span className="text-sm leading-relaxed">{m.content}</span>
-                          : <><MsgContent content={m.content} streaming={m.streaming} />{!m.streaming && m.content && <CopyResponseBtn text={m.content} />}</>}
+                          : <>
+                          <MsgContent content={m.content} streaming={m.streaming} />
+                          {!m.streaming && m.content && <CopyResponseBtn text={m.content} />}
+                          {!m.streaming && m.content && (
+                            <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-white/[0.04]">
+                              <span className="text-[10px] text-gray-600">Полезно?</span>
+                              <button onClick={() => giveFeedback(m.id, 'up')}
+                                className={`text-sm transition-all ${m.feedback === 'up' ? 'text-[#00FF9D]' : 'text-gray-600 hover:text-[#00FF9D]'}`}>👍</button>
+                              <button onClick={() => giveFeedback(m.id, 'down')}
+                                className={`text-sm transition-all ${m.feedback === 'down' ? 'text-red-400' : 'text-gray-600 hover:text-red-400'}`}>👎</button>
+                              {m.feedback && <span className="text-[10px] text-gray-600 ml-1">{m.feedback === 'up' ? 'Спасибо!' : 'Учту'}</span>}
+                            </div>
+                          )}
+                        </>}
                       </div>
                     </div>
                   )}
