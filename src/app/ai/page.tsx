@@ -262,6 +262,7 @@ export default function AIPage() {
   const [loading, setLoading]           = useState(false)
   const [imgPreview, setImgPreview]     = useState<string | null>(null)
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
+  const [imgMime, setImgMime]           = useState<string>('image/jpeg')
 
   const [isListening, setIsListening] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
@@ -465,7 +466,7 @@ export default function AIPage() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgMime }),
         signal: ac.signal,
       })
 
@@ -503,7 +504,7 @@ export default function AIPage() {
       setLoading(false)
     }
 
-    setImgPreview(null); setImgBase64(null)
+    setImgPreview(null); setImgBase64(null); setImgMime("image/jpeg")
     // Mobile: dismiss keyboard, Desktop: keep focus
     const isMobile = 'ontouchstart' in globalThis
     if (isMobile) { inputRef.current?.blur() }
@@ -515,12 +516,20 @@ export default function AIPage() {
   }
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
+    const mime = file.type || 'image/jpeg'
+    setImgMime(mime)
     const reader = new FileReader()
     reader.onload = () => {
       const r = reader.result as string
-      setImgPreview(r); setImgBase64(r.split(',')[1])
+      // r = "data:image/png;base64,XXXX" — send full data URL so API can detect mime
+      setImgPreview(mime === 'application/pdf' ? '📄 PDF attached' : r)
+      setImgBase64(r) // send full data URL, API strips the prefix correctly
     }
-    reader.readAsDataURL(file)
+    if (mime === 'application/pdf') {
+      reader.readAsDataURL(file)
+    } else {
+      reader.readAsDataURL(file)
+    }
   }
 
   const toggleThinking = (id: string) =>

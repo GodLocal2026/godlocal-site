@@ -49,15 +49,17 @@ Today is ${dateStr}, ${timeStr} UTC. The year is 2026.
 ## Available Tools
 You have these tools \u2014 use them proactively:
 - **web_search** \u2014 search the web for current info, prices, news, docs
-- **send_telegram** \u2014 send a message/note to user's Telegram channel (use as notebook)
+- **send_telegram** \u2014 send a message/note to user's Telegram channel
 - **post_tweet** \u2014 post a tweet to user's X/Twitter account
 - **search_twitter** \u2014 search recent tweets on X/Twitter
+- **github_code** \u2014 read/write/create files on GitHub, list repo contents, commit code
 
 When to use each:
-- "save this" / "note" / "send to telegram" / "remember" \u2192 send_telegram
-- "tweet" / "post on X" / "publish" \u2192 post_tweet
+- "save this" / "note" / "send to telegram" \u2192 send_telegram
+- "tweet" / "post on X" \u2192 post_tweet
 - "what's trending" / "search X for" \u2192 search_twitter
 - prices, news, facts \u2192 web_search
+- "show me file X", "read repo", "create file", "push code", "edit X on GitHub" \u2192 github_code
 
 If a service isn't configured, tell the user to set it up in Settings.
 
@@ -164,6 +166,81 @@ async function tavilySearch(query: string): Promise<string> {
   }
 }
 
+
+async function executeGithub(args: Record<string, string>): Promise<string> {
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+  if (!GITHUB_TOKEN) return 'GitHub not configured: add GITHUB_TOKEN to env vars.';
+  
+  const headers: Record<string, string> = {
+    'Authorization': `token ${GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+  };
+  
+  const { action, owner, repo, path = '', content = '', message = 'Updated by GodLocal AI', query = '' } = args;
+  const base = `https://api.github.com`;
+  
+  try {
+    if (action === 'list_files') {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
+      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data.map((f: {name: string; type: string; size?: number}) => `${f.type === 'dir' ? '📁' : '📄'} ${f.name}${f.size ? ` (${f.size}b)` : ''}`).join('\n');
+      }
+      return JSON.stringify(data).slice(0, 1000);
+    }
+    
+    if (action === 'read_file') {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
+      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
+      const data = await res.json();
+      if (data.encoding === 'base64' && data.content) {
+        return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8');
+      }
+      return data.content || 'Empty file';
+    }
+    
+    if (action === 'write_file' || action === 'create_file') {
+      // Get current SHA if updating
+      let sha = '';
+      const existing = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, { headers });
+      if (existing.ok) {
+        const d = await existing.json();
+        sha = d.sha || '';
+      }
+      
+      const body: Record<string, string> = {
+        message,
+        content: Buffer.from(content, 'utf-8').toString('base64'),
+      };
+      if (sha) body.sha = sha;
+      
+      const res = await fetch(`${base}/repos/${owner}/${repo}/contents/${path}`, {
+        method: 'PUT', headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return `GitHub error ${res.status}: ${await res.text()}`;
+      const data = await res.json();
+      return `✅ File ${sha ? 'updated' : 'created'}: ${path}\nCommit: ${data.commit?.sha?.slice(0, 8)} — ${data.commit?.html_url || ''}`;
+    }
+    
+    if (action === 'search_code') {
+      const q = owner && repo ? `${query} repo:${owner}/${repo}` : query;
+      const res = await fetch(`${base}/search/code?q=${encodeURIComponent(q)}&per_page=5`, { headers });
+      if (!res.ok) return `GitHub search error ${res.status}`;
+      const data = await res.json();
+      return (data.items || []).slice(0, 5).map((i: {name: string; path: string; html_url: string}) => 
+        `- [${i.name}](${i.html_url})\n  Path: ${i.path}`
+      ).join('\n\n');
+    }
+    
+    return 'Unknown GitHub action';
+  } catch (e) {
+    return `GitHub error: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 async function executeTool(
   name: string,
   args: Record<string, string>,
@@ -191,6 +268,8 @@ async function executeTool(
         userKeys['TWITTER_BEARER_TOKEN'] || '',
         args.query || ''
       );
+    case 'github_code':
+      return executeGithub(args);
     default:
       return `Unknown tool: ${name}`;
   }
@@ -211,7 +290,7 @@ export async function POST(req: NextRequest) {
     return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
   }
 
-  const { message, history = [], session_id = '', image = '' } = await req.json();
+  const { message, history = [], session_id = '', image = '', imageMime = '' } = await req.json();
   const recentHistory = history.slice(-16);
 
   // Anti-loop detection
@@ -241,8 +320,8 @@ export async function POST(req: NextRequest) {
     })),
     { role: 'user', content: image
       ? [
-          { type: 'text', text: message || 'What is in this image?' },
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } }
+          { type: 'text', text: message || 'Describe this image or file in detail.' },
+          { type: 'image_url', image_url: { url: image.startsWith('data:') ? image : `data:${imageMime || 'image/jpeg'};base64,${image}` } }
         ]
       : message
     },
@@ -338,7 +417,27 @@ export async function POST(req: NextRequest) {
           }
 
           // Execute all tool calls
-          const toolMessages = [...messages, choice.message];
+          const toolMessages = [...messages, choice.message  {
+    type: 'function' as const,
+    function: {
+      name: 'github_code',
+      description: 'Read files from GitHub, create/update files, list repo contents, search code, or commit changes. Use when user asks to read/write code on GitHub, view files, create a file, or push changes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['read_file', 'write_file', 'list_files', 'create_file', 'search_code'], description: 'What to do' },
+          owner: { type: 'string', description: 'GitHub repo owner/org' },
+          repo: { type: 'string', description: 'Repository name' },
+          path: { type: 'string', description: 'File path in the repo' },
+          content: { type: 'string', description: 'File content (for write/create)' },
+          message: { type: 'string', description: 'Commit message (for write/create)' },
+          query: { type: 'string', description: 'Search query (for search_code)' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+];
 
           for (const tc of toolCalls) {
             const fnName = tc.function?.name || '';
@@ -350,6 +449,9 @@ export async function POST(req: NextRequest) {
               send({ t: 'thinking', v: 'Posting to X/Twitter...' });
             } else if (fnName === 'search_twitter') {
               send({ t: 'thinking', v: 'Searching X/Twitter...' });
+            } else if (fnName === 'github_code') {
+              const actionName = fnArgs.action || 'accessing';
+              send({ t: 'thinking', v: `GitHub: ${actionName} ${fnArgs.path || fnArgs.repo || ''}...` });
             } else if (fnName === 'web_search') {
               send({ t: 'thinking', v: 'Searching the web...' });
             }
