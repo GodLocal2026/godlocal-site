@@ -15,6 +15,7 @@ export default function Header() {
           <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
           <Link href="/#how" className="hover:text-white transition-colors">How it works</Link>
           <Link href="/ai" className="hover:text-white transition-colors">GodLocal AI</Link>
+            <Link href="/codethinker" className="hover:text-white transition-colors">CodeThinker</Link>
           <Link href="/nebudda" className="hover:text-white transition-colors">NEBUDDA</Link>
           <Link href="/#projects" className="hover:text-white transition-colors">Projects</Link>
           <a href="https://twitter.com/oassisx100" target="_blank" rel="noopener" className="hover:text-white transition-colors">Twitter</a>
@@ -45,6 +46,7 @@ export default function Header() {
           <Link href="/#features" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">Features</Link>
           <Link href="/#how" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">How it works</Link>
           <Link href="/ai" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">GodLocal AI</Link>
+            <Link href="/codethinker" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">CodeThinker</Link>
           <Link href="/nebudda" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">NEBUDDA</Link>
           <Link href="/#projects" onClick={() => setOpen(false)} className="block text-gray-300 hover:text-white py-2">Projects</Link>
           <a href="https://github.com/GodLocal2026/godlocal" target="_blank" rel="noopener" className="block text-gray-300 hover:text-white py-2">GitHub</a>

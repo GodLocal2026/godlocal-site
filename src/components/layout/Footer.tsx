@@ -11,6 +11,7 @@ export default function Footer() {
           </Link>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
             <Link href="/ai" className="hover:text-white transition-colors">GodLocal AI</Link>
+            <Link href="/codethinker" className="hover:text-white transition-colors">CodeThinker</Link>
             <Link href="/nebudda" className="hover:text-white transition-colors">NEBUDDA</Link>
             <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
             <Link href="/#projects" className="hover:text-white transition-colors">Projects</Link>
