@@ -78,9 +78,9 @@ You are a patient code teacher.
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history = [], session_id, mode = 'vibe' } = await req.json();
+    const { message, history = [], session_id, mode = 'vibe', image } = await req.json();
 
-    if (!message?.trim()) {
+    if (!message?.trim() && !image) {
       return NextResponse.json({ error: 'Empty message' }, { status: 400 });
     }
 
@@ -90,10 +90,23 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = getSystemPrompt(mode);
 
+    // Build user message content — multimodal when image is provided
+    const userContent: unknown = image
+      ? [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+          { type: 'text', text: message?.trim() || 'Опиши этот код / изображение и помоги с ним.' },
+        ]
+      : (message?.trim() || '');
+
+    // Use vision-capable model when image is attached
+    const activeModel = image
+      ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+      : MODEL;
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...history.slice(-20),
-      { role: 'user', content: message },
+      { role: 'user', content: userContent },
     ];
 
     const groqRes = await fetch(GROQ_URL, {
@@ -103,7 +116,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: activeModel,
         messages,
         temperature: 0.4,
         max_tokens: 8192,
