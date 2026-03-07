@@ -97,6 +97,27 @@ function renderMarkdown(text: string): React.ReactNode[] {
   return nodes
 }
 
+
+// ── Copy Response Button ────────────────────────────────────────────────────
+function CopyResponseBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={handleCopy}
+      className="flex items-center gap-1 text-[10px] font-mono text-white/25 hover:text-white/60 transition-colors mt-1.5 ml-auto">
+      {copied ? (
+        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Copied</>
+      ) : (
+        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
+      )}
+    </button>
+  )
+}
+
 function MsgContent({ content, streaming }: { content: string; streaming?: boolean }) {
   return (
     <div className="text-sm space-y-0.5">
@@ -460,7 +481,7 @@ export default function AIPage() {
                       }`}>
                         {m.role === 'user'
                           ? <span className="text-sm leading-relaxed">{m.content}</span>
-                          : <MsgContent content={m.content} streaming={m.streaming} />}
+                          : <><MsgContent content={m.content} streaming={m.streaming} />{!m.streaming && m.content && <CopyResponseBtn text={m.content} />}</>}
                       </div>
                     </div>
                   )}

@@ -36,6 +36,27 @@ const QUICK: Record<Mode, string[]> = {
 
 function uid() { return Math.random().toString(36).slice(2) }
 
+
+// ── Copy Response Button ────────────────────────────────────────────────────
+function CopyResponseBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={handleCopy}
+      className="flex items-center gap-1 text-[10px] font-mono text-violet-400/40 hover:text-violet-300 transition-colors mt-1.5 ml-auto">
+      {copied ? (
+        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Скопировано</>
+      ) : (
+        <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Копировать</>
+      )}
+    </button>
+  )
+}
+
 // ── Code Block Renderer ─────────────────────────────────────────────────────
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   const [copied, setCopied] = useState(false)
@@ -366,6 +387,7 @@ export default function CodeThinkerPage() {
                 )}
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3">
                   <MsgContent content={msg.content} streaming={msg.streaming} />
+                  {!msg.streaming && msg.content && <CopyResponseBtn text={msg.content} />}
                 </div>
               </div>
             )}
