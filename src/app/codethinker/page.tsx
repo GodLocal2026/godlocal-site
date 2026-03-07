@@ -433,7 +433,7 @@ export default function CodeThinkerPage() {
                   <p className="text-white/45 text-xs md:text-sm">Your AI with memory, search, and tools</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 w-full max-w-xs md:max-w-md px-2">
-                  {QUICK.map(q => (
+                  {QUICK[mode].map(q => (
                     <button key={q} onClick={() => send(q)}
                       className="text-left text-[11px] md:text-xs px-3 py-2.5 md:py-3 rounded-xl border border-white/10 bg-black/30 hover:bg-[#A78BFA]/10 hover:border-[#A78BFA]/35 transition-all text-white/50 hover:text-white/85 leading-snug backdrop-blur-sm">
                       {q}
