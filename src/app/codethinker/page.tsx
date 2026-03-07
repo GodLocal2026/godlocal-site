@@ -393,13 +393,13 @@ export default function CodeThinkerPage() {
 
   return (
     <div
-      className="flex flex-col h-screen text-[#E0E0E0] font-sans relative overflow-hidden"
+      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden" style={{ height: "100dvh" }}
       style={{ backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
       
 
-      <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
+      <header className="relative z-10 shrink-0 flex items-center justify-between py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur" style={{ paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))', paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-3">
           <span className="text-lg md:text-xl">{"⚡"}</span>
           <span className="font-bold text-white tracking-tight text-sm md:text-base">GodLocal</span>
@@ -425,7 +425,7 @@ export default function CodeThinkerPage() {
       <div className="relative z-10 flex flex-1 overflow-hidden justify-center">
         <div className="flex flex-col w-full md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-hidden">
 
-          <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 md:py-6 space-y-3 md:space-y-4"
+          <div className="flex-1 overflow-y-auto py-4 md:py-6 space-y-3 md:space-y-4" style={{ paddingLeft: 'max(12px, env(safe-area-inset-left))', paddingRight: 'max(12px, env(safe-area-inset-right))' }}
             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.15) transparent' }}>
 
             {msgs.length === 0 && (
@@ -542,8 +542,8 @@ export default function CodeThinkerPage() {
           </AnimatePresence>
 
           {/* ── Mode selector ── */}
-          <div className="shrink-0 px-3 md:px-4 pb-2">
-            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="shrink-0 pb-2" style={{ paddingLeft: 'max(12px, env(safe-area-inset-left))', paddingRight: 'max(12px, env(safe-area-inset-right))' }}>
+            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {MODES.map(m => (
                 <button
                   key={m.key}
@@ -561,7 +561,7 @@ export default function CodeThinkerPage() {
             </div>
           </div>
 
-          <div className="shrink-0 px-3 md:px-4 pb-4 md:pb-6 pt-2">
+          <div className="shrink-0 pt-2" style={{ paddingLeft: 'max(12px, env(safe-area-inset-left))', paddingRight: 'max(12px, env(safe-area-inset-right))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-end gap-2 bg-black/50 border border-white/15 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-[#A78BFA]/40 transition-all backdrop-blur-md shadow-lg shadow-black/30">
               <button onClick={() => fileRef.current?.click()}
                 className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-white/35 hover:text-white/65 hover:bg-white/10 transition-all"
@@ -581,7 +581,7 @@ export default function CodeThinkerPage() {
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
                 placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
-                className="flex-1 bg-transparent resize-none outline-none text-base md:text-sm text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
+                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1" style={{ fontSize: '16px' }}
                 style={{ scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}
