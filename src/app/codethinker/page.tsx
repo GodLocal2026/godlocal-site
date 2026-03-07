@@ -189,6 +189,7 @@ export default function CodeThinkerPage() {
   const [loading, setLoading]           = useState(false)
   const [imgPreview, setImgPreview]     = useState<string | null>(null)
   const [imgBase64, setImgBase64]       = useState<string | null>(null)
+  const [imgMime, setImgMime]            = useState<string>('image/jpeg')
   const [mode, setMode]                 = useState<Mode>('vibe')
 
   const [isListening, setIsListening] = useState(false)
@@ -336,7 +337,7 @@ export default function CodeThinkerPage() {
       const res = await fetch('/api/codethinker/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, mode }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', image: imgBase64 || undefined, imageMime: imgBase64 ? imgMime : undefined, mode }),
         signal: ac.signal,
       })
 
@@ -368,7 +369,7 @@ export default function CodeThinkerPage() {
       setLoading(false)
     }
 
-    setImgPreview(null); setImgBase64(null)
+    setImgPreview(null); setImgBase64(null); setImgMime('image/jpeg')
     // Mobile: dismiss keyboard, Desktop: keep focus
     const isMobile = 'ontouchstart' in globalThis
     if (isMobile) { inputRef.current?.blur() }
@@ -380,12 +381,15 @@ export default function CodeThinkerPage() {
   }
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
+    const mime = file.type || 'image/jpeg'
     const reader = new FileReader()
     reader.onload = () => {
       const r = reader.result as string
-      setImgPreview(r); setImgBase64(r.split(',')[1])
+      setImgPreview(r); setImgBase64(r.split(',')[1]); setImgMime(mime)
     }
     reader.readAsDataURL(file)
+    // Reset input so same file can be selected again
+    e.target.value = ''
   }
 
   const toggleThinking = (id: string) =>
@@ -509,7 +513,7 @@ export default function CodeThinkerPage() {
                 exit={{ opacity: 0, height: 0 }} className="shrink-0 px-3 md:px-4 pb-2">
                 <div className="relative inline-block">
                   <img src={imgPreview} alt="" className="h-16 md:h-20 rounded-xl object-cover border border-white/15" />
-                  <button onClick={() => { setImgPreview(null); setImgBase64(null) }}
+                  <button onClick={() => { setImgPreview(null); setImgBase64(null); setImgMime('image/jpeg') }}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white/25 hover:bg-white/45 text-xs flex items-center justify-center transition-all">{'\u2715'}</button>
                 </div>
               </motion.div>
@@ -580,8 +584,8 @@ export default function CodeThinkerPage() {
               </button>
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={3}
-                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-36 md:max-h-40 overflow-y-auto py-1"
+                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
+                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
                 style={{ fontSize: '16px', scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}

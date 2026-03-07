@@ -78,7 +78,7 @@ You are a patient code teacher.
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history = [], session_id, mode = 'vibe', image } = await req.json();
+    const { message, history = [], session_id, mode = 'vibe', image, imageMime = 'image/jpeg' } = await req.json();
 
     if (!message?.trim() && !image) {
       return NextResponse.json({ error: 'Empty message' }, { status: 400 });
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Build user message content — multimodal when image is provided
     const userContent: unknown = image
       ? [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+          { type: 'image_url', image_url: { url: `data:${imageMime};base64,${image}` } },
           { type: 'text', text: message?.trim() || 'Опиши этот код / изображение и помоги с ним.' },
         ]
       : (message?.trim() || '');
