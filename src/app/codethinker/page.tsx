@@ -580,8 +580,8 @@ export default function CodeThinkerPage() {
               </button>
               <input ref={fileRef} type="file" accept="image/*,.pdf,.txt,.csv,.json,.doc,.docx" className="hidden" onChange={onFile} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={1}
-                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-32 md:max-h-36 overflow-y-auto py-1"
+                placeholder={MODES.find(m => m.key === mode)?.desc ?? "Опиши идею — получи проект..."}  rows={3}
+                className="flex-1 bg-transparent resize-none outline-none text-white placeholder-white/30 leading-relaxed max-h-36 md:max-h-40 overflow-y-auto py-1"
                 style={{ fontSize: '16px', scrollbarWidth: 'none' }} />
               <button onClick={() => send()}
                 disabled={(!input.trim() && !imgBase64) || loading}
