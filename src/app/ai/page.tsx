@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
-const OasisAvatar = dynamic(() => import('@/components/OasisAvatar'), { ssr: false })
+const AIAvatar = dynamic(() => import('@/components/AIAvatar'), { ssr: false })
 
 interface Msg {
   id: string
@@ -22,7 +22,7 @@ const QUICK = [
   'What is GodLocal?',
   'How does TieredRouter work?',
   'Tell me about autonomous agents',
-  'What can Oasis do?',
+  'What can GodLocal AI do?',
 ]
 
 function uid() { return Math.random().toString(36).slice(2) }
@@ -164,7 +164,7 @@ function ThinkingBlock({
 }
 
 // ---------------------------------------------------------------------------
-export default function OasisPage() {
+export default function AIPage() {
   const [msgs, setMsgs]                 = useState<Msg[]>([])
   const [input, setInput]               = useState('')
   const [loading, setLoading]           = useState(false)
@@ -313,10 +313,10 @@ export default function OasisPage() {
     abortRef.current = ac
 
     try {
-      const res = await fetch('/api/oasis/chat', {
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('oasis_session_id') || '' : '', image: imgBase64 || undefined }),
+        body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('godlocal_ai_session_id') || '' : '', image: imgBase64 || undefined }),
         signal: ac.signal,
       })
 
@@ -377,13 +377,13 @@ export default function OasisPage() {
       style={{ backgroundImage: 'url(/oasis-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
-      <OasisAvatar talking={isTalking} />
+      <AIAvatar talking={isTalking} />
 
       <header className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-white/10 bg-black/30 backdrop-blur">
         <div className="flex items-center gap-3">
           <span className="text-lg md:text-xl">{"⚡"}</span>
           <span className="font-bold text-white tracking-tight text-sm md:text-base">GodLocal</span>
-          <span className="text-[10px] md:text-xs font-mono text-[#00FF9D]/70 border border-[#00FF9D]/25 px-2 py-0.5 rounded-full">OASIS</span>
+          <span className="text-[10px] md:text-xs font-mono text-[#00FF9D]/70 border border-[#00FF9D]/25 px-2 py-0.5 rounded-full">GodLocal AI</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#00FF9D] animate-pulse" />
@@ -392,7 +392,7 @@ export default function OasisPage() {
              className={`w-7 h-7 flex items-center justify-center rounded-xl border transition-all ${radioPlaying ? 'border-[#00FF9D]/40 bg-[#00FF9D]/10 text-[#00FF9D] animate-pulse' : 'border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20'}`}>
             <span className="text-xs">📻</span>
           </button>
-          <a href="/oasis/settings" title="Settings"
+          <a href="/ai/settings" title="Settings"
              className="ml-1 w-7 h-7 flex items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/30 hover:text-white/70 hover:bg-white/10 hover:border-white/20 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 1 21 12a10 10 0 0 1-1.93 7.07M4.93 4.93A10 10 0 0 0 3 12a10 10 0 0 0 1.93 7.07"/>
@@ -418,7 +418,7 @@ export default function OasisPage() {
                     animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
                     {"⚡"}
                   </motion.div>
-                  <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">GodLocal OASIS</h1>
+                  <h1 className="text-xl md:text-3xl font-bold text-white mb-2 tracking-tight">GodLocal AI</h1>
                   <p className="text-white/45 text-xs md:text-sm">Your AI with memory, search, and tools</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 w-full max-w-xs md:max-w-md px-2">

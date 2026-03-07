@@ -73,7 +73,7 @@ const SERVICES: ServiceConfig[] = [
     name: 'Groq AI',
     icon: '⚡',
     color: '#F55036',
-    description: 'Языковая модель для OASIS агента',
+    description: 'Языковая модель для GodLocal AI',
     fields: [
       { key: 'GROQ_API_KEY', label: 'API Key', placeholder: 'gsk_xxxxxxxxxxxxxxxxxxxx', type: 'password', hint: 'console.groq.com/keys' },
     ]
@@ -109,8 +109,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Use localStorage session_id (same as chat page)
-    let s = localStorage.getItem('oasis_session_id')
-    if (!s) { s = Math.random().toString(36).slice(2); localStorage.setItem('oasis_session_id', s) }
+    let s = localStorage.getItem('godlocal_ai_session_id')
+    if (!s) { s = Math.random().toString(36).slice(2); localStorage.setItem('godlocal_ai_session_id', s) }
     setSid(s)
     // Load saved keys
     fetch(`${API_BASE}/settings?session_id=${s}`)
@@ -184,7 +184,7 @@ export default function SettingsPage() {
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 pb-16">
         {/* Header */}
         <header className="flex items-center gap-3 mb-8">
-          <button onClick={() => router.push('/oasis')}
+          <button onClick={() => router.push('/ai')}
             className="w-8 h-8 flex items-center justify-center rounded-xl border border-white/15 bg-black/30 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m15 18-6-6 6-6"/>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
           </button>
           <div>
             <h1 className="text-white font-bold text-base tracking-tight">Подключения</h1>
-            <p className="text-white/35 text-xs font-mono">OASIS Agent · Integrations</p>
+            <p className="text-white/35 text-xs font-mono">GodLocal AI · Integrations</p>
           </div>
         </header>
 
@@ -282,7 +282,7 @@ export default function SettingsPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-white/15 font-mono mt-8">
-          OASIS Agent v18.0 · godlocal.ai
+          GodLocal AI v18.0 · godlocal.ai
         </p>
       </div>
 
