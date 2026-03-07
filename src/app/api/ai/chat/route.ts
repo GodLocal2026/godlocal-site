@@ -7,6 +7,20 @@ const MODEL = process.env.GODLOCAL_AI_MODEL || 'llama-3.3-70b-versatile';
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+// ── Retry helper for 429 rate limits ────────────────────────────────
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.status !== 429 || attempt === maxRetries) return res;
+    const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+    const waitMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(1000 * Math.pow(2, attempt), 30000);
+    console.log(`Rate limited (429), retry ${attempt + 1}/${maxRetries} after ${waitMs}ms`);
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+  throw new Error('Should not reach here');
+}
+
+
 function buildSystemPrompt(): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {
@@ -254,7 +268,7 @@ export async function POST(req: NextRequest) {
           max_tokens: 4096,
         };
 
-        const phase1Res = await fetch(GROQ_URL, {
+        const phase1Res = await fetchWithRetry(GROQ_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -269,7 +283,7 @@ export async function POST(req: NextRequest) {
           if (errText.includes('tool_use_failed') || errText.includes('failed_generation')) {
             send({ t: 'thinking', v: 'Retrying without tools...' });
             const retryBody = { model: MODEL, messages, stream: true, temperature: 0.7, max_tokens: 4096 };
-            const retryRes = await fetch(GROQ_URL, {
+            const retryRes = await fetchWithRetry(GROQ_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_API_KEY },
               body: JSON.stringify(retryBody),
@@ -352,7 +366,7 @@ export async function POST(req: NextRequest) {
           send({ t: 'thinking_done' });
 
           // Phase 2: Streaming response with tool results
-          const phase2Res = await fetch(GROQ_URL, {
+          const phase2Res = await fetchWithRetry(GROQ_URL, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

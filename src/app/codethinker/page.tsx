@@ -249,7 +249,14 @@ export default function CodeThinkerPage() {
         body: JSON.stringify({ message: msg, history, session_id: typeof window !== 'undefined' ? localStorage.getItem('codethinker_session_id') || '' : '', mode }),
       })
 
-      if (!res.ok || !res.body) throw new Error('API error')
+      if (!res.ok || !res.body) {
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}))
+          const wait = data.retry_after || 60
+          throw new Error(`⏳ Лимит запросов исчерпан. Подожди ${wait} сек и попробуй снова.`)
+        }
+        throw new Error('API error')
+      }
 
       const reader = res.body.getReader()
       const dec = new TextDecoder()
@@ -274,9 +281,9 @@ export default function CodeThinkerPage() {
         ...m, content: full.replace(/【.+?】/g, '').trim(), streaming: false, thinkingSteps: [...steps], thinkingDone: true, thinkingOpen: steps.length > 0
       } : m))
 
-    } catch {
+    } catch (e: unknown) {
       setMsgs(prev => prev.map(m => m.id === aiMsg.id ? {
-        ...m, content: '⚠️ Ошибка соединения. Попробуй ещё раз.', streaming: false, thinkingDone: true
+        ...m, content: e instanceof Error && e.message.startsWith('⏳') ? e.message : '⚠️ Ошибка соединения. Попробуй ещё раз.', streaming: false, thinkingDone: true
       } : m))
     } finally { setBusy(false) }
   }, [input, busy, msgs, mode])

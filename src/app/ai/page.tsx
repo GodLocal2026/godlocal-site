@@ -341,7 +341,13 @@ export default function AIPage() {
         signal: ac.signal,
       })
 
-      const reader = res.body!.getReader()
+      if (!res.ok) {
+          if (res.status === 429) {
+            setMsgs(prev => { const l = prev[prev.length - 1]; return l?.role === 'ai' ? [...prev.slice(0, -1), { ...l, content: '⏳ Лимит запросов. Подожди минуту и попробуй снова.', streaming: false, thinkingDone: true }] : prev })
+            setLoading(false); return
+          }
+        }
+        const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
