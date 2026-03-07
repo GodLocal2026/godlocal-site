@@ -32,6 +32,15 @@ const projects = [
     badge: 'Beta',
   },
   {
+    icon: '🐘',
+    name: 'slonik52',
+    tagline: 'AI Crypto Terminal',
+    description: 'Mobile-first crypto terminal for Solana. Real-time scanner, token analyzer with rug-score, on-chain holders, market overview, Phantom wallet + Jupiter swap.',
+    href: '/slonik52',
+    color: 'amber',
+    badge: 'Live',
+  },
+  {
     icon: '📱',
     name: 'Mobile App',
     tagline: 'GodLocal в кармане',
@@ -47,6 +56,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; glow:
   pink:    { bg: 'bg-pink-500/[0.08]',    border: 'border-pink-500/20',    text: 'text-pink-400',    glow: 'hover:shadow-pink-500/10',    badgeBg: 'bg-pink-500/[0.15]' },
   violet:  { bg: 'bg-violet-500/[0.08]',  border: 'border-violet-500/20',  text: 'text-violet-400',  glow: 'hover:shadow-violet-500/10',  badgeBg: 'bg-violet-500/[0.15]' },
   cyan:    { bg: 'bg-cyan-500/[0.08]',    border: 'border-cyan-500/20',    text: 'text-cyan-400',    glow: 'hover:shadow-cyan-500/10',    badgeBg: 'bg-cyan-500/[0.15]' },
+  amber:   { bg: 'bg-amber-500/[0.08]',   border: 'border-amber-500/20',   text: 'text-amber-400',   glow: 'hover:shadow-amber-500/10',   badgeBg: 'bg-amber-500/[0.15]' },
 };
 
 export default function Projects() {
