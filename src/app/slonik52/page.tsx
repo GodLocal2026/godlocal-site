@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
@@ -223,15 +222,15 @@ export default function Slonik52Page() {
         fetch(DEX + '/token-profiles/latest/v1').then(r => r.json()).catch(() => []),
       ])
       const search = await fetch(DEX + '/latest/dex/search?q=solana&rankBy=trendingScoreH6&order=desc').then(r => r.json()).catch(() => ({ pairs: [] }))
-      const boosts = (Array.isArray(boost) ? boost : []).filter((b: Record<string, string>) => b.chainId === 'solana').slice(0, 10)
-      const profiles = (Array.isArray(prof) ? prof : []).filter((b: Record<string, string>) => b.chainId === 'solana').slice(0, 8)
-      const addrs = [...new Set([...boosts.map((b: Record<string, string>) => b.tokenAddress), ...profiles.map((p: Record<string, string>) => p.tokenAddress)])].slice(0, 14)
+      const boosts = (Array.isArray(boost) ? boost : []).filter((b: any) => b.chainId === 'solana').slice(0, 10)
+      const profiles = (Array.isArray(prof) ? prof : []).filter((b: any) => b.chainId === 'solana').slice(0, 8)
+      const addrs = [...new Set([...boosts.map((b: any) => b.tokenAddress), ...profiles.map((p: any) => p.tokenAddress)])].slice(0, 14)
       let pairs: Record<string, unknown>[] = []
       if (addrs.length) {
         const r = await fetch(DEX + '/latest/dex/tokens/' + addrs.join(',')).then(x => x.json())
-        pairs = ((r.pairs || []) as Record<string, unknown>[]).filter((p: Record<string, string>) => p.chainId === 'solana')
+        pairs = ((r.pairs || []) as Record<string, unknown>[]).filter((p: any) => p.chainId === 'solana')
       }
-      const sp = ((search.pairs || []) as Record<string, unknown>[]).filter((p: Record<string, string>) => p.chainId === 'solana').slice(0, 8)
+      const sp = ((search.pairs || []) as Record<string, unknown>[]).filter((p: any) => p.chainId === 'solana').slice(0, 8)
       const seen = new Set<string>()
       const all = [...pairs, ...sp].filter(p => {
         const bt = p.baseToken as Record<string, string> | undefined
@@ -242,8 +241,8 @@ export default function Slonik52Page() {
       })
       all.sort((a, b) => tokenScore(b) - tokenScore(a))
       setTokens(all.map(parsePair))
-    } catch (e) {
-      console.error('Scan error:', e)
+    } catch {
+      console.error('Scan error')
     } finally {
       setScanning(false)
     }
@@ -260,7 +259,7 @@ export default function Slonik52Page() {
     setHolders([])
     try {
       const dexRes = await fetch(DEX + '/latest/dex/tokens/' + addr).then(x => x.json())
-      const pairs = ((dexRes.pairs || []) as Record<string, unknown>[]).filter((p: Record<string, string>) => p.chainId === 'solana')
+      const pairs = ((dexRes.pairs || []) as Record<string, unknown>[]).filter((p: any) => p.chainId === 'solana')
       if (!pairs.length) { setAnalyzing(false); return }
       const token = parsePair(pairs[0])
       setAnalyzeResult(token)
@@ -279,8 +278,8 @@ export default function Slonik52Page() {
         }))
         setHolders(parsed)
       } catch { /* holders optional */ }
-    } catch (e) {
-      console.error('Analyze error:', e)
+    } catch {
+      console.error('Analyze error')
     } finally {
       setAnalyzing(false)
     }
@@ -300,8 +299,8 @@ export default function Slonik52Page() {
       }
       const data = await fetch(url).then(r => r.json())
       if (Array.isArray(data)) setMarketCoins(data)
-    } catch (e) {
-      console.error('Market error:', e)
+    } catch {
+      console.error('Market error')
     } finally {
       setMarketLoading(false)
     }
@@ -332,8 +331,8 @@ export default function Slonik52Page() {
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [addr] })
       }).then(r => r.json())
       setSolBalance((balRes.result?.value || 0) / 1e9)
-    } catch (e) {
-      console.error('Wallet error:', e)
+    } catch {
+      console.error('Wallet error')
     }
   }, [])
 
@@ -377,7 +376,7 @@ export default function Slonik52Page() {
       response = '🎰 Fetching latest Pump.fun tokens...'
       try {
         const res = await fetch(DEX + '/latest/dex/search?q=pump.fun&rankBy=trendingScoreH1&order=desc').then(r => r.json())
-        const pumpPairs = ((res.pairs || []) as Record<string, unknown>[]).filter((p: Record<string, string>) => p.chainId === 'solana').slice(0, 5)
+        const pumpPairs = ((res.pairs || []) as Record<string, unknown>[]).filter((p: any) => p.chainId === 'solana').slice(0, 5)
         if (pumpPairs.length) {
           const list = pumpPairs.map((p, i) => {
             const bt = p.baseToken as Record<string, string>
