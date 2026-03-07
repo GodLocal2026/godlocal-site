@@ -393,8 +393,8 @@ export default function CodeThinkerPage() {
 
   return (
     <div
-      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden"
-      style={{ height: "100dvh", backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+      className="flex flex-col text-[#E0E0E0] font-sans relative overflow-hidden" style={{ height: "100dvh" }}
+      style={{ backgroundImage: 'url(/codethinker-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-0" />
       
@@ -425,8 +425,8 @@ export default function CodeThinkerPage() {
       <div className="relative z-10 flex flex-1 overflow-hidden justify-center">
         <div className="flex flex-col w-full md:max-w-2xl lg:max-w-3xl xl:max-w-4xl overflow-hidden">
 
-          <div className="flex-1 overflow-y-auto py-4 md:py-6 space-y-3 md:space-y-4" style={{ paddingLeft: 'max(12px, env(safe-area-inset-left))', paddingRight: 'max(12px, env(safe-area-inset-right))' }}
-            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.15) transparent' }}>
+          <div className="flex-1 overflow-y-auto py-4 md:py-6 space-y-3 md:space-y-4"
+            style={{ paddingLeft: 'max(12px, env(safe-area-inset-left))', paddingRight: 'max(12px, env(safe-area-inset-right))', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,255,157,0.15) transparent' }}>
 
             {msgs.length === 0 && (
               <motion.div
